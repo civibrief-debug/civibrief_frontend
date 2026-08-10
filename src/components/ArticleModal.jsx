@@ -494,6 +494,35 @@ export const ArticleModal = ({ article, onClose, isLoggedIn, onOpenLogin, onLogi
             </div>
           </div>
 
+        {/* Kicker / Supertitle (Overline) */}
+        {article.kicker ? (
+          <div style={{
+            fontSize: `${Math.round(13 * zoomLevel)}px`,
+            fontWeight: 900,
+            color: 'var(--accent-gold, #d97706)',
+            textTransform: 'uppercase',
+            letterSpacing: '1.5px',
+            marginBottom: '8px',
+            fontFamily: 'var(--font-sans, sans-serif)'
+          }}>
+            {article.kicker}
+          </div>
+        ) : (
+          article.category && (
+            <div style={{
+              fontSize: `${Math.round(11 * zoomLevel)}px`,
+              fontWeight: 800,
+              color: 'var(--accent-crimson, #dc2626)',
+              textTransform: 'uppercase',
+              letterSpacing: '1px',
+              marginBottom: '6px',
+              fontFamily: 'var(--font-sans, sans-serif)'
+            }}>
+              {article.category}
+            </div>
+          )
+        )}
+
         {/* Article Headline with Dynamic Zoom Scaling */}
         <h1 style={{ 
           fontFamily: "var(--font-headline, Georgia, serif)", 

@@ -84,7 +84,7 @@ export default function HomePage() {
           <div className="hero-content">
             <div className="category-tag">
               <Sparkles size={13} />
-              <span>{liveFeatured.category || 'Technology'}</span>
+              <span>{liveFeatured.kicker ? liveFeatured.kicker.toUpperCase() : (liveFeatured.category || 'Technology')}</span>
             </div>
 
             <div onClick={() => setSelectedArticle(liveFeatured)} style={{ cursor: 'pointer' }}>
@@ -108,7 +108,7 @@ export default function HomePage() {
             <article key={story.id} className="secondary-card" onClick={() => setSelectedArticle(story)} style={{ cursor: 'pointer' }}>
               <div className="secondary-content">
                 <div className="category-tag" style={{ fontSize: '10px' }}>
-                  {story.category}
+                  {story.kicker ? <span style={{ color: 'var(--accent-gold, #d97706)', fontWeight: 800 }}>{story.kicker}</span> : story.category}
                 </div>
                 <h3 className="secondary-title">{story.title}</h3>
                 <div style={{ fontSize: '12px', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '6px', marginTop: '6px' }}>
@@ -147,7 +147,7 @@ export default function HomePage() {
               />
               <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
                 <div className="category-tag" style={{ fontSize: '10px' }}>
-                  {article.category}
+                  {article.kicker ? <span style={{ color: 'var(--accent-gold, #d97706)', fontWeight: 800 }}>{article.kicker}</span> : article.category}
                 </div>
                 <h2 style={{ fontFamily: 'var(--font-serif)', fontSize: '20px', fontWeight: 800, color: 'var(--text-primary)', lineHeight: 1.3, marginBottom: '8px' }}>
                   {article.title}
