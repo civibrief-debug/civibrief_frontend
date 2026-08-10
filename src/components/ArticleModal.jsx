@@ -3,6 +3,7 @@ import ShareModal from './ShareModal';
 import { 
   X, 
   Play,
+  Pause,
   Volume2, 
   VolumeX, 
   Bookmark, 
@@ -21,6 +22,8 @@ export const ArticleModal = ({ article, onClose, isLoggedIn, onOpenLogin, onLogi
 
   const [zoomLevel, setZoomLevel] = useState(1.0); // 0.7 to 1.8 document zoom scale
   const [isPlayingAudio, setIsPlayingAudio] = useState(false);
+  const [isPausedAudio, setIsPausedAudio] = useState(false);
+  const [isEnded, setIsEnded] = useState(false);
   const [playbackSpeed, setPlaybackSpeed] = useState(1.0); // Numeric speed float (1.0 = Normal)
   const [showSpeedMenu, setShowSpeedMenu] = useState(false);
   const [audioProgress, setAudioProgress] = useState(0); // 0 to 100%
@@ -28,16 +31,35 @@ export const ArticleModal = ({ article, onClose, isLoggedIn, onOpenLogin, onLogi
   const [isBookmarked, setIsBookmarked] = useState(false);
   const [showShareModal, setShowShareModal] = useState(false);
 
+  const audioRef = useRef(null);
   const utteranceRef = useRef(null);
-  const startTimeRef = useRef(null);
   const progressTimerRef = useRef(null);
   const speedMenuRef = useRef(null);
+  const chunkIndexRef = useRef(0);
+  const chunksRef = useRef([]);
+  const playbackSpeedRef = useRef(1.0);
+  const secondsPlayedRef = useRef(0);
+  const totalArticleCharsRef = useRef(0);
+  const chunkCharOffsetsRef = useRef([]);
+  const isPausedRef = useRef(false);
+  const isPlayingRef = useRef(false);
 
-  const paragraphs = (article.content || article.excerpt || "Full article text loading...").split('\n\n');
+  const paragraphs = (article.content || article.summary || article.excerpt || "").split('\n\n');
+
   const isDeepDive = article.category?.toUpperCase()?.includes('DEEP DIVE') || 
                      article.slug?.includes('deep-dive') ||
                      article.isDeepDive;
   const isGated = isDeepDive && !isLoggedIn;
+
+  // Pre-fetch voices when speech synthesis initializes
+  useEffect(() => {
+    if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+      window.speechSynthesis.getVoices();
+      window.speechSynthesis.onvoiceschanged = () => {
+        window.speechSynthesis.getVoices();
+      };
+    }
+  }, []);
 
   // Lock background scroll when modal is open & listen for Ctrl + / Ctrl - keyboard shortcuts
   useEffect(() => {
@@ -63,7 +85,14 @@ export const ArticleModal = ({ article, onClose, isLoggedIn, onOpenLogin, onLogi
       if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
         window.speechSynthesis.cancel();
       }
-      if (progressTimerRef.current) clearInterval(progressTimerRef.current);
+      if (audioRef && audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current.src = '';
+        audioRef.current = null;
+      }
+      if (progressTimerRef && progressTimerRef.current) {
+        clearInterval(progressTimerRef.current);
+      }
     };
   }, []);
 
@@ -78,93 +107,327 @@ export const ArticleModal = ({ article, onClose, isLoggedIn, onOpenLogin, onLogi
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  // Start or Toggle AI Voiceover Audio Reader with specific rate
-  const toggleAudioWithRate = (targetRate = playbackSpeed) => {
+  // Clean HTML markup into pure plain text for natural speech reading
+  const cleanHtmlText = (inputStr) => {
+    if (!inputStr) return '';
+    const formatted = inputStr
+      .replace(/<script[\s\S]*?<\/script>/gi, ' ')
+      .replace(/<style[\s\S]*?<\/style>/gi, ' ')
+      .replace(/<svg[\s\S]*?<\/svg>/gi, ' ')
+      .replace(/<img[\s\S]*?>/gi, ' ')
+      .replace(/data:image\/[a-zA-Z]+;base64,[a-zA-Z0-9+/=]+/g, ' ')
+      .replace(/<\/(h[1-6]|p|div|li|tr|blockquote)>/gi, '. ')
+      .replace(/<br\s*\/?>/gi, '. ')
+      .replace(/<[^>]*>/g, ' ');
+    
+    let text = formatted;
+    if (typeof window !== 'undefined' && window.DOMParser) {
+      try {
+        const doc = new DOMParser().parseFromString(formatted, 'text/html');
+        text = doc.body.textContent || formatted;
+      } catch (e) {
+        text = formatted;
+      }
+    }
+    return text.replace(/\s+/g, ' ').trim();
+  };
+
+  // Detect language of text for accurate TTS voice matching (Multilingual Support)
+  const detectLanguage = (text) => {
+    if (!text) return 'en-US';
+    if (/[\u0900-\u097F]/.test(text)) return 'hi-IN'; // Hindi / Devanagari
+    if (/[\u0B80-\u0BFF]/.test(text)) return 'ta-IN'; // Tamil
+    if (/[\u0C00-\u0C7F]/.test(text)) return 'te-IN'; // Telugu
+    if (/[\u0980-\u09FF]/.test(text)) return 'bn-IN'; // Bengali
+    if (/[\u0A80-\u0AFF]/.test(text)) return 'gu-IN'; // Gujarati
+    if (/[\u0600-\u06FF]/.test(text)) return 'ar-SA'; // Arabic
+    if (/[\u3040-\u30FF\u4E00-\u9FAF]/.test(text)) return 'ja-JP'; // Japanese
+    if (/[\u4E00-\u9FFF]/.test(text)) return 'zh-CN'; // Chinese
+    if (/[\u0400-\u04FF]/.test(text)) return 'ru-RU'; // Russian
+    if (/[áéíóúñ¿¡]/i.test(text)) return 'es-ES'; // Spanish
+    if (/[àâçèéêëîïôûùüÿæœ]/i.test(text)) return 'fr-FR'; // French
+    if (/[äöüß]/i.test(text)) return 'de-DE'; // German
+    return 'en-US';
+  };
+
+  const getVoiceForLanguage = (langCode) => {
+    if (typeof window === 'undefined' || !('speechSynthesis' in window)) return null;
+    const voices = window.speechSynthesis.getVoices();
+    if (!voices || voices.length === 0) return null;
+
+    const primaryLang = langCode.split('-')[0].toLowerCase();
+    let voice = voices.find(v => v.lang.toLowerCase().replace('_', '-') === langCode.toLowerCase());
+    if (voice) return voice;
+    voice = voices.find(v => v.lang.toLowerCase().startsWith(primaryLang));
+    if (voice) return voice;
+
+    if (primaryLang === 'en') {
+      voice = voices.find(v => v.name.includes('Natural') || v.name.includes('Google') || v.name.includes('Samantha') || v.name.includes('Daniel'));
+      if (voice) return voice;
+    }
+    return voices[0] || null;
+  };
+
+  // Split text into small sentence chunks (~150 chars) to bypass browser length limits
+  const createChunks = (fullText, maxLen = 150) => {
+    if (!fullText) return [];
+    const sentences = fullText.match(/[^.!?\n\r]+[.!?\n\r]+/g) || [fullText];
+    const chunks = [];
+    let current = '';
+
+    for (const sentence of sentences) {
+      if ((current + ' ' + sentence).length <= maxLen) {
+        current = current ? (current + ' ' + sentence) : sentence;
+      } else {
+        if (current) chunks.push(current.trim());
+        if (sentence.length > maxLen) {
+          const parts = sentence.match(/.{1,150}(\s+|$)/g) || [sentence];
+          parts.forEach(p => chunks.push(p.trim()));
+          current = '';
+        } else {
+          current = sentence;
+        }
+      }
+    }
+    if (current) chunks.push(current.trim());
+    return chunks.filter(c => c.length > 0);
+  };
+
+  // Helper to keep Audio State and Ref synchronized
+  const setAudioState = (playing, paused) => {
+    isPlayingRef.current = playing;
+    isPausedRef.current = paused;
+    setIsPlayingAudio(playing);
+    setIsPausedAudio(paused);
+  };
+
+  // Speed-Synchronized Realtime Timer Controller
+  const startSpeedTimer = (targetRate = playbackSpeedRef.current) => {
+    if (progressTimerRef.current) clearInterval(progressTimerRef.current);
+    const intervalMs = Math.max(250, Math.round(1000 / targetRate));
+    
+    progressTimerRef.current = setInterval(() => {
+      if (isPausedRef.current || !isPlayingRef.current) {
+        clearInterval(progressTimerRef.current);
+        return;
+      }
+      secondsPlayedRef.current += 1;
+      const mins = Math.floor(secondsPlayedRef.current / 60);
+      const secs = (secondsPlayedRef.current % 60).toString().padStart(2, '0');
+      setElapsedTimeStr(`${mins}:${secs}`);
+    }, intervalMs);
+  };
+
+  // Play chunk using Speech Synthesis (Human Spoken Voiceover)
+  const playChunk = (index, targetRate = playbackSpeedRef.current) => {
+    if (typeof window === 'undefined' || !('speechSynthesis' in window)) return;
+    if (isPausedRef.current || !isPlayingRef.current) return;
+
+    const chunks = chunksRef.current;
+    if (!chunks || index >= chunks.length) {
+      setAudioState(false, false);
+      setIsEnded(true);
+      setAudioProgress(100);
+      if (progressTimerRef.current) clearInterval(progressTimerRef.current);
+      return;
+    }
+
+    chunkIndexRef.current = index;
+    const text = chunks[index];
+    const utterance = new SpeechSynthesisUtterance(text);
+    utteranceRef.current = utterance;
+
+    const detectedLang = detectLanguage(text);
+    utterance.lang = detectedLang;
+    utterance.rate = Math.max(0.5, Math.min(3.0, targetRate));
+    utterance.pitch = 1.0;
+
+    const voice = getVoiceForLanguage(detectedLang);
+    if (voice) utterance.voice = voice;
+
+    // Word boundary event for smooth progress bar updates
+    utterance.onboundary = (event) => {
+      if (isPausedRef.current || !isPlayingRef.current) return;
+      const chunkStartOffset = chunkCharOffsetsRef.current[index] || 0;
+      const currentCharPos = chunkStartOffset + (event.charIndex || 0);
+      if (totalArticleCharsRef.current > 0) {
+        const pct = Math.min(99, Math.round((currentCharPos / totalArticleCharsRef.current) * 100));
+        setAudioProgress(pct);
+      }
+    };
+
+    utterance.onend = () => {
+      if (isPausedRef.current || !isPlayingRef.current) return;
+
+      if (chunkIndexRef.current < chunks.length - 1) {
+        const nextIdx = chunkIndexRef.current + 1;
+        playChunk(nextIdx, playbackSpeedRef.current);
+      } else {
+        setAudioState(false, false);
+        setIsEnded(true);
+        setAudioProgress(100);
+        if (progressTimerRef.current) clearInterval(progressTimerRef.current);
+      }
+    };
+
+    utterance.onerror = (err) => {
+      if (isPausedRef.current || !isPlayingRef.current) return;
+      console.warn("Speech synthesis chunk warning", err);
+      if (chunkIndexRef.current < chunks.length - 1) {
+        playChunk(chunkIndexRef.current + 1, playbackSpeedRef.current);
+      } else {
+        setAudioState(false, false);
+        setIsEnded(true);
+      }
+    };
+
+    window.speechSynthesis.speak(utterance);
+  };
+
+  // Start AI Voiceover Audio Reader across 100% of full article
+  const toggleAudioWithRate = (targetRate = playbackSpeedRef.current) => {
     if (typeof window === 'undefined' || !('speechSynthesis' in window)) {
       alert("Text-to-speech audio reader is not supported in this browser.");
       return;
     }
 
+    setAudioState(true, false);
+    setIsEnded(false);
     window.speechSynthesis.cancel();
 
-    const textToRead = `${article.title}. By ${article.author || 'The Daily Brief Bureau'}. ${paragraphs.slice(0, isGated ? 1 : paragraphs.length).join('. ')}`;
-    const utterance = new SpeechSynthesisUtterance(textToRead);
-    utteranceRef.current = utterance;
+    // Prepare clean text of FULL article (Title + Author + Body)
+    const cleanTitle = cleanHtmlText(article.title);
+    const cleanAuthor = cleanHtmlText(article.author || 'Staff Reporter');
+    const rawBody = article.content || article.summary || article.excerpt || '';
+    const cleanBody = cleanHtmlText(rawBody);
 
-    utterance.rate = targetRate;
-    utterance.pitch = 1.0;
+    const fullTextToRead = `${cleanTitle}. By ${cleanAuthor}. ${cleanBody}`;
+    const chunks = createChunks(fullTextToRead, 150);
+    chunksRef.current = chunks;
+    chunkIndexRef.current = 0;
+    totalArticleCharsRef.current = fullTextToRead.length;
 
-    // Select natural English voice if available
-    const voices = window.speechSynthesis.getVoices();
-    const englishVoice = voices.find(v => v.lang.startsWith('en') && (v.name.includes('Natural') || v.name.includes('Google') || v.name.includes('Samantha') || v.name.includes('Daniel'))) || voices.find(v => v.lang.startsWith('en'));
-    if (englishVoice) {
-      utterance.voice = englishVoice;
+    // Calculate cumulative character offsets for smooth progress
+    let cumulativeOffset = 0;
+    chunkCharOffsetsRef.current = chunks.map(c => {
+      const pos = cumulativeOffset;
+      cumulativeOffset += c.length + 1;
+      return pos;
+    });
+
+    if (chunks.length === 0) {
+      alert("No readable article text available.");
+      setAudioState(false, false);
+      return;
     }
 
-    const totalChars = textToRead.length;
-
-    utterance.onboundary = (event) => {
-      if (event.charIndex !== undefined && totalChars > 0) {
-        const progress = Math.min(100, Math.round((event.charIndex / totalChars) * 100));
-        setAudioProgress(progress);
-      }
-    };
-
-    utterance.onend = () => {
-      setIsPlayingAudio(false);
-      setAudioProgress(100);
-      if (progressTimerRef.current) clearInterval(progressTimerRef.current);
-    };
-
-    utterance.onerror = () => {
-      setIsPlayingAudio(false);
-      if (progressTimerRef.current) clearInterval(progressTimerRef.current);
-    };
-
-    window.speechSynthesis.speak(utterance);
-    setIsPlayingAudio(true);
     setAudioProgress(0);
     setElapsedTimeStr('0:00');
+    secondsPlayedRef.current = 0;
 
-    // Start time tracking
-    startTimeRef.current = Date.now();
-    if (progressTimerRef.current) clearInterval(progressTimerRef.current);
-    
-    let secondsPlayed = 0;
-    progressTimerRef.current = setInterval(() => {
-      secondsPlayed += 1;
-      const mins = Math.floor(secondsPlayed / 60);
-      const secs = (secondsPlayed % 60).toString().padStart(2, '0');
-      setElapsedTimeStr(`${mins}:${secs}`);
-
-      // Estimate progress bar fill based on character reading rate (approx 15 chars/sec * rate)
-      const estimatedTotalSecs = Math.max(15, Math.round(totalChars / (15 * targetRate)));
-      const estProgress = Math.min(99, Math.round((secondsPlayed / estimatedTotalSecs) * 100));
-      setAudioProgress(prev => Math.max(prev, estProgress));
-    }, 1000);
+    startSpeedTimer(targetRate);
+    playChunk(0, targetRate);
   };
 
+  // Instant Zero-Latency Play / Pause / Replay Toggle
   const toggleAudio = () => {
-    if (isPlayingAudio) {
+    if (typeof window === 'undefined' || !('speechSynthesis' in window)) {
+      alert("Text-to-speech audio reader is not supported in this browser.");
+      return;
+    }
+
+    // 1. REPLAY FIX: If finished (ended) -> RESET to 0:00 and replay full article from beginning!
+    if (isEnded || (chunksRef.current.length > 0 && chunkIndexRef.current >= chunksRef.current.length - 1 && audioProgress >= 98)) {
       window.speechSynthesis.cancel();
-      setIsPlayingAudio(false);
+      setAudioState(true, false);
+      setIsEnded(false);
+      chunkIndexRef.current = 0;
+      secondsPlayedRef.current = 0;
+      setAudioProgress(0);
+      setElapsedTimeStr('0:00');
+      startSpeedTimer(playbackSpeedRef.current);
+      playChunk(0, playbackSpeedRef.current);
+      return;
+    }
+
+    // 2. If currently PLAYING and NOT paused -> INSTANT PAUSE SILENCE (0ms delay)
+    if (isPlayingRef.current && !isPausedRef.current) {
+      setAudioState(true, true);
+      window.speechSynthesis.cancel(); // Cuts off speech voiceover instantly
       if (progressTimerRef.current) clearInterval(progressTimerRef.current);
+      return;
+    }
+
+    // 3. If currently PAUSED -> INSTANT RESUME from exact sentence
+    if (isPlayingRef.current && isPausedRef.current) {
+      setAudioState(true, false);
+      startSpeedTimer(playbackSpeedRef.current);
+      playChunk(chunkIndexRef.current, playbackSpeedRef.current);
+      return;
+    }
+
+    // 4. If NOT started -> Start full article speech reading
+    if (chunksRef.current.length > 0 && chunkIndexRef.current < chunksRef.current.length) {
+      setAudioState(true, false);
+      startSpeedTimer(playbackSpeedRef.current);
+      playChunk(chunkIndexRef.current, playbackSpeedRef.current);
     } else {
-      toggleAudioWithRate(playbackSpeed);
+      toggleAudioWithRate(playbackSpeedRef.current);
     }
   };
 
-  // Update speed dynamically (like YouTube)
+  // Update speed dynamically & sync elapsed time to content timestamp (YouTube Style)
   const updateSpeed = (newSpeed) => {
-    const rate = Math.max(0.25, Math.min(3.0, parseFloat(newSpeed.toFixed(2))));
+    const rate = Math.max(0.5, Math.min(3.0, parseFloat(newSpeed.toFixed(2))));
     setPlaybackSpeed(rate);
+    playbackSpeedRef.current = rate;
 
-    if (isPlayingAudio && typeof window !== 'undefined' && 'speechSynthesis' in window) {
+    // Convert elapsed seconds to current content position seconds so switching speeds doesn't jump
+    const currentOffset = chunkCharOffsetsRef.current[chunkIndexRef.current] || 0;
+    const contentSeconds = Math.round(currentOffset / 15);
+    secondsPlayedRef.current = contentSeconds;
+
+    const mins = Math.floor(contentSeconds / 60);
+    const secs = (contentSeconds % 60).toString().padStart(2, '0');
+    setElapsedTimeStr(`${mins}:${secs}`);
+
+    // If audio is currently playing, continue playing from exact current sentence at new speed
+    if (isPlayingRef.current && !isPausedRef.current && typeof window !== 'undefined' && 'speechSynthesis' in window) {
       window.speechSynthesis.cancel();
-      setIsPlayingAudio(false);
-      setTimeout(() => {
-        toggleAudioWithRate(rate);
-      }, 100);
+      startSpeedTimer(rate);
+      playChunk(chunkIndexRef.current, rate);
+    }
+    // If audio is currently paused, DO NOT start playback! Stay paused at exact timestamp!
+  };
+
+  // Interactive YouTube-Style Audio Seeking (Slide to any paragraph/part)
+  const handleSeekProgress = (targetPct) => {
+    const chunks = chunksRef.current;
+    if (!chunks || chunks.length === 0) return;
+
+    const targetChunkIdx = Math.min(
+      chunks.length - 1,
+      Math.max(0, Math.floor((targetPct / 100) * chunks.length))
+    );
+
+    const targetCharOffset = chunkCharOffsetsRef.current[targetChunkIdx] || 0;
+    const estimatedContentSeconds = Math.round(targetCharOffset / 15);
+    secondsPlayedRef.current = estimatedContentSeconds;
+
+    const mins = Math.floor(estimatedContentSeconds / 60);
+    const secs = (estimatedContentSeconds % 60).toString().padStart(2, '0');
+    setElapsedTimeStr(`${mins}:${secs}`);
+    setAudioProgress(targetPct);
+    setIsEnded(false);
+
+    chunkIndexRef.current = targetChunkIdx;
+
+    if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+      window.speechSynthesis.cancel();
+      if (isPlayingRef.current && !isPausedRef.current) {
+        startSpeedTimer(playbackSpeedRef.current);
+        playChunk(targetChunkIdx, playbackSpeedRef.current);
+      }
     }
   };
 
@@ -279,25 +542,25 @@ export const ArticleModal = ({ article, onClose, isLoggedIn, onOpenLogin, onLogi
                 width: '46px',
                 height: '46px',
                 borderRadius: '50%',
-                background: isPlayingAudio ? 'var(--accent-crimson, #dc2626)' : 'var(--accent-emerald, #059669)',
+                background: (isPlayingAudio && !isPausedAudio) ? 'var(--accent-crimson, #dc2626)' : 'var(--accent-emerald, #059669)',
                 color: '#fff',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
                 border: 'none',
                 cursor: 'pointer',
-                boxShadow: isPlayingAudio ? '0 0 18px rgba(220, 38, 38, 0.6)' : '0 0 18px rgba(5, 150, 105, 0.6)',
+                boxShadow: (isPlayingAudio && !isPausedAudio) ? '0 0 18px rgba(220, 38, 38, 0.6)' : '0 0 18px rgba(5, 150, 105, 0.6)',
                 flexShrink: 0,
                 transition: 'transform 0.15s ease'
               }}
-              title={isPlayingAudio ? "Stop AI Voiceover" : "Play AI Voiceover News"}
+              title={(isPlayingAudio && !isPausedAudio) ? "Pause AI Voiceover" : (isPausedAudio ? "Resume AI Voiceover" : "Play AI Voiceover News")}
             >
-              {isPlayingAudio ? <VolumeX size={22} /> : <Play size={22} style={{ marginLeft: '2px' }} />}
+              {(isPlayingAudio && !isPausedAudio) ? <Pause size={22} /> : <Play size={22} style={{ marginLeft: '2px' }} />}
             </button>
 
             <div>
-              <div style={{ fontSize: '11px', fontWeight: 800, color: isPlayingAudio ? '#f87171' : 'var(--accent-emerald, #34d399)', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '2px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <span>{isPlayingAudio ? "🎙️ READING NEWS ALOUD..." : "DAILY BRIEF AI VOICEOVER • LISTEN TO ARTICLE"}</span>
+              <div style={{ fontSize: '11px', fontWeight: 800, color: (isPlayingAudio && !isPausedAudio) ? '#f87171' : (isPausedAudio ? '#f59e0b' : 'var(--accent-emerald, #34d399)'), textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '2px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <span>{(isPlayingAudio && !isPausedAudio) ? "🎙️ READING NEWS ALOUD..." : (isPausedAudio ? "⏸️ VOICE PAUSED • CLICK TO RESUME" : "DAILY BRIEF AI VOICEOVER • LISTEN TO ARTICLE")}</span>
               </div>
               <div style={{ fontSize: '13.5px', fontWeight: 700, color: '#f8fafc', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '420px' }}>
                 {article.title}
@@ -305,19 +568,54 @@ export const ArticleModal = ({ article, onClose, isLoggedIn, onOpenLogin, onLogi
             </div>
           </div>
 
-          {/* Live Audio Playback Timer Bar */}
+          {/* Live Audio Playback Seekable Slider Bar (YouTube Style Seeking) */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flex: '1 1 240px' }}>
-            <span style={{ fontSize: '12px', color: '#94a3b8', fontFamily: 'var(--font-mono)', minWidth: '32px', fontWeight: 600 }}>
+            <span style={{ fontSize: '12px', color: '#94a3b8', fontFamily: 'var(--font-mono)', minWidth: '36px', fontWeight: 600 }}>
               {elapsedTimeStr}
             </span>
-            <div style={{ flex: 1, height: '6px', background: 'rgba(255,255,255,0.18)', borderRadius: '3px', overflow: 'hidden', position: 'relative' }}>
+            
+            <div style={{ flex: 1, position: 'relative', display: 'flex', alignItems: 'center' }}>
+              {/* Visual Colored Progress Track */}
               <div style={{
-                width: `${audioProgress}%`,
-                height: '100%',
-                background: isPlayingAudio ? 'linear-gradient(90deg, #dc2626 0%, #059669 100%)' : '#059669',
+                position: 'absolute',
+                left: 0,
+                right: 0,
+                height: '6px',
+                background: 'rgba(255,255,255,0.18)',
                 borderRadius: '3px',
-                transition: 'width 0.3s ease'
-              }}></div>
+                pointerEvents: 'none',
+                overflow: 'hidden'
+              }}>
+                <div style={{
+                  width: `${audioProgress}%`,
+                  height: '100%',
+                  background: isPlayingAudio ? 'linear-gradient(90deg, #10b981 0%, #34d399 100%)' : '#059669',
+                  borderRadius: '3px',
+                  transition: 'width 0.15s ease-out'
+                }} />
+              </div>
+
+              {/* Interactive Transparent Range Input Slider for Seeking */}
+              <input
+                type="range"
+                min="0"
+                max="100"
+                step="1"
+                value={audioProgress}
+                onChange={(e) => handleSeekProgress(parseFloat(e.target.value))}
+                title="Drag or click to seek to a specific part of the article"
+                style={{
+                  width: '100%',
+                  height: '16px',
+                  background: 'transparent',
+                  appearance: 'none',
+                  WebkitAppearance: 'none',
+                  cursor: 'pointer',
+                  position: 'relative',
+                  zIndex: 2,
+                  margin: 0
+                }}
+              />
             </div>
           </div>
 
@@ -342,7 +640,7 @@ export const ArticleModal = ({ article, onClose, isLoggedIn, onOpenLogin, onLogi
               title="Change Playback Speed (YouTube Style)"
             >
               <Gauge size={15} color="#34d399" />
-              <span>{playbackSpeed === 1.0 ? 'Normal' : `${playbackSpeed.toFixed(2)}x`}</span>
+              <span>{`${playbackSpeed.toFixed(2)}x`}</span>
               <ChevronRight size={14} style={{ transform: showSpeedMenu ? 'rotate(90deg)' : 'none', transition: 'transform 0.2s' }} />
             </button>
 
@@ -372,7 +670,7 @@ export const ArticleModal = ({ article, onClose, isLoggedIn, onOpenLogin, onLogi
                     <span>Playback speed</span>
                   </div>
                   <span style={{ fontSize: '12px', color: '#94a3b8', fontFamily: 'var(--font-mono)' }}>
-                    {playbackSpeed === 1.0 ? 'Normal (1.0x)' : `${playbackSpeed.toFixed(2)}x`}
+                    {`${playbackSpeed.toFixed(2)}x`}
                   </span>
                 </div>
 
@@ -404,7 +702,7 @@ export const ArticleModal = ({ article, onClose, isLoggedIn, onOpenLogin, onLogi
 
                   <input 
                     type="range" 
-                    min="0.25" 
+                    min="0.5" 
                     max="3.0" 
                     step="0.05" 
                     value={playbackSpeed}
@@ -437,14 +735,14 @@ export const ArticleModal = ({ article, onClose, isLoggedIn, onOpenLogin, onLogi
                   </button>
                 </div>
 
-                {/* YouTube Speed Preset Pills Row */}
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '6px' }}>
+                {/* Speed Preset Pills Row (YouTube Style) */}
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '4px' }}>
                   {[
                     { val: 1.0, label: '1.0', sub: 'Normal' },
                     { val: 1.25, label: '1.25' },
                     { val: 1.5, label: '1.5' },
                     { val: 2.0, label: '2.0' },
-                    { val: 3.0, label: '3.0' }
+                    { val: 3.0, label: '3.0', sub: 'Max' }
                   ].map((preset) => {
                     const isActive = Math.abs(playbackSpeed - preset.val) < 0.01;
                     return (
@@ -463,7 +761,7 @@ export const ArticleModal = ({ article, onClose, isLoggedIn, onOpenLogin, onLogi
                           transition: 'all 0.15s ease'
                         }}
                       >
-                        <div style={{ fontSize: '13px', fontWeight: 800 }}>{preset.label}</div>
+                        <div style={{ fontSize: '13px', fontWeight: 800 }}>{preset.label}x</div>
                         {preset.sub && <div style={{ fontSize: '9px', opacity: 0.8, textTransform: 'uppercase' }}>{preset.sub}</div>}
                       </button>
                     );
