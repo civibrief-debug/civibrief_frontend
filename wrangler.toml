@@ -1,0 +1,7 @@
+name = "daily-brief"
+compatibility_date = "2026-08-10"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "civibrief-db"
+database_id = "d273c042-1c2c-4118-a491-4ca85c0f1148"

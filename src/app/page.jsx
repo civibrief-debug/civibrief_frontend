@@ -23,12 +23,15 @@ import {
 } from '../data/newsData';
 import { ArticleModal } from '../components/ArticleModal';
 import { LoginModal } from '../components/LoginModal';
+import { useTranslation } from '../context/TranslationContext';
 
 export default function HomePage() {
   const [dbArticles, setDbArticles] = useState([]);
+  const [translatedArticles, setTranslatedArticles] = useState(null);
   const [selectedArticle, setSelectedArticle] = useState(null);
   const [isLoginOpen, setIsLoginOpen] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const { language, translateMultipleArticles, isTranslating } = useTranslation();
 
   // Fetch live articles from shared common database
   const fetchLiveArticles = async () => {
@@ -49,10 +52,27 @@ export default function HomePage() {
     return () => clearInterval(interval);
   }, []);
 
+  // Handle translation when articles or language change
+  useEffect(() => {
+    let isMounted = true;
+    if (language === 'en') {
+      setTranslatedArticles(null);
+      return;
+    }
+    if (dbArticles.length > 0) {
+      translateMultipleArticles(dbArticles, language).then(translated => {
+        if (isMounted) setTranslatedArticles(translated);
+      });
+    }
+    return () => { isMounted = false; };
+  }, [dbArticles, language, translateMultipleArticles]);
+
+  const activeArticles = translatedArticles || dbArticles;
+
   // Compute live featured story & articles
-  const liveFeatured = dbArticles.find(a => a.featured) || dbArticles[0] || FALLBACK_HERO_FEATURED;
-  const liveArticlesList = dbArticles.length > 0 ? dbArticles : FALLBACK_MAIN_ARTICLES;
-  const secondaryStack = dbArticles.length > 1 ? dbArticles.slice(1, 4) : FALLBACK_HERO_SECONDARY;
+  const liveFeatured = activeArticles.find(a => a.featured) || activeArticles[0] || FALLBACK_HERO_FEATURED;
+  const liveArticlesList = activeArticles.length > 0 ? activeArticles : FALLBACK_MAIN_ARTICLES;
+  const secondaryStack = activeArticles.length > 1 ? activeArticles.slice(1, 4) : FALLBACK_HERO_SECONDARY;
 
   const handleDeepDiveClick = (dive) => {
     if (!isLoggedIn) {
@@ -61,6 +81,8 @@ export default function HomePage() {
       setSelectedArticle(dive);
     }
   };
+
+  const isRtl = ['ar', 'he', 'fa', 'ur'].includes(language);
 
   return (
     <main>
@@ -81,10 +103,10 @@ export default function HomePage() {
             )}
           </div>
 
-          <div className="hero-content">
+          <div className="hero-content" dir={isRtl ? 'rtl' : 'ltr'}>
             <div className="category-tag">
               <Sparkles size={13} />
-              <span>{liveFeatured.kicker ? liveFeatured.kicker.toUpperCase() : (liveFeatured.category || 'Technology')}</span>
+              <span dir="ltr">{liveFeatured.kicker ? liveFeatured.kicker.toUpperCase() : (liveFeatured.category || 'Technology')}</span>
             </div>
 
             <div onClick={() => setSelectedArticle(liveFeatured)} style={{ cursor: 'pointer' }}>
@@ -93,7 +115,7 @@ export default function HomePage() {
 
             <p className="hero-subtitle">{liveFeatured.summary || liveFeatured.subtitle}</p>
 
-            <div className="author-meta">
+            <div className="author-meta" dir="ltr">
               <div>
                 <div style={{ fontWeight: 700, color: 'var(--text-primary)' }}>{liveFeatured.author || 'Staff Reporter'}</div>
                 <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>{liveFeatured.publishedAt ? new Date(liveFeatured.publishedAt).toLocaleDateString() : 'August 2026'} • 5 min read</div>
@@ -106,12 +128,12 @@ export default function HomePage() {
         <div className="hero-secondary-stack">
           {secondaryStack.map((story) => (
             <article key={story.id} className="secondary-card" onClick={() => setSelectedArticle(story)} style={{ cursor: 'pointer' }}>
-              <div className="secondary-content">
-                <div className="category-tag" style={{ fontSize: '10px' }}>
+              <div className="secondary-content" dir={isRtl ? 'rtl' : 'ltr'}>
+                <div className="category-tag" style={{ fontSize: '10px' }} dir="ltr">
                   {story.kicker ? <span style={{ color: 'var(--accent-gold, #d97706)', fontWeight: 800 }}>{story.kicker}</span> : story.category}
                 </div>
                 <h3 className="secondary-title">{story.title}</h3>
-                <div style={{ fontSize: '12px', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '6px', marginTop: '6px' }}>
+                <div style={{ fontSize: '12px', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '6px', marginTop: '6px' }} dir="ltr">
                   <span>{story.author || 'Desk'}</span>
                   <span>•</span>
                   <Clock size={12} />
@@ -175,17 +197,17 @@ export default function HomePage() {
           </div>
 
           <div>
-            {(dbArticles.length > 0 ? dbArticles.slice(0, 5) : FALLBACK_MOST_READ).map((item, idx) => (
-              <div key={item.id} className="trending-item" onClick={() => setSelectedArticle(item)} style={{ cursor: 'pointer' }}>
-                <span className="rank-number">0{idx + 1}</span>
+            {(activeArticles.length > 0 ? activeArticles.slice(0, 5) : FALLBACK_MOST_READ).map((item, idx) => (
+              <div key={item.id} className="trending-item" onClick={() => setSelectedArticle(item)} style={{ cursor: 'pointer' }} dir={isRtl ? 'rtl' : 'ltr'}>
+                <span className="rank-number" dir="ltr">0{idx + 1}</span>
                 <div>
-                  <div className="category-tag" style={{ fontSize: '9px', marginBottom: '2px' }}>
+                  <div className="category-tag" style={{ fontSize: '9px', marginBottom: '2px' }} dir="ltr">
                     {item.category}
                   </div>
                   <h4 style={{ fontFamily: 'var(--font-serif)', fontSize: '14px', fontWeight: 700, color: 'var(--text-primary)', lineHeight: 1.35 }}>
                     {item.title}
                   </h4>
-                  <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '4px' }}>
+                  <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '4px' }} dir="ltr">
                     {item.author || 'Staff Desk'}
                   </div>
                 </div>

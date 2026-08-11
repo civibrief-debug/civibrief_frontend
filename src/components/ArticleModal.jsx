@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import ShareModal from './ShareModal';
+import { useTranslation } from '../context/TranslationContext';
+import { LanguageSelector } from './LanguageSelector';
 import { 
   X, 
   Play,
@@ -19,6 +21,30 @@ import {
 
 export const ArticleModal = ({ article, onClose, isLoggedIn, onOpenLogin, onLoginSuccess }) => {
   if (!article) return null;
+
+  const { language: globalLanguage, translateArticle } = useTranslation();
+  const [localLanguage, setLocalLanguage] = useState(globalLanguage);
+  const [localIsTranslating, setLocalIsTranslating] = useState(false);
+  const [translatedArticle, setTranslatedArticle] = useState(null);
+
+  useEffect(() => {
+    let isMounted = true;
+    if (localLanguage === 'en') {
+      setTranslatedArticle(null);
+      setLocalIsTranslating(false);
+      return;
+    }
+    setLocalIsTranslating(true);
+    translateArticle(article, localLanguage).then(translated => {
+      if (isMounted) {
+        setTranslatedArticle(translated);
+        setLocalIsTranslating(false);
+      }
+    });
+    return () => { isMounted = false; };
+  }, [article, localLanguage, translateArticle]);
+
+  const activeArticle = translatedArticle || article;
 
   const [zoomLevel, setZoomLevel] = useState(1.0); // 0.7 to 1.8 document zoom scale
   const [isPlayingAudio, setIsPlayingAudio] = useState(false);
@@ -44,11 +70,14 @@ export const ArticleModal = ({ article, onClose, isLoggedIn, onOpenLogin, onLogi
   const isPausedRef = useRef(false);
   const isPlayingRef = useRef(false);
 
-  const paragraphs = (article.content || article.summary || article.excerpt || "").split('\n\n');
+  const isRtl = ['ar', 'he', 'fa', 'ur'].includes(localLanguage);
 
-  const isDeepDive = article.category?.toUpperCase()?.includes('DEEP DIVE') || 
-                     article.slug?.includes('deep-dive') ||
-                     article.isDeepDive;
+  // Use activeArticle (translated) for displaying text
+  const paragraphs = (activeArticle.content || activeArticle.summary || activeArticle.excerpt || "").split('\n\n');
+
+  const isDeepDive = activeArticle.category?.toUpperCase()?.includes('DEEP DIVE') || 
+                     activeArticle.slug?.includes('deep-dive') ||
+                     activeArticle.isDeepDive;
   const isGated = isDeepDive && !isLoggedIn;
 
   // Pre-fetch voices when speech synthesis initializes
@@ -135,18 +164,51 @@ export const ArticleModal = ({ article, onClose, isLoggedIn, onOpenLogin, onLogi
   // Detect language of text for accurate TTS voice matching (Multilingual Support)
   const detectLanguage = (text) => {
     if (!text) return 'en-US';
-    if (/[\u0900-\u097F]/.test(text)) return 'hi-IN'; // Hindi / Devanagari
-    if (/[\u0B80-\u0BFF]/.test(text)) return 'ta-IN'; // Tamil
-    if (/[\u0C00-\u0C7F]/.test(text)) return 'te-IN'; // Telugu
+    
+    // Indic & Asian Scripts (Checked first to avoid Devanagari punctuation conflicts like Danda '।')
     if (/[\u0980-\u09FF]/.test(text)) return 'bn-IN'; // Bengali
+    if (/[\u0C00-\u0C7F]/.test(text)) return 'te-IN'; // Telugu
+    if (/[\u0B80-\u0BFF]/.test(text)) return 'ta-IN'; // Tamil
     if (/[\u0A80-\u0AFF]/.test(text)) return 'gu-IN'; // Gujarati
-    if (/[\u0600-\u06FF]/.test(text)) return 'ar-SA'; // Arabic
+    if (/[\u0D00-\u0D7F]/.test(text)) return 'ml-IN'; // Malayalam
+    if (/[\u0C80-\u0CFF]/.test(text)) return 'kn-IN'; // Kannada
+    if (/[\u0A00-\u0A7F]/.test(text)) return 'pa-IN'; // Punjabi / Gurmukhi
+    if (/[\u0B00-\u0B7F]/.test(text)) return 'or-IN'; // Odia
+    
+    // DON'T CHANGE THE HINDI PART (Left exactly as requested, just evaluates after other Indic scripts)
+    if (/[\u0900-\u097F]/.test(text)) return 'hi-IN'; // Hindi / Devanagari
+    
+    // Other Non-Latin Scripts
+    if (/[\u0E00-\u0E7F]/.test(text)) return 'th-TH'; // Thai
+    if (/[\uAC00-\uD7AF\u1100-\u11FF]/.test(text)) return 'ko-KR'; // Korean
     if (/[\u3040-\u30FF\u4E00-\u9FAF]/.test(text)) return 'ja-JP'; // Japanese
     if (/[\u4E00-\u9FFF]/.test(text)) return 'zh-CN'; // Chinese
-    if (/[\u0400-\u04FF]/.test(text)) return 'ru-RU'; // Russian
-    if (/[áéíóúñ¿¡]/i.test(text)) return 'es-ES'; // Spanish
-    if (/[àâçèéêëîïôûùüÿæœ]/i.test(text)) return 'fr-FR'; // French
+    if (/[\u0590-\u05FF]/.test(text)) return 'he-IL'; // Hebrew
+    if (/[\u0600-\u06FF]/.test(text)) {
+      if (/[\u067E\u0686\u0698\u06AF]/.test(text)) return 'fa-IR'; // Persian-specific letters
+      if (/[\u0679\u0688\u0691\u06BA\u06BE\u06D2]/.test(text)) return 'ur-PK'; // Urdu-specific letters
+      return 'ar-SA'; // Arabic
+    }
+    if (/[\u0400-\u04FF]/.test(text)) {
+      if (/[іїєґ]/i.test(text)) return 'uk-UA'; // Ukrainian-specific
+      return 'ru-RU'; // Russian
+    }
+    if (/[\u0530-\u058F]/.test(text)) return 'hy-AM'; // Armenian
+    if (/[\u10A0-\u10FF]/.test(text)) return 'ka-GE'; // Georgian
+    if (/[\u1200-\u137F]/.test(text)) return 'am-ET'; // Amharic
+    
+    // Latin Extended & Specific Latin Char Matching
+    if (/[àáảãạăằắẳẵặâầấẩẫậèéẻẽẹêềếểễệìíỉĩịòóỏõọôồốổỗộơờớởỡợùúủũụưừứửữựỳýỷỹỵđ]/i.test(text)) return 'vi-VN'; // Vietnamese
+    if (/[ąćęłńóśźż]/i.test(text)) return 'pl-PL'; // Polish
+    if (/[şğ]/i.test(text)) return 'tr-TR'; // Turkish
+    if (/[ãõ]/i.test(text)) return 'pt-BR'; // Portuguese
+    if (/[ñ¿¡]/i.test(text)) return 'es-ES'; // Spanish
+    if (/[àèìòù]/i.test(text) && !/[áéíóú]/i.test(text)) return 'it-IT'; // Italian (approximate)
+    if (/[œæç]/i.test(text)) return 'fr-FR'; // French
     if (/[äöüß]/i.test(text)) return 'de-DE'; // German
+    if (/[ëï]/i.test(text)) return 'nl-NL'; // Dutch
+    
+    // Default fallback
     return 'en-US';
   };
 
@@ -165,13 +227,22 @@ export const ArticleModal = ({ article, onClose, isLoggedIn, onOpenLogin, onLogi
       voice = voices.find(v => v.name.includes('Natural') || v.name.includes('Google') || v.name.includes('Samantha') || v.name.includes('Daniel'));
       if (voice) return voice;
     }
-    return voices[0] || null;
+    
+    // The user's system successfully uses voices[0] for Hindi and English.
+    // However, voices[0] skips other languages like Bengali because it can't pronounce them.
+    // Therefore, for non-Hindi/English languages, we return null so the browser can natively route to cloud voices.
+    if (primaryLang === 'hi' || primaryLang === 'en') {
+      return voices[0] || null;
+    }
+    
+    return null;
   };
 
   // Split text into small sentence chunks (~150 chars) to bypass browser length limits
   const createChunks = (fullText, maxLen = 150) => {
     if (!fullText) return [];
-    const sentences = fullText.match(/[^.!?\n\r]+[.!?\n\r]+/g) || [fullText];
+    // Support international punctuation: Danda (Hindi/Bengali/etc), CJK periods, Arabic question marks
+    const sentences = fullText.match(/[^.!?\n\r।॥。！？؟]+[.!?\n\r।॥。！？؟]+/g) || [fullText];
     const chunks = [];
     let current = '';
 
@@ -181,8 +252,16 @@ export const ArticleModal = ({ article, onClose, isLoggedIn, onOpenLogin, onLogi
       } else {
         if (current) chunks.push(current.trim());
         if (sentence.length > maxLen) {
-          const parts = sentence.match(/.{1,150}(\s+|$)/g) || [sentence];
-          parts.forEach(p => chunks.push(p.trim()));
+          // Safe split for extremely long sentences without proper punctuation
+          const parts = sentence.match(new RegExp(`.{1,${maxLen}}(\\s+|$)`, 'g'));
+          if (parts) {
+            parts.forEach(p => chunks.push(p.trim()));
+          } else {
+            // Absolute fallback hard-split
+            for (let i = 0; i < sentence.length; i += maxLen) {
+              chunks.push(sentence.substring(i, i + maxLen).trim());
+            }
+          }
           current = '';
         } else {
           current = sentence;
@@ -296,9 +375,9 @@ export const ArticleModal = ({ article, onClose, isLoggedIn, onOpenLogin, onLogi
     window.speechSynthesis.cancel();
 
     // Prepare clean text of FULL article (Title + Author + Body)
-    const cleanTitle = cleanHtmlText(article.title);
-    const cleanAuthor = cleanHtmlText(article.author || 'Staff Reporter');
-    const rawBody = article.content || article.summary || article.excerpt || '';
+    const cleanTitle = cleanHtmlText(activeArticle.title);
+    const cleanAuthor = cleanHtmlText(activeArticle.author || 'Staff Reporter');
+    const rawBody = activeArticle.content || activeArticle.summary || activeArticle.excerpt || '';
     const cleanBody = cleanHtmlText(rawBody);
 
     const fullTextToRead = `${cleanTitle}. By ${cleanAuthor}. ${cleanBody}`;
@@ -455,11 +534,23 @@ export const ArticleModal = ({ article, onClose, isLoggedIn, onOpenLogin, onLogi
 
           {/* Reader Utility Header */}
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid var(--border-color, #eee)', paddingBottom: '16px', marginBottom: '24px' }}>
-            <div className="category-badge" style={{ margin: 0, fontSize: '13px', fontWeight: 800 }}>
-              {article.category || "NEWS"} {isDeepDive && "💎 PREMIUM"}
+            <div className="article-modal-header" dir="ltr">
+              <div className="article-modal-category">
+                <span className="category-tag-badge">
+                  {activeArticle.category || "NEWS"} {isDeepDive && "💎 PREMIUM"}
+                </span>
+              </div>
             </div>
 
             <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+              <LanguageSelector 
+                minimal={true} 
+                value={localLanguage} 
+                onChange={setLocalLanguage} 
+                isTranslating={localIsTranslating} 
+              />
+              <span style={{ color: 'var(--border-color, #eee)', fontSize: '12px' }}>|</span>
+              
               {/* Functional Text Resizer Pill (A- / A+ / Keyboard Ctrl+ / Ctrl-) */}
               <div style={{ display: 'flex', alignItems: 'center', gap: '6px', background: 'var(--bg-secondary, #f5f5f5)', borderRadius: '6px', padding: '4px 12px' }}>
                 <button 
@@ -494,62 +585,80 @@ export const ArticleModal = ({ article, onClose, isLoggedIn, onOpenLogin, onLogi
             </div>
           </div>
 
-        {/* Kicker / Supertitle (Overline) */}
-        {article.kicker ? (
-          <div style={{
-            fontSize: `${Math.round(13 * zoomLevel)}px`,
-            fontWeight: 900,
-            color: 'var(--accent-gold, #d97706)',
-            textTransform: 'uppercase',
-            letterSpacing: '1.5px',
-            marginBottom: '8px',
-            fontFamily: 'var(--font-sans, sans-serif)'
-          }}>
-            {article.kicker}
+        {/* Kicker Section */}
+        {activeArticle.kicker ? (
+          <div 
+            className="article-kicker-wrapper"
+            style={{
+              padding: '0 24px',
+              marginTop: '16px',
+              marginBottom: '-8px'
+            }}
+          >
+            <span 
+              className="article-kicker-text"
+              style={{
+                fontSize: '12px',
+                fontWeight: 800,
+                color: 'var(--accent-gold, #d97706)',
+                textTransform: 'uppercase',
+                letterSpacing: '0.05em'
+              }}
+              dir={isRtl ? 'rtl' : 'ltr'}
+            >
+              {activeArticle.kicker}
+            </span>
           </div>
         ) : (
-          article.category && (
-            <div style={{
-              fontSize: `${Math.round(11 * zoomLevel)}px`,
-              fontWeight: 800,
-              color: 'var(--accent-crimson, #dc2626)',
-              textTransform: 'uppercase',
-              letterSpacing: '1px',
-              marginBottom: '6px',
-              fontFamily: 'var(--font-sans, sans-serif)'
-            }}>
-              {article.category}
+          activeArticle.category && (
+            <div 
+              className="article-kicker-wrapper"
+              style={{
+                padding: '0 24px',
+                marginTop: '16px',
+                marginBottom: '-8px'
+              }}
+            >
+              <span 
+                className="article-kicker-text"
+                style={{
+                  fontSize: '12px',
+                  fontWeight: 800,
+                  color: 'var(--accent-blue, #2563eb)',
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.05em'
+                }}
+                dir={isRtl ? 'rtl' : 'ltr'}
+              >
+                {activeArticle.category}
+              </span>
             </div>
           )
         )}
 
         {/* Article Headline with Dynamic Zoom Scaling */}
-        <h1 style={{ 
-          fontFamily: "var(--font-headline, Georgia, serif)", 
-          fontSize: `${Math.round(36 * zoomLevel)}px`, 
-          lineHeight: 1.22, 
-          fontWeight: 800, 
-          color: 'var(--text-primary)', 
-          marginBottom: '16px',
-          transition: 'font-size 0.2s ease'
-        }}>
-          {article.title}
+        <h1 
+          className="article-modal-title" 
+          style={{ fontSize: `${2.8 * zoomLevel}rem` }}
+          dir={isRtl ? 'rtl' : 'ltr'}
+        >
+          {activeArticle.title}
         </h1>
 
-        {/* Metadata Row */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '16px', fontSize: `${Math.round(14 * zoomLevel)}px`, color: 'var(--text-muted)', marginBottom: '20px', fontFamily: 'var(--font-sans)', transition: 'font-size 0.2s ease' }}>
-          <span style={{ fontWeight: 800, color: 'var(--text-primary)', textTransform: 'uppercase', textDecoration: 'underline' }}>
-            {article.author || "THE DAILY BRIEF BUREAU"}
-          </span>
-          <span>•</span>
-          <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+        {/* Meta Info */}
+        <div className="article-modal-meta" dir={isRtl ? 'rtl' : 'ltr'}>
+          <div className="article-modal-author">
+            {activeArticle.author || "THE DAILY BRIEF BUREAU"}
+          </div>
+          <div className="article-modal-time">
             <Clock size={14} />
-            {article.time || "Just now"}
-          </span>
+            {activeArticle.time || "Just now"}
+          </div>
         </div>
 
         {/* Real Functional AI Voiceover News Player Card */}
-        <div style={{
+        {(localLanguage === 'en' || localLanguage === 'hi') && (
+          <div style={{
           background: 'linear-gradient(135deg, var(--bg-dark-accent, #0f172a) 0%, #1e293b 100%)',
           color: '#ffffff',
           borderRadius: '12px',
@@ -589,10 +698,10 @@ export const ArticleModal = ({ article, onClose, isLoggedIn, onOpenLogin, onLogi
 
             <div>
               <div style={{ fontSize: '11px', fontWeight: 800, color: (isPlayingAudio && !isPausedAudio) ? '#f87171' : (isPausedAudio ? '#f59e0b' : 'var(--accent-emerald, #34d399)'), textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '2px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <span>{(isPlayingAudio && !isPausedAudio) ? "🎙️ READING NEWS ALOUD..." : (isPausedAudio ? "⏸️ VOICE PAUSED • CLICK TO RESUME" : "DAILY BRIEF AI VOICEOVER • LISTEN TO ARTICLE")}</span>
+                <span dir="ltr">{(isPlayingAudio && !isPausedAudio) ? "🎙️ READING NEWS ALOUD..." : (isPausedAudio ? "⏸️ VOICE PAUSED • CLICK TO RESUME" : "DAILY BRIEF AI VOICEOVER • LISTEN TO ARTICLE")}</span>
               </div>
-              <div style={{ fontSize: '13.5px', fontWeight: 700, color: '#f8fafc', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '420px' }}>
-                {article.title}
+              <div style={{ fontSize: '12px', color: '#94a3b8', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', fontWeight: 500 }} dir={isRtl ? 'rtl' : 'ltr'}>
+                {activeArticle.title}
               </div>
             </div>
           </div>
@@ -800,32 +909,34 @@ export const ArticleModal = ({ article, onClose, isLoggedIn, onOpenLogin, onLogi
             )}
           </div>
         </div>
+        )}
 
-        {/* Featured Image if available */}
-        {article.imageUrl && (
-          <div style={{ marginBottom: '28px' }}>
+        {/* Optional Article Main Image */}
+        {activeArticle.imageUrl && (
+          <div className="article-modal-hero-img-container">
             <img 
-              src={article.imageUrl} 
-              alt={article.title} 
-              style={{ width: '100%', borderRadius: '8px', maxHeight: '480px', objectFit: 'cover' }} 
+              src={activeArticle.imageUrl} 
+              alt={activeArticle.title} 
+              className="article-modal-hero-img"
             />
-            {article.imageCaption && (
-              <p style={{ fontSize: `${Math.round(13 * zoomLevel)}px`, color: 'var(--text-muted)', marginTop: '10px', fontStyle: 'italic', transition: 'font-size 0.2s ease' }}>
-                {article.imageCaption}
-              </p>
+            {activeArticle.imageCaption && (
+              <div className="article-modal-img-caption" dir={isRtl ? 'rtl' : 'ltr'}>
+                {activeArticle.imageCaption}
+              </div>
             )}
           </div>
         )}
 
-        {/* Content Paragraphs with Dynamic Font & Document Zoom Scaling */}
+        {/* Article Body Content */}
         <div 
           className="article-rich-body"
-          style={{ fontFamily: "var(--font-body, Georgia, serif)", fontSize: `${Math.round(18 * zoomLevel)}px`, lineHeight: 1.7, color: 'var(--text-primary)', transition: 'font-size 0.2s ease' }}
+          style={{ fontSize: `${1.125 * zoomLevel}rem`, lineHeight: `${1.75 * zoomLevel}` }}
+          dir={isRtl ? 'rtl' : 'ltr'}
         >
-          {article.content && (article.content.includes('<p>') || article.content.includes('<h1>') || article.content.includes('<h2>') || article.content.includes('<div>') || article.content.includes('<table')) ? (
+          {activeArticle.content && (activeArticle.content.includes('<p>') || activeArticle.content.includes('<h1>') || activeArticle.content.includes('<h2>') || activeArticle.content.includes('<div>') || activeArticle.content.includes('<table')) ? (
             <div 
-              style={{ display: 'flex', flexDirection: 'column', gap: '16px' }} 
-              dangerouslySetInnerHTML={{ __html: article.content }} 
+              className="article-html-content"
+              dangerouslySetInnerHTML={{ __html: activeArticle.content }} 
             />
           ) : (
             paragraphs.slice(0, isGated ? 1 : paragraphs.length).map((paragraph, idx) => (

@@ -8,6 +8,7 @@ import { NewsletterModal } from '../components/NewsletterModal';
 import { LoginModal } from '../components/LoginModal';
 import { NavDrawer } from '../components/NavDrawer';
 import { Footer } from '../components/Footer';
+import { TranslationProvider } from '../context/TranslationContext';
 
 export default function RootLayout({ children }) {
   const [isSearchOpen, setIsSearchOpen] = useState(false);
@@ -35,36 +36,38 @@ export default function RootLayout({ children }) {
         <meta name="description" content="Daily Brief brings you authoritative intelligence on artificial intelligence, sovereign tech, global markets, and energy transitions." />
       </head>
       <body suppressHydrationWarning>
-        <Header 
-          onOpenSearch={() => setIsSearchOpen(true)}
-          onOpenNewsletter={() => setIsNewsletterOpen(true)}
-          onOpenMenu={() => setIsMenuOpen(!isMenuOpen)}
-          onCloseMenu={() => setIsMenuOpen(false)}
-          isMenuOpen={isMenuOpen}
-          onOpenLogin={() => setIsLoginOpen(true)}
-          isLoggedIn={isLoggedIn}
-          user={user}
-          onLogout={handleLogout}
-        />
-        
-        {children}
-
-        <Footer />
-
-        {isSearchOpen && (
-          <SearchOverlay onClose={() => setIsSearchOpen(false)} />
-        )}
-
-        {isNewsletterOpen && (
-          <NewsletterModal onClose={() => setIsNewsletterOpen(false)} />
-        )}
-
-        {isLoginOpen && (
-          <LoginModal 
-            onClose={() => setIsLoginOpen(false)}
-            onLoginSuccess={handleLoginSuccess}
+        <TranslationProvider>
+          <Header 
+            onOpenSearch={() => setIsSearchOpen(true)}
+            onOpenNewsletter={() => setIsNewsletterOpen(true)}
+            onOpenMenu={() => setIsMenuOpen(!isMenuOpen)}
+            onCloseMenu={() => setIsMenuOpen(false)}
+            isMenuOpen={isMenuOpen}
+            onOpenLogin={() => setIsLoginOpen(true)}
+            isLoggedIn={isLoggedIn}
+            user={user}
+            onLogout={handleLogout}
           />
-        )}
+          
+          {children}
+
+          <Footer />
+
+          {isSearchOpen && (
+            <SearchOverlay onClose={() => setIsSearchOpen(false)} />
+          )}
+
+          {isNewsletterOpen && (
+            <NewsletterModal onClose={() => setIsNewsletterOpen(false)} />
+          )}
+
+          {isLoginOpen && (
+            <LoginModal 
+              onClose={() => setIsLoginOpen(false)}
+              onLoginSuccess={handleLoginSuccess}
+            />
+          )}
+        </TranslationProvider>
       </body>
     </html>
   );

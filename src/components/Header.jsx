@@ -21,6 +21,7 @@ import { MARKET_INDICES, CATEGORIES, CATEGORY_SECTIONS } from '../data/newsData'
 import { CrestLogo } from './CrestLogo';
 import { NavDrawer } from './NavDrawer';
 import AccountDrawer from './AccountDrawer';
+import { LanguageSelector } from './LanguageSelector';
 
 export function Header({ 
   onOpenSearch, 
@@ -237,6 +238,8 @@ export function Header({
             <Smartphone size={15} />
             <span className="link-text">eBooks 💎</span>
           </button>
+
+          <LanguageSelector />
 
           {/* Login / Member Profile Menu */}
           {isLoggedIn ? (
