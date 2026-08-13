@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import fs from 'fs';
 import path from 'path';
+import { authorizeRequest } from '../../../../lib/auth';
+import { sanitizeArticleHtml } from '../../../../lib/sanitizer';
 
 function getDb() {
   const dbPath = path.join(process.cwd(), '..', 'shared_database.json');
@@ -46,9 +48,19 @@ export async function GET(req) {
 }
 
 export async function POST(req) {
+  const session = authorizeRequest(req, ['admin', 'editor']);
+  if (!session) {
+    return NextResponse.json(
+      { success: false, error: 'Unauthorized. Admin or Editor session required.' },
+      { status: 401 }
+    );
+  }
+
   try {
     const body = await req.json();
     const db = getDb();
+
+    const sanitizedContent = sanitizeArticleHtml(body.content || '');
 
     const newArticle = {
       id: `art-${Date.now()}`,
@@ -56,8 +68,9 @@ export async function POST(req) {
       category: body.category || 'Technology',
       author: body.author || 'Staff Reporter',
       status: body.status || 'Published',
+      is_premium: !!body.is_premium,
       summary: body.summary || '',
-      content: body.content || '',
+      content: sanitizedContent,
       featured: !!body.featured,
       publishedAt: new Date().toISOString()
     };
@@ -65,8 +78,9 @@ export async function POST(req) {
     db.articles = [newArticle, ...(db.articles || [])];
     saveDb(db);
 
-    return NextResponse.json({ success: true, data: newArticle });
+    return NextResponse.json({ success: true, data: newArticle }, { status: 201 });
   } catch (err) {
     return NextResponse.json({ success: false, error: err.message }, { status: 500 });
   }
 }
+

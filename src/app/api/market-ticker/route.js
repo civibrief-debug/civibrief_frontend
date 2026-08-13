@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { checkRateLimit } from '../../../lib/rateLimit';
 
 const SYMBOLS = ["BTCUSDT", "ETHUSDT", "BNBUSDT", "SOLUSDT", "XRPUSDT"];
 
@@ -11,9 +12,21 @@ const FALLBACK_INDICES = [
   { symbol: "GOLD", value: "$2,430/oz", change: "+0.15%", isPositive: true },
 ];
 
-export async function GET() {
+export async function GET(req) {
+  if (!checkRateLimit(req, 30, 60 * 1000)) {
+    return NextResponse.json(
+      { success: false, error: 'Rate limit exceeded' },
+      { status: 429 }
+    );
+  }
+
   try {
-    const apiKey = process.env.BINANCE_API_KEY || 'DCn3rr8s4HvndSA2HG5t5QQ6Ar8slrPtvmt7umx3fZcblwDLIbzMTd2YOIA4VuNv';
+    const apiKey = process.env.BINANCE_API_KEY;
+
+    if (!apiKey) {
+      // Return cached fallback indices cleanly without failing if key is unconfigured
+      return NextResponse.json({ success: true, data: FALLBACK_INDICES });
+    }
 
     const symbolsParam = JSON.stringify(SYMBOLS);
     const url = `https://api.binance.com/api/v3/ticker/24hr?symbols=${encodeURIComponent(symbolsParam)}`;
@@ -72,3 +85,4 @@ export async function GET() {
     return NextResponse.json({ success: false, data: FALLBACK_INDICES });
   }
 }
+

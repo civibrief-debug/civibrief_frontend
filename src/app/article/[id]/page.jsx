@@ -134,7 +134,8 @@ export default function ArticlePage({ params }) {
       <div style={{ fontFamily: 'var(--font-serif)', fontSize: '19px', lineHeight: 1.7, color: 'var(--text-primary)' }}>
         {article.content && (article.content.includes('<p>') || article.content.includes('<h1>') || article.content.includes('<h2>') || article.content.includes('<div>') || article.content.includes('<table')) ? (
           <div 
-            style={{ display: 'flex', flexDirection: 'column', gap: '16px' }} 
+            className="article-body"
+            style={{ width: '100%', minWidth: 0, wordBreak: 'normal', overflowWrap: 'break-word' }} 
             dangerouslySetInnerHTML={{ __html: article.content }} 
           />
         ) : (

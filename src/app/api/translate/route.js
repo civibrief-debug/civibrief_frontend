@@ -2,6 +2,10 @@ import { NextResponse } from 'next/server';
 import fs from 'fs';
 import path from 'path';
 import { translateText } from '../../../lib/translationService';
+import { checkRateLimit } from '../../../lib/rateLimit';
+
+// Valid 2 to 5 character ISO language code format (e.g. hi, bn, te, mr, ta, gu, ur, kn, zh-CN)
+const IS_VALID_LANG_CODE = (code) => typeof code === 'string' && /^[a-z]{2,3}(-[A-Za-z0-9]+)?$/i.test(code);
 
 function getDb() {
   const dbPath = path.join(process.cwd(), '..', 'shared_database.json');
@@ -24,12 +28,24 @@ function saveDb(data) {
 }
 
 export async function POST(req) {
+  if (!checkRateLimit(req, 60, 60 * 1000)) {
+    return NextResponse.json(
+      { success: false, error: 'Rate limit exceeded for translation service' },
+      { status: 429 }
+    );
+  }
+
   try {
     const { articleId, targetLang, articleData } = await req.json();
 
-    if (!articleId || !targetLang || !articleData) {
-      return NextResponse.json({ success: false, error: 'Missing required fields' }, { status: 400 });
+    if (!articleId || !targetLang || !articleData || typeof articleData !== 'object') {
+      return NextResponse.json({ success: false, error: 'Missing or invalid required fields' }, { status: 400 });
     }
+
+    if (!IS_VALID_LANG_CODE(targetLang)) {
+      return NextResponse.json({ success: false, error: 'Unsupported or invalid target language code' }, { status: 400 });
+    }
+
 
     if (targetLang === 'en') {
       return NextResponse.json({ success: true, data: articleData });
@@ -52,21 +68,20 @@ export async function POST(req) {
     const translatedData = { ...articleData };
     
     // Translate fields
-    if (articleData.title) {
-      translatedData.title = await translateText(articleData.title, targetLang);
+    if (articleData.title && typeof articleData.title === 'string') {
+      translatedData.title = await translateText(articleData.title.slice(0, 1000), targetLang);
     }
-    if (articleData.subtitle) {
-      translatedData.subtitle = await translateText(articleData.subtitle, targetLang);
+    if (articleData.subtitle && typeof articleData.subtitle === 'string') {
+      translatedData.subtitle = await translateText(articleData.subtitle.slice(0, 1000), targetLang);
     }
-    if (articleData.summary) {
-      translatedData.summary = await translateText(articleData.summary, targetLang);
+    if (articleData.summary && typeof articleData.summary === 'string') {
+      translatedData.summary = await translateText(articleData.summary.slice(0, 2000), targetLang);
     }
-    if (articleData.kicker) {
-      translatedData.kicker = await translateText(articleData.kicker, targetLang);
+    if (articleData.kicker && typeof articleData.kicker === 'string') {
+      translatedData.kicker = await translateText(articleData.kicker.slice(0, 500), targetLang);
     }
-    if (articleData.content) {
-      // Content might be HTML, our simple mock service handles it by prefixing
-      translatedData.content = await translateText(articleData.content, targetLang);
+    if (articleData.content && typeof articleData.content === 'string') {
+      translatedData.content = await translateText(articleData.content.slice(0, 10000), targetLang);
     }
 
     // Save to cache
@@ -86,3 +101,4 @@ export async function POST(req) {
     return NextResponse.json({ success: false, error: err.message }, { status: 500 });
   }
 }
+

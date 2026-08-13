@@ -37,18 +37,21 @@ export default function HomePage() {
   const fetchLiveArticles = async () => {
     try {
       const res = await fetch('/api/db/articles');
+      if (!res.ok) return;
       const json = await res.json();
-      if (json.success && Array.isArray(json.data) && json.data.length > 0) {
+      if (json && json.success && Array.isArray(json.data) && json.data.length > 0) {
         setDbArticles(json.data);
       }
     } catch (err) {
-      console.error("Failed to fetch live database articles:", err);
+      console.warn("Failed to fetch live database articles (suppressed):", err?.message || err);
     }
   };
 
   useEffect(() => {
-    fetchLiveArticles();
-    const interval = setInterval(fetchLiveArticles, 5000);
+    fetchLiveArticles().catch(() => {});
+    const interval = setInterval(() => {
+      fetchLiveArticles().catch(() => {});
+    }, 5000);
     return () => clearInterval(interval);
   }, []);
 

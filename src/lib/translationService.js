@@ -45,6 +45,7 @@ export async function translateText(text, targetLang) {
     return translatedText || text;
   } catch (err) {
     console.error("Translation failed:", err);
-    return `[${targetLang.toUpperCase()}] ${text}`; // Fallback to mock on failure
+    return text; // Clean fallback to original text
   }
 }
+

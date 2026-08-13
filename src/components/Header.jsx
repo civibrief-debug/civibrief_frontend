@@ -57,17 +57,20 @@ export function Header({
     const fetchLiveTicker = async () => {
       try {
         const res = await fetch('/api/market-ticker');
+        if (!res.ok) return;
         const json = await res.json();
-        if (json.success && Array.isArray(json.data) && json.data.length > 0) {
+        if (json && json.success && Array.isArray(json.data) && json.data.length > 0) {
           setTickerData(json.data);
         }
       } catch (err) {
-        console.error('Failed to fetch live Binance market ticker:', err);
+        console.warn('Failed to fetch live Binance market ticker (suppressed):', err?.message || err);
       }
     };
 
-    fetchLiveTicker();
-    const interval = setInterval(fetchLiveTicker, 30000);
+    fetchLiveTicker().catch(() => {});
+    const interval = setInterval(() => {
+      fetchLiveTicker().catch(() => {});
+    }, 30000);
     return () => clearInterval(interval);
   }, []);
 

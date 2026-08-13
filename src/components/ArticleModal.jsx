@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import ShareModal from './ShareModal';
+import SafeArticleBody from './SafeArticleBody';
 import { useTranslation } from '../context/TranslationContext';
+
 import { LanguageSelector } from './LanguageSelector';
 import { 
   X, 
@@ -20,8 +22,6 @@ import {
 } from 'lucide-react';
 
 export const ArticleModal = ({ article, onClose, isLoggedIn, onOpenLogin, onLoginSuccess }) => {
-  if (!article) return null;
-
   const { language: globalLanguage, translateArticle } = useTranslation();
   const [localLanguage, setLocalLanguage] = useState(globalLanguage);
   const [localIsTranslating, setLocalIsTranslating] = useState(false);
@@ -29,7 +29,21 @@ export const ArticleModal = ({ article, onClose, isLoggedIn, onOpenLogin, onLogi
 
   useEffect(() => {
     let isMounted = true;
-    if (localLanguage === 'en') {
+
+    // Instantly cancel any playing audio voiceover when switching languages
+    if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+      window.speechSynthesis.cancel();
+    }
+    setIsPlayingAudio(false);
+    setIsPausedAudio(false);
+    setIsEnded(false);
+    setAudioProgress(0);
+    setElapsedTimeStr('0:00');
+    isPlayingRef.current = false;
+    isPausedRef.current = false;
+    if (progressTimerRef.current) clearInterval(progressTimerRef.current);
+
+    if (!article || localLanguage === 'en') {
       setTranslatedArticle(null);
       setLocalIsTranslating(false);
       return;
@@ -43,6 +57,8 @@ export const ArticleModal = ({ article, onClose, isLoggedIn, onOpenLogin, onLogi
     });
     return () => { isMounted = false; };
   }, [article, localLanguage, translateArticle]);
+
+
 
   const activeArticle = translatedArticle || article;
 
@@ -218,25 +234,48 @@ export const ArticleModal = ({ article, onClose, isLoggedIn, onOpenLogin, onLogi
     if (!voices || voices.length === 0) return null;
 
     const primaryLang = langCode.split('-')[0].toLowerCase();
+    
+    // 1. Exact match (e.g. 'hi-IN' or 'en-US')
     let voice = voices.find(v => v.lang.toLowerCase().replace('_', '-') === langCode.toLowerCase());
     if (voice) return voice;
+
+    // 2. Primary language prefix match (e.g. starts with 'hi' or 'en')
     voice = voices.find(v => v.lang.toLowerCase().startsWith(primaryLang));
     if (voice) return voice;
 
-    if (primaryLang === 'en') {
-      voice = voices.find(v => v.name.includes('Natural') || v.name.includes('Google') || v.name.includes('Samantha') || v.name.includes('Daniel'));
+    // 3. Name-based match for Hindi voices
+    if (primaryLang === 'hi') {
+      voice = voices.find(v => 
+        v.name.toLowerCase().includes('hindi') || 
+        v.name.toLowerCase().includes('hi-in') || 
+        v.name.toLowerCase().includes('kalpana') ||
+        v.name.toLowerCase().includes('hemant') ||
+        v.name.toLowerCase().includes('swara') ||
+        v.name.toLowerCase().includes('madhur')
+      );
       if (voice) return voice;
+      // Do NOT fall back to an English voice (voices[0]) for Hindi text!
+      // Returning null allows browser's native cloud/system Hindi TTS engine to handle utterance.lang = 'hi-IN'.
+      return null;
     }
-    
-    // The user's system successfully uses voices[0] for Hindi and English.
-    // However, voices[0] skips other languages like Bengali because it can't pronounce them.
-    // Therefore, for non-Hindi/English languages, we return null so the browser can natively route to cloud voices.
-    if (primaryLang === 'hi' || primaryLang === 'en') {
+
+    // 4. Name-based match for English voices
+    if (primaryLang === 'en') {
+      voice = voices.find(v => 
+        v.name.includes('Natural') || 
+        v.name.includes('Google') || 
+        v.name.includes('Samantha') || 
+        v.name.includes('Daniel') ||
+        v.name.includes('Zira') ||
+        v.name.includes('David')
+      );
+      if (voice) return voice;
       return voices[0] || null;
     }
-    
+
     return null;
   };
+
 
   // Split text into small sentence chunks (~150 chars) to bypass browser length limits
   const createChunks = (fullText, maxLen = 150) => {
@@ -316,13 +355,14 @@ export const ArticleModal = ({ article, onClose, isLoggedIn, onOpenLogin, onLogi
     const utterance = new SpeechSynthesisUtterance(text);
     utteranceRef.current = utterance;
 
-    const detectedLang = detectLanguage(text);
+    const detectedLang = localLanguage === 'hi' ? 'hi-IN' : (localLanguage === 'en' ? 'en-US' : detectLanguage(text));
     utterance.lang = detectedLang;
     utterance.rate = Math.max(0.5, Math.min(3.0, targetRate));
     utterance.pitch = 1.0;
 
     const voice = getVoiceForLanguage(detectedLang);
     if (voice) utterance.voice = voice;
+
 
     // Word boundary event for smooth progress bar updates
     utterance.onboundary = (event) => {
@@ -365,6 +405,8 @@ export const ArticleModal = ({ article, onClose, isLoggedIn, onOpenLogin, onLogi
 
   // Start AI Voiceover Audio Reader across 100% of full article
   const toggleAudioWithRate = (targetRate = playbackSpeedRef.current) => {
+    if (localLanguage !== 'en' && localLanguage !== 'hi') return;
+
     if (typeof window === 'undefined' || !('speechSynthesis' in window)) {
       alert("Text-to-speech audio reader is not supported in this browser.");
       return;
@@ -376,12 +418,17 @@ export const ArticleModal = ({ article, onClose, isLoggedIn, onOpenLogin, onLogi
 
     // Prepare clean text of FULL article (Title + Author + Body)
     const cleanTitle = cleanHtmlText(activeArticle.title);
-    const cleanAuthor = cleanHtmlText(activeArticle.author || 'Staff Reporter');
+    const cleanAuthor = cleanHtmlText(activeArticle.author || (localLanguage === 'hi' ? 'स्टाफ रिपोर्टर' : 'Staff Reporter'));
     const rawBody = activeArticle.content || activeArticle.summary || activeArticle.excerpt || '';
     const cleanBody = cleanHtmlText(rawBody);
 
-    const fullTextToRead = `${cleanTitle}. By ${cleanAuthor}. ${cleanBody}`;
+    const authorLabel = localLanguage === 'hi' ? 'रिपोर्टर' : 'By';
+    const fullTextToRead = localLanguage === 'hi'
+      ? `${cleanTitle}। ${authorLabel} ${cleanAuthor}। ${cleanBody}`
+      : `${cleanTitle}. By ${cleanAuthor}. ${cleanBody}`;
+
     const chunks = createChunks(fullTextToRead, 150);
+
     chunksRef.current = chunks;
     chunkIndexRef.current = 0;
     totalArticleCharsRef.current = fullTextToRead.length;
@@ -410,10 +457,13 @@ export const ArticleModal = ({ article, onClose, isLoggedIn, onOpenLogin, onLogi
 
   // Instant Zero-Latency Play / Pause / Replay Toggle
   const toggleAudio = () => {
+    if (localLanguage !== 'en' && localLanguage !== 'hi') return;
+
     if (typeof window === 'undefined' || !('speechSynthesis' in window)) {
       alert("Text-to-speech audio reader is not supported in this browser.");
       return;
     }
+
 
     // 1. REPLAY FIX: If finished (ended) -> RESET to 0:00 and replay full article from beginning!
     if (isEnded || (chunksRef.current.length > 0 && chunkIndexRef.current >= chunksRef.current.length - 1 && audioProgress >= 98)) {
@@ -514,7 +564,11 @@ export const ArticleModal = ({ article, onClose, isLoggedIn, onOpenLogin, onLogi
     setShowShareModal(true);
   };
 
+  if (!article) return null;
+
   return (
+
+
     <>
       <ShareModal 
         isOpen={showShareModal} 
@@ -933,12 +987,11 @@ export const ArticleModal = ({ article, onClose, isLoggedIn, onOpenLogin, onLogi
           style={{ fontSize: `${1.125 * zoomLevel}rem`, lineHeight: `${1.75 * zoomLevel}` }}
           dir={isRtl ? 'rtl' : 'ltr'}
         >
-          {activeArticle.content && (activeArticle.content.includes('<p>') || activeArticle.content.includes('<h1>') || activeArticle.content.includes('<h2>') || activeArticle.content.includes('<div>') || activeArticle.content.includes('<table')) ? (
-            <div 
-              className="article-html-content"
-              dangerouslySetInnerHTML={{ __html: activeArticle.content }} 
-            />
+          {activeArticle.content && (activeArticle.content.includes('<') || activeArticle.content.includes('>')) ? (
+            <SafeArticleBody content={activeArticle.content} className="article-html-content" />
           ) : (
+
+
             paragraphs.slice(0, isGated ? 1 : paragraphs.length).map((paragraph, idx) => (
               <p key={idx} style={{ marginBottom: '24px' }}>
                 {paragraph}
