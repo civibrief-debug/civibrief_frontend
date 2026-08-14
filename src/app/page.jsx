@@ -33,14 +33,17 @@ export default function HomePage() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const { language, translateMultipleArticles, isTranslating } = useTranslation();
 
-  // Fetch live articles from shared common database
+  // Fetch live articles from shared common database (only updates state if content actually changed)
   const fetchLiveArticles = async () => {
     try {
       const res = await fetch('/api/db/articles');
       if (!res.ok) return;
       const json = await res.json();
       if (json && json.success && Array.isArray(json.data) && json.data.length > 0) {
-        setDbArticles(json.data);
+        setDbArticles(prev => {
+          if (JSON.stringify(prev) === JSON.stringify(json.data)) return prev;
+          return json.data;
+        });
       }
     } catch (err) {
       console.warn("Failed to fetch live database articles (suppressed):", err?.message || err);
@@ -51,7 +54,7 @@ export default function HomePage() {
     fetchLiveArticles().catch(() => {});
     const interval = setInterval(() => {
       fetchLiveArticles().catch(() => {});
-    }, 5000);
+    }, 20000);
     return () => clearInterval(interval);
   }, []);
 

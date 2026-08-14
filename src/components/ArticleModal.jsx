@@ -27,21 +27,12 @@ export const ArticleModal = ({ article, onClose, isLoggedIn, onOpenLogin, onLogi
   const [localIsTranslating, setLocalIsTranslating] = useState(false);
   const [translatedArticle, setTranslatedArticle] = useState(null);
 
+  const articleId = article?.id;
+  const articleContent = article?.content;
+
+  // Handle translation when language or article ID changes
   useEffect(() => {
     let isMounted = true;
-
-    // Instantly cancel any playing audio voiceover when switching languages
-    if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
-      window.speechSynthesis.cancel();
-    }
-    setIsPlayingAudio(false);
-    setIsPausedAudio(false);
-    setIsEnded(false);
-    setAudioProgress(0);
-    setElapsedTimeStr('0:00');
-    isPlayingRef.current = false;
-    isPausedRef.current = false;
-    if (progressTimerRef.current) clearInterval(progressTimerRef.current);
 
     if (!article || localLanguage === 'en') {
       setTranslatedArticle(null);
@@ -56,7 +47,22 @@ export const ArticleModal = ({ article, onClose, isLoggedIn, onOpenLogin, onLogi
       }
     });
     return () => { isMounted = false; };
-  }, [article, localLanguage, translateArticle]);
+  }, [articleId, articleContent, localLanguage, translateArticle]);
+
+  // Cancel playing voiceover only when explicitly switching languages
+  useEffect(() => {
+    if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+      window.speechSynthesis.cancel();
+    }
+    setIsPlayingAudio(false);
+    setIsPausedAudio(false);
+    setIsEnded(false);
+    setAudioProgress(0);
+    setElapsedTimeStr('0:00');
+    isPlayingRef.current = false;
+    isPausedRef.current = false;
+    if (progressTimerRef.current) clearInterval(progressTimerRef.current);
+  }, [localLanguage]);
 
 
 

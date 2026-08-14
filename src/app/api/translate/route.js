@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import fs from 'fs';
 import path from 'path';
-import { translateText } from '../../../lib/translationService';
+import { translatePlainText, translateHtmlContent } from '../../../lib/translationService';
 import { checkRateLimit } from '../../../lib/rateLimit';
 
 // Valid 2 to 5 character ISO language code format (e.g. hi, bn, te, mr, ta, gu, ur, kn, zh-CN)
@@ -67,21 +67,21 @@ export async function POST(req) {
     // Not in cache, we must translate
     const translatedData = { ...articleData };
     
-    // Translate fields
+    // Translate fields with dedicated HTML preservation
     if (articleData.title && typeof articleData.title === 'string') {
-      translatedData.title = await translateText(articleData.title.slice(0, 1000), targetLang);
+      translatedData.title = await translatePlainText(articleData.title.slice(0, 1000), targetLang);
     }
     if (articleData.subtitle && typeof articleData.subtitle === 'string') {
-      translatedData.subtitle = await translateText(articleData.subtitle.slice(0, 1000), targetLang);
+      translatedData.subtitle = await translatePlainText(articleData.subtitle.slice(0, 1000), targetLang);
     }
     if (articleData.summary && typeof articleData.summary === 'string') {
-      translatedData.summary = await translateText(articleData.summary.slice(0, 2000), targetLang);
+      translatedData.summary = await translatePlainText(articleData.summary.slice(0, 2000), targetLang);
     }
     if (articleData.kicker && typeof articleData.kicker === 'string') {
-      translatedData.kicker = await translateText(articleData.kicker.slice(0, 500), targetLang);
+      translatedData.kicker = await translatePlainText(articleData.kicker.slice(0, 500), targetLang);
     }
     if (articleData.content && typeof articleData.content === 'string') {
-      translatedData.content = await translateText(articleData.content.slice(0, 10000), targetLang);
+      translatedData.content = await translateHtmlContent(articleData.content, targetLang);
     }
 
     // Save to cache

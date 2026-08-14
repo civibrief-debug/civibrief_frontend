@@ -136,6 +136,17 @@ export default function ArticlePage({ params }) {
           <div 
             className="article-body"
             style={{ width: '100%', minWidth: 0, wordBreak: 'normal', overflowWrap: 'break-word' }} 
+            onClick={(e) => {
+              const img = e.target.closest('img');
+              if (img) {
+                const sourceUrl = img.getAttribute('data-source-url') || img.closest('a')?.getAttribute('href');
+                if (sourceUrl && sourceUrl !== '#' && !sourceUrl.startsWith('javascript:')) {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  window.open(sourceUrl, '_blank', 'noopener,noreferrer');
+                }
+              }
+            }}
             dangerouslySetInnerHTML={{ __html: article.content }} 
           />
         ) : (

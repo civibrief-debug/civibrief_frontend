@@ -14,8 +14,10 @@ export function middleware(request) {
     "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
     "style-src 'self' 'unsafe-inline'",
     "img-src 'self' blob: data: https:",
+    "media-src 'self' blob: data: https:",
     "font-src 'self' data:",
-    "connect-src 'self' https://api.binance.com",
+    "connect-src 'self' https://api.binance.com https://translate.googleapis.com https://api.microlink.io https://api.fxtwitter.com https://*.googleapis.com https:",
+    "frame-src 'self' https://www.youtube.com https://www.youtube-nocookie.com https://youtu.be https://player.vimeo.com https://www.dailymotion.com https://www.loom.com https://streamable.com https:",
     "frame-ancestors 'none'"
   ].join('; ');
 
