@@ -26,11 +26,13 @@ export function sanitizeArticleHtml(htmlContent) {
 
     if (node.hasAttribute('style')) {
       let style = node.getAttribute('style') || '';
+      
+      // Strip hardcoded text colors and background colors so theme (Light/Dark mode) controls text color automatically!
       style = style
-        .replace(/background-color:[^;]+;?/gi, '')
-        .replace(/background:[^;]+;?/gi, '')
-        .replace(/font-family:[^;]+;?/gi, '')
-        .replace(/color:\s*rgb\(\s*(?:3[0-9]|2[0-9]|1[0-9]|[0-9])\s*,\s*(?:3[0-9]|2[0-9]|1[0-9]|[0-9])\s*,\s*(?:3[0-9]|2[0-9]|1[0-9]|[0-9])\s*\);?/gi, '');
+        .replace(/background-color:\s*[^;]+;?/gi, '')
+        .replace(/background:\s*[^;]+;?/gi, '')
+        .replace(/font-family:\s*[^;]+;?/gi, '')
+        .replace(/color:\s*[^;]+;?/gi, '');
       
       if (style.trim()) {
         node.setAttribute('style', style);

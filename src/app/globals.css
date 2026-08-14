@@ -1941,6 +1941,49 @@ figure.video-wrapper.image-center {
   overflow-wrap: break-word;
 }
 
+/* Dynamic Theme Color Rules for Article Body Content (Light / Dark Mode Adaptation) */
+.article-body,
+.prose,
+.article-html-content,
+.preview-article-body {
+  color: var(--text-primary) !important;
+}
+
+.article-body p,
+.prose p,
+.article-html-content p,
+.preview-article-body p,
+.article-body span:not([class*="badge"]):not(.badge),
+.prose span:not([class*="badge"]):not(.badge),
+.article-html-content span:not([class*="badge"]):not(.badge),
+.preview-article-body span:not([class*="badge"]):not(.badge),
+.article-body li,
+.prose li,
+.article-html-content li,
+.preview-article-body li,
+.article-body h1,
+.prose h1,
+.article-body h2,
+.prose h2,
+.article-body h3,
+.prose h3,
+.article-body h4,
+.prose h4,
+.article-body h5,
+.prose h5,
+.article-body h6,
+.prose h6 {
+  color: inherit !important;
+}
+
+/* Captions and Subtitles */
+.article-body figcaption,
+.prose figcaption,
+.article-html-content figcaption,
+.preview-article-body figcaption {
+  color: var(--text-muted, #94a3b8) !important;
+}
+
 /* Clearfix for Article Containers */
 .article-body::after,
 .prose::after {
