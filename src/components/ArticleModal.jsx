@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import ShareModal from './ShareModal';
 import SafeArticleBody from './SafeArticleBody';
+import ArticleAdBanner from './ArticleAdBanner';
 import { useTranslation } from '../context/TranslationContext';
 
 import { LanguageSelector } from './LanguageSelector';
@@ -994,15 +995,32 @@ export const ArticleModal = ({ article, onClose, isLoggedIn, onOpenLogin, onLogi
           dir={isRtl ? 'rtl' : 'ltr'}
         >
           {activeArticle.content && (activeArticle.content.includes('<') || activeArticle.content.includes('>')) ? (
-            <SafeArticleBody content={activeArticle.content} className="article-html-content" />
+            <SafeArticleBody content={activeArticle.content} className="article-html-content" adConfig={activeArticle} adPlacements={activeArticle.adPlacements} />
           ) : (
+            paragraphs.slice(0, isGated ? 1 : paragraphs.length).map((paragraph, idx) => {
+              const activeAds = Array.isArray(activeArticle?.adPlacements) && activeArticle.adPlacements.length > 0
+                ? activeArticle.adPlacements.filter(a => a && a.enabled)
+                : (activeArticle?.placeholderAdEnabled ? [activeArticle] : []);
 
+              const matchingAds = activeAds.filter(a => {
+                const targetIdx = parseInt(a.placementValue || a.placeholderAdPositionValue || '2');
+                const pType = a.placementType || a.placeholderAdPositionType || 'after_paragraph';
+                if (pType === 'after_intro') return idx === 0;
+                if (pType === 'before_related') return idx === paragraphs.length - 1;
+                return idx === Math.min(paragraphs.length - 1, Math.max(0, targetIdx - 1));
+              });
 
-            paragraphs.slice(0, isGated ? 1 : paragraphs.length).map((paragraph, idx) => (
-              <p key={idx} style={{ marginBottom: '24px' }}>
-                {paragraph}
-              </p>
-            ))
+              return (
+                <React.Fragment key={idx}>
+                  <p style={{ marginBottom: '24px' }}>
+                    {paragraph}
+                  </p>
+                  {matchingAds.map((ad, i) => (
+                    <ArticleAdBanner key={ad.id || i} adConfig={ad} alignment={ad.alignment} label={ad.label} contentType={ad.contentType} content={ad.content} />
+                  ))}
+                </React.Fragment>
+              );
+            })
           )}
 
           {/* Gated Paywall Banner for Deep Dives */}

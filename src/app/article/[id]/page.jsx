@@ -3,6 +3,8 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import ShareModal from '../../../components/ShareModal';
+import SafeArticleBody from '../../../components/SafeArticleBody';
+import ArticleAdBanner from '../../../components/ArticleAdBanner';
 import { 
   Volume2, 
   Clock, 
@@ -132,29 +134,33 @@ export default function ArticlePage({ params }) {
 
       {/* Article Body */}
       <div style={{ fontFamily: 'var(--font-serif)', fontSize: '19px', lineHeight: 1.7, color: 'var(--text-primary)' }}>
-        {article.content && (article.content.includes('<p>') || article.content.includes('<h1>') || article.content.includes('<h2>') || article.content.includes('<div>') || article.content.includes('<table')) ? (
-          <div 
-            className="article-body"
-            style={{ width: '100%', minWidth: 0, wordBreak: 'normal', overflowWrap: 'break-word' }} 
-            onClick={(e) => {
-              const img = e.target.closest('img');
-              if (img) {
-                const sourceUrl = img.getAttribute('data-source-url') || img.closest('a')?.getAttribute('href');
-                if (sourceUrl && sourceUrl !== '#' && !sourceUrl.startsWith('javascript:')) {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  window.open(sourceUrl, '_blank', 'noopener,noreferrer');
-                }
-              }
-            }}
-            dangerouslySetInnerHTML={{ __html: article.content }} 
-          />
+        {article.content && (article.content.includes('<') || article.content.includes('>')) ? (
+          <SafeArticleBody content={article.content} className="article-body" adConfig={article} adPlacements={article.adPlacements} />
         ) : (
-          (article.content || article.excerpt || '').split('\n\n').map((para, i) => (
-            <p key={i} style={{ marginBottom: '24px' }}>
-              {para}
-            </p>
-          ))
+          (article.content || article.excerpt || '').split('\n\n').map((para, i, arr) => {
+            const activeAds = Array.isArray(article?.adPlacements) && article.adPlacements.length > 0
+              ? article.adPlacements.filter(a => a && a.enabled)
+              : (article?.placeholderAdEnabled ? [article] : []);
+
+            const matchingAds = activeAds.filter(a => {
+              const targetIdx = parseInt(a.placementValue || a.placeholderAdPositionValue || '2');
+              const pType = a.placementType || a.placeholderAdPositionType || 'after_paragraph';
+              if (pType === 'after_intro') return i === 0;
+              if (pType === 'before_related') return i === arr.length - 1;
+              return i === Math.min(arr.length - 1, Math.max(0, targetIdx - 1));
+            });
+
+            return (
+              <React.Fragment key={i}>
+                <p style={{ marginBottom: '24px' }}>
+                  {para}
+                </p>
+                {matchingAds.map((ad, idx) => (
+                  <ArticleAdBanner key={ad.id || idx} adConfig={ad} alignment={ad.alignment} label={ad.label} contentType={ad.contentType} content={ad.content} />
+                ))}
+              </React.Fragment>
+            );
+          })
         )}
       </div>
     </main>
