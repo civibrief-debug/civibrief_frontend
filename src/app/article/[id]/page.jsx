@@ -98,13 +98,56 @@ export default function ArticlePage({ params }) {
           </div>
         </div>
 
-        {/* Featured Cover Image */}
-        {article.imageUrl && (
-          <div style={{ marginBottom: '32px' }}>
+        {/* Featured Cover Media (Video or Image) */}
+        {article.coverMediaType === 'video' && article.videoUrl ? (
+          <div style={{ marginBottom: '32px', width: article.coverWidth || '100%', margin: '0 auto 32px auto' }}>
+            {/(?:youtube\.com|youtu\.be|vimeo\.com)/i.test(article.videoUrl) ? (
+              <div style={{ width: '100%', height: article.coverHeight || '450px', borderRadius: 'var(--radius-lg)', overflow: 'hidden', ...article.coverCropStyle }}>
+                <iframe
+                  src={article.videoUrl.replace('watch?v=', 'embed/').replace('youtu.be/', 'youtube.com/embed/')}
+                  title="Cover Video"
+                  style={{ width: '100%', height: '100%', border: 'none' }}
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                  allowFullScreen
+                />
+              </div>
+            ) : (
+              <video 
+                src={article.videoUrl} 
+                controls
+                autoPlay
+                muted
+                loop
+                playsInline
+                style={{
+                  width: '100%',
+                  borderRadius: 'var(--radius-lg)',
+                  maxHeight: article.coverHeight === 'auto' ? 'none' : (article.coverHeight || '480px'),
+                  objectFit: 'cover',
+                  display: 'block',
+                  ...article.coverCropStyle
+                }} 
+              />
+            )}
+            {article.imageCaption && (
+              <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginTop: '8px', textAlign: 'center', fontStyle: 'italic' }}>
+                {article.imageCaption}
+              </p>
+            )}
+          </div>
+        ) : (article.imageUrl && (
+          <div style={{ marginBottom: '32px', width: article.coverWidth || '100%', margin: '0 auto 32px auto' }}>
             <img 
               src={article.imageUrl} 
               alt={article.title} 
-              style={{ width: '100%', borderRadius: 'var(--radius-lg)', maxHeight: '480px', objectFit: 'cover' }} 
+              style={{
+                width: '100%',
+                borderRadius: 'var(--radius-lg)',
+                maxHeight: article.coverHeight === 'auto' ? 'none' : (article.coverHeight || '480px'),
+                objectFit: 'cover',
+                display: 'block',
+                ...article.coverCropStyle
+              }} 
             />
             {article.imageCaption && (
               <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginTop: '8px', textAlign: 'center', fontStyle: 'italic' }}>
@@ -112,7 +155,7 @@ export default function ArticlePage({ params }) {
               </p>
             )}
           </div>
-        )}
+        ))}
 
         {/* Key Takeaways Box */}
         {article.takeaways && article.takeaways.length > 0 && (

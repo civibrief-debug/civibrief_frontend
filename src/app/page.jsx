@@ -33,16 +33,17 @@ export default function HomePage() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const { language, translateMultipleArticles, isTranslating } = useTranslation();
 
-  // Fetch live articles from shared common database (only updates state if content actually changed)
+  // Fetch live articles from shared common database (strictly Published articles only)
   const fetchLiveArticles = async () => {
     try {
       const res = await fetch('/api/db/articles');
       if (!res.ok) return;
       const json = await res.json();
-      if (json && json.success && Array.isArray(json.data) && json.data.length > 0) {
+      if (json && json.success && Array.isArray(json.data)) {
+        const publishedOnly = json.data.filter(a => a.status === 'Published');
         setDbArticles(prev => {
-          if (JSON.stringify(prev) === JSON.stringify(json.data)) return prev;
-          return json.data;
+          if (JSON.stringify(prev) === JSON.stringify(publishedOnly)) return prev;
+          return publishedOnly;
         });
       }
     } catch (err) {
@@ -73,7 +74,8 @@ export default function HomePage() {
     return () => { isMounted = false; };
   }, [dbArticles, language, translateMultipleArticles]);
 
-  const activeArticles = translatedArticles || dbArticles;
+  const rawActiveArticles = translatedArticles || dbArticles;
+  const activeArticles = rawActiveArticles.filter(a => !a.status || a.status === 'Published');
 
   // Compute live featured story & articles
   const liveFeatured = activeArticles.find(a => a.featured) || activeArticles[0] || FALLBACK_HERO_FEATURED;
@@ -97,10 +99,22 @@ export default function HomePage() {
         {/* Main Lead Story */}
         <article className="hero-main-card">
           <div className="hero-img-box">
-            <img 
-              src={liveFeatured.imageUrl || "https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=1200&q=80"} 
-              alt={liveFeatured.title} 
-            />
+            {liveFeatured.coverMediaType === 'video' && liveFeatured.videoUrl ? (
+              <video 
+                src={liveFeatured.videoUrl} 
+                autoPlay
+                muted
+                loop
+                playsInline
+                style={{ width: '100%', height: '100%', objectFit: 'cover', ...liveFeatured.coverCropStyle }}
+              />
+            ) : (
+              <img 
+                src={liveFeatured.imageUrl || "https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=1200&q=80"} 
+                alt={liveFeatured.title} 
+                style={liveFeatured.coverCropStyle || undefined}
+              />
+            )}
             {liveFeatured.hasAudio && (
               <div style={{ position: 'absolute', top: '16px', right: '16px', background: 'rgba(9, 13, 22, 0.85)', backdropFilter: 'blur(4px)', color: '#34d399', fontSize: '11px', fontWeight: 800, padding: '6px 12px', borderRadius: 'var(--radius-sm)', display: 'flex', alignItems: 'center', gap: '6px' }}>
                 <Volume2 size={14} />
@@ -168,11 +182,22 @@ export default function HomePage() {
 
           {liveArticlesList.map((article) => (
             <article key={article.id} className="article-card-horizontal" onClick={() => setSelectedArticle(article)} style={{ cursor: 'pointer' }}>
-              <img 
-                src={article.imageUrl || "https://images.unsplash.com/photo-1451187580459-43490279c0fa?auto=format&fit=crop&w=600&q=80"} 
-                alt={article.title} 
-                className="card-h-img" 
-              />
+              {article.coverMediaType === 'video' && article.videoUrl ? (
+                <video 
+                  src={article.videoUrl} 
+                  muted 
+                  playsInline 
+                  className="card-h-img" 
+                  style={{ objectFit: 'cover', ...article.coverCropStyle }} 
+                />
+              ) : (
+                <img 
+                  src={article.imageUrl || "https://images.unsplash.com/photo-1451187580459-43490279c0fa?auto=format&fit=crop&w=600&q=80"} 
+                  alt={article.title} 
+                  className="card-h-img" 
+                  style={article.coverCropStyle || undefined}
+                />
+              )}
               <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
                 <div className="category-tag" style={{ fontSize: '10px' }}>
                   {article.kicker ? <span style={{ color: 'var(--accent-gold, #d97706)', fontWeight: 800 }}>{article.kicker}</span> : article.category}

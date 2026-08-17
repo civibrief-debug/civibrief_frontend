@@ -34,6 +34,14 @@ export async function GET(req, { params }) {
       return NextResponse.json({ success: false, error: 'Article not found' }, { status: 404 });
     }
 
+    // STRICT USER/READER VISIBILITY: Drafts or non-published articles cannot be viewed by readers.
+    if (article.status !== 'Published') {
+      const session = authorizeRequest(req, ['admin', 'editor']);
+      if (!session) {
+        return NextResponse.json({ success: false, error: 'Article is in draft state and not yet published.' }, { status: 404 });
+      }
+    }
+
     // Backend Paywall Gating Enforcement
     if (article.is_premium) {
       const session = authorizeRequest(req);
@@ -75,7 +83,26 @@ export async function PUT(req, { params }) {
       return NextResponse.json({ success: false, error: 'Article not found' }, { status: 404 });
     }
 
+    const existing = db.articles[index];
+    const targetStatus = body.status !== undefined ? body.status : existing.status;
+    if (targetStatus === 'Published') {
+      const finalTitle = (body.title !== undefined ? body.title : existing.title)?.trim() || '';
+      const kickerCandidate = body.kicker !== undefined ? body.kicker : (body.supertitle !== undefined ? body.supertitle : (existing.kicker || existing.supertitle || ''));
+      const finalSupertitle = (kickerCandidate || '')?.trim();
+      if (!finalTitle || !finalSupertitle) {
+        return NextResponse.json(
+          { success: false, error: 'Article cannot be published without both Supertitle (kicker) and Headline Title.' },
+          { status: 400 }
+        );
+      }
+    }
+
     const updatedData = { ...body };
+    if (updatedData.kicker !== undefined || updatedData.supertitle !== undefined) {
+      const sVal = (updatedData.kicker || updatedData.supertitle || '').trim();
+      updatedData.kicker = sVal;
+      updatedData.supertitle = sVal;
+    }
     if (updatedData.content) {
       updatedData.content = sanitizeArticleHtml(updatedData.content);
     }
@@ -114,4 +141,3 @@ export async function DELETE(req, { params }) {
     return NextResponse.json({ success: false, error: err.message }, { status: 500 });
   }
 }
-

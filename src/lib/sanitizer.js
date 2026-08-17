@@ -10,7 +10,8 @@ const ALLOWED_ATTR = [
   'src', 'alt', 'title', 'width', 'height', 'class', 'style', 'href', 'target', 'rel',
   'frameborder', 'allow', 'allowfullscreen', 'controls', 'autoplay', 'muted', 'loop', 'type', 'preload', 'poster',
   'data-video-url', 'data-media-url', 'data-provider', 'scrolling', 'loading', 'allowtransparency',
-  'data-source-url', 'data-original-url', 'data-link-url', 'id', 'dir', 'referrerpolicy'
+  'data-source-url', 'data-original-url', 'data-link-url', 'id', 'dir', 'referrerpolicy',
+  'data-crop-aspect', 'data-crop-zoom', 'data-crop-pan-x', 'data-crop-pan-y', 'data-crop-top', 'data-crop-bottom', 'data-crop-left', 'data-crop-right'
 ];
 
 export function sanitizeArticleHtml(htmlContent) {

@@ -6,12 +6,25 @@ export const HeroStory = ({ story, onArticleClick }) => {
   return (
     <article className="hero-column col-divider">
       <div className="hero-image-wrapper" onClick={() => onArticleClick(story)}>
-        <img 
-          src={story.imageUrl} 
-          alt={story.title} 
-          className="hero-image" 
-          loading="eager" 
-        />
+        {story.coverMediaType === 'video' && story.videoUrl ? (
+          <video 
+            src={story.videoUrl} 
+            autoPlay
+            muted
+            loop
+            playsInline
+            className="hero-image" 
+            style={{ width: '100%', height: '100%', objectFit: 'cover', ...story.coverCropStyle }}
+          />
+        ) : (
+          <img 
+            src={story.imageUrl} 
+            alt={story.title} 
+            className="hero-image" 
+            loading="eager" 
+            style={story.coverCropStyle || undefined}
+          />
+        )}
       </div>
 
       <div className="category-badge">{story.category}</div>

@@ -972,13 +972,56 @@ export const ArticleModal = ({ article, onClose, isLoggedIn, onOpenLogin, onLogi
         </div>
         )}
 
-        {/* Optional Article Main Image */}
-        {activeArticle.imageUrl && (
-          <div className="article-modal-hero-img-container">
+        {/* Optional Article Cover Media (Video or Image) */}
+        {activeArticle.coverMediaType === 'video' && activeArticle.videoUrl ? (
+          <div className="article-modal-hero-img-container" style={{ width: activeArticle.coverWidth || '100%', margin: '0 auto 24px auto' }}>
+            {/(?:youtube\.com|youtu\.be|vimeo\.com)/i.test(activeArticle.videoUrl) ? (
+              <div style={{ width: '100%', height: activeArticle.coverHeight || '420px', borderRadius: 'var(--radius-md)', overflow: 'hidden', ...activeArticle.coverCropStyle }}>
+                <iframe
+                  src={activeArticle.videoUrl.replace('watch?v=', 'embed/').replace('youtu.be/', 'youtube.com/embed/')}
+                  title="Cover Video"
+                  style={{ width: '100%', height: '100%', border: 'none' }}
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                  allowFullScreen
+                />
+              </div>
+            ) : (
+              <video 
+                src={activeArticle.videoUrl} 
+                controls
+                autoPlay
+                muted
+                loop
+                playsInline
+                className="article-modal-hero-img"
+                style={{
+                  maxHeight: activeArticle.coverHeight === 'auto' ? 'none' : (activeArticle.coverHeight || '480px'),
+                  objectFit: 'cover',
+                  borderRadius: 'var(--radius-md)',
+                  display: 'block',
+                  ...activeArticle.coverCropStyle
+                }}
+              />
+            )}
+            {activeArticle.imageCaption && (
+              <div className="article-modal-img-caption" dir={isRtl ? 'rtl' : 'ltr'}>
+                {activeArticle.imageCaption}
+              </div>
+            )}
+          </div>
+        ) : (activeArticle.imageUrl && (
+          <div className="article-modal-hero-img-container" style={{ width: activeArticle.coverWidth || '100%', margin: '0 auto 24px auto' }}>
             <img 
               src={activeArticle.imageUrl} 
               alt={activeArticle.title} 
               className="article-modal-hero-img"
+              style={{
+                maxHeight: activeArticle.coverHeight === 'auto' ? 'none' : (activeArticle.coverHeight || '480px'),
+                objectFit: 'cover',
+                borderRadius: 'var(--radius-md)',
+                display: 'block',
+                ...activeArticle.coverCropStyle
+              }}
             />
             {activeArticle.imageCaption && (
               <div className="article-modal-img-caption" dir={isRtl ? 'rtl' : 'ltr'}>
@@ -986,7 +1029,7 @@ export const ArticleModal = ({ article, onClose, isLoggedIn, onOpenLogin, onLogi
               </div>
             )}
           </div>
-        )}
+        ))}
 
         {/* Article Body Content */}
         <div 
