@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import Link from 'next/link';
 import { useRouter, usePathname } from 'next/navigation';
 import { 
@@ -100,7 +100,27 @@ export function Header({
     else setInternalMenuOpen(false);
   };
 
-  const activeCat = parentActiveCategory || localCategory;
+  const router = useRouter();
+  const pathname = usePathname();
+
+  // Dynamically compute active category based strictly on current URL pathname
+  const activeCat = useMemo(() => {
+    if (!pathname || pathname === '/') return 'top-stories';
+    if (pathname.startsWith('/section/')) {
+      return pathname.replace('/section/', '').split('/')[0].split('?')[0];
+    }
+    if (pathname.startsWith('/news/')) {
+      const parts = pathname.replace('/news/', '').split('/');
+      return parts[parts.length - 1].split('?')[0];
+    }
+    return localCategory || 'top-stories';
+  }, [pathname, localCategory]);
+
+  const handleLogoClick = () => {
+    setLocalCategory('top-stories');
+    setHoveredCategory(null);
+    if (onSelectCategory) onSelectCategory('top-stories');
+  };
 
   useEffect(() => {
     const today = new Date();
@@ -151,9 +171,6 @@ export function Header({
     setTheme(nextTheme);
     document.documentElement.setAttribute('data-theme', nextTheme);
   };
-
-  const router = useRouter();
-  const pathname = usePathname();
 
   const handleCategoryClick = (catSlug, subSectionName = null) => {
     const isDeepDive = catSlug === 'deep-dives' || catSlug.toLowerCase().includes('deep dive') || catSlug.toLowerCase().includes('sovereign ai');
@@ -247,7 +264,7 @@ export function Header({
         </div>
 
         {/* Center Serif Logo with Emblem Crest (The Hindu Style) */}
-        <Link href="/" className="brand-logo-hindu" title="Daily Brief Home">
+        <Link href="/" className="brand-logo-hindu" title="Daily Brief Home" onClick={handleLogoClick}>
           <span className="brand-title-word">DAILY</span>
           <CrestLogo className="brand-crest-logo" />
           <span className="brand-title-word">BRIEF</span>
@@ -379,6 +396,10 @@ export function Header({
                 const hasSections = !!CATEGORY_SECTIONS[cat.slug];
                 const isHovered = hoveredCategory === cat.slug;
 
+                const isCatActive = (!pathname || pathname === '/')
+                  ? (cat.slug === 'top-stories' || cat.slug === 'all')
+                  : (activeCat === cat.slug || activeCat === cat.name.toLowerCase());
+
                 return (
                   <li key={cat.slug} className="category-item-has-mega">
                     <button
@@ -392,7 +413,7 @@ export function Header({
                       onMouseEnter={() => {
                         if (hasSections) setHoveredCategory(cat.slug);
                       }}
-                      className={`category-link ${activeCat === cat.slug || activeCat.toLowerCase() === cat.name.toLowerCase() ? 'active' : ''} ${isHovered ? 'mega-active' : ''}`}
+                      className={`category-link ${isCatActive ? 'active' : ''} ${isHovered ? 'mega-active' : ''}`}
                     >
                       <span>{cat.name}</span>
                       {hasSections && (
