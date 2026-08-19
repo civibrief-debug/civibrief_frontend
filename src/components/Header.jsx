@@ -226,12 +226,19 @@ export function Header({
     <header className={`header-wrapper ${isScrolled ? 'is-scrolled' : ''} ${showHeader ? 'show-header' : 'hide-header'}`}>
       {/* Financial Ticker Top Bar - Appears ONLY when in Markets & Economy section */}
       {isMarketsSection && (
-        <div className="ticker-bar">
+        <a 
+          href="https://www.binance.com/en/markets/overview"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="ticker-bar"
+          title="Click to view live global market overview on Binance"
+          style={{ textDecoration: 'none', cursor: 'pointer', display: 'block' }}
+        >
           <div className="ticker-wrapper">
             {tickerData.concat(tickerData).map((item, idx) => (
               <div key={idx} className="ticker-item">
                 <span style={{ fontWeight: 700, color: '#e2e8f0' }}>{item.symbol}:</span>
-                <span>{item.value}</span>
+                <span style={{ color: '#f8fafc' }}>{item.value}</span>
                 <span className={item.isPositive ? 'ticker-pos' : 'ticker-neg'}>
                   {item.change}
                 </span>
@@ -239,7 +246,7 @@ export function Header({
               </div>
             ))}
           </div>
-        </div>
+        </a>
       )}
 
       {/* Main Newspaper Masthead */}

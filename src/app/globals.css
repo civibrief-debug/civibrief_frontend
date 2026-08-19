@@ -104,7 +104,7 @@ button {
 }
 
 .ticker-wrapper:hover {
-  animation-play-state: paused;
+  animation-play-state: running;
 }
 
 @keyframes scrollTicker {
