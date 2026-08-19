@@ -16,6 +16,7 @@ import {
   ArrowLeft, 
   ThumbsUp
 } from 'lucide-react';
+import { useTranslation } from '../context/TranslationContext';
 import { HERO_FEATURED, MAIN_ARTICLES, HERO_SECONDARY } from '../data/newsData';
 
 export default function ArticleDetailView({ id }) {
@@ -23,9 +24,25 @@ export default function ArticleDetailView({ id }) {
   const [liked, setLiked] = useState(false);
   const [likesCount, setLikesCount] = useState(342);
   const [showShareModal, setShowShareModal] = useState(false);
+  const { language, translateArticle } = useTranslation();
+  const [translatedArticle, setTranslatedArticle] = useState(null);
 
   const allStories = [HERO_FEATURED, ...HERO_SECONDARY, ...MAIN_ARTICLES];
-  const article = allStories.find(a => (a.slug || a.id) === id) || HERO_FEATURED;
+  const rawArticle = allStories.find(a => (a.slug || a.id) === id) || HERO_FEATURED;
+
+  React.useEffect(() => {
+    let isMounted = true;
+    if (language === 'en') {
+      setTranslatedArticle(null);
+      return;
+    }
+    translateArticle(rawArticle, language).then(translated => {
+      if (isMounted && translated) setTranslatedArticle(translated);
+    });
+    return () => { isMounted = false; };
+  }, [rawArticle, language, translateArticle]);
+
+  const article = translatedArticle || rawArticle;
 
   const toggleLike = () => {
     if (liked) {

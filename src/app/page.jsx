@@ -68,15 +68,16 @@ export default function HomePage() {
       setTranslatedArticles(null);
       return;
     }
-    if (dbArticles.length > 0) {
-      translateMultipleArticles(dbArticles, language).then(translated => {
-        if (isMounted) setTranslatedArticles(translated);
+    const baseArticles = dbArticles.length > 0 ? dbArticles : [FALLBACK_HERO_FEATURED, ...FALLBACK_HERO_SECONDARY, ...FALLBACK_MAIN_ARTICLES];
+    if (baseArticles.length > 0) {
+      translateMultipleArticles(baseArticles, language).then(translated => {
+        if (isMounted && translated) setTranslatedArticles(translated);
       });
     }
     return () => { isMounted = false; };
   }, [dbArticles, language, translateMultipleArticles]);
 
-  const rawActiveArticles = translatedArticles || dbArticles;
+  const rawActiveArticles = translatedArticles || (dbArticles.length > 0 ? dbArticles : [FALLBACK_HERO_FEATURED, ...FALLBACK_HERO_SECONDARY, ...FALLBACK_MAIN_ARTICLES]);
   const activeArticles = rawActiveArticles.filter(a => !a.status || a.status === 'Published');
 
   // Compute live featured story & articles

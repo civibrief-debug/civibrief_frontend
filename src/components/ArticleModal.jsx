@@ -30,6 +30,11 @@ export const ArticleModal = ({ article, onClose, isLoggedIn, onOpenLogin, onLogi
   const [localIsTranslating, setLocalIsTranslating] = useState(false);
   const [translatedArticle, setTranslatedArticle] = useState(null);
 
+  // Keep local language in sync with global language changes
+  useEffect(() => {
+    setLocalLanguage(globalLanguage);
+  }, [globalLanguage]);
+
   const articleId = article?.id;
   const articleContent = article?.content;
 
