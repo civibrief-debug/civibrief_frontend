@@ -1,7 +1,8 @@
 'use client';
 
-import React from 'react';
-import { Megaphone, Sparkles, ExternalLink, MousePointerClick, Play, Video, LayoutGrid, Image as ImageIcon } from 'lucide-react';
+import React, { useState, useRef, useEffect } from 'react';
+import { Megaphone, Sparkles, ExternalLink, MousePointerClick, Play, Video, LayoutGrid, Image as ImageIcon, Volume2, VolumeX } from 'lucide-react';
+import ContinuousCoverVideo from './ContinuousCoverVideo';
 
 const DEFAULT_COLLAGE_ITEMS = [
   {
@@ -44,7 +45,11 @@ export default function ArticleAdBanner({
   const adContent = adConfig.content !== undefined ? adConfig.content : (adConfig.placeholderAdContent !== undefined ? adConfig.placeholderAdContent : content);
   const redirectUrl = adConfig.targetUrl || adConfig.linkUrl || adConfig.placeholderAdTargetUrl || '';
   const headline = adConfig.headline || adConfig.placeholderAdHeadline || 'Premium Partner Showcase';
-  const description = adConfig.description || adConfig.placeholderAdDescription || 'Discover exclusive offers and services curated for our readers.';
+  const description = (adConfig.description !== undefined && adConfig.description !== null)
+    ? adConfig.description
+    : (adConfig.placeholderAdDescription !== undefined && adConfig.placeholderAdDescription !== null
+        ? adConfig.placeholderAdDescription
+        : '');
   const ctaText = adConfig.ctaText || adConfig.placeholderAdCtaText || 'Learn More ↗';
 
   const videoAutoplay = adConfig.videoAutoplay ?? true;
@@ -87,27 +92,81 @@ export default function ArticleAdBanner({
     };
   }
 
+  const [isMuted, setIsMuted] = useState(true);
+  const iframeRef = useRef(null);
+
   const handleBannerClick = () => {
     if (redirectUrl && redirectUrl.startsWith('http')) {
       window.open(redirectUrl, '_blank', 'noopener,noreferrer');
     }
   };
 
-  // Helper to extract embed video URL (YouTube, Vimeo, etc.)
+  const toggleMute = (e) => {
+    e.stopPropagation();
+    e.preventDefault();
+    const nextMuted = !isMuted;
+    setIsMuted(nextMuted);
+
+    // If YouTube / Vimeo iframe
+    if (iframeRef.current && iframeRef.current.contentWindow) {
+      try {
+        if (nextMuted) {
+          // YouTube Mute
+          iframeRef.current.contentWindow.postMessage('{"event":"command","func":"mute","args":""}', '*');
+          // Vimeo Mute
+          iframeRef.current.contentWindow.postMessage('{"method":"setMuted","value":true}', '*');
+        } else {
+          // YouTube Unmute & Play
+          iframeRef.current.contentWindow.postMessage('{"event":"command","func":"unMute","args":""}', '*');
+          iframeRef.current.contentWindow.postMessage('{"event":"command","func":"playVideo","args":""}', '*');
+          // Vimeo Unmute & Play
+          iframeRef.current.contentWindow.postMessage('{"method":"setMuted","value":false}', '*');
+          iframeRef.current.contentWindow.postMessage('{"method":"setVolume","value":1}', '*');
+          iframeRef.current.contentWindow.postMessage('{"method":"play"}', '*');
+        }
+      } catch (err) {}
+    }
+  };
+
+  // Resume video playback when switching back to tab or refreshing
+  useEffect(() => {
+    const handleResumePlayback = () => {
+      if (document.visibilityState === 'visible' && iframeRef.current && iframeRef.current.contentWindow) {
+        try {
+          iframeRef.current.contentWindow.postMessage('{"event":"command","func":"playVideo","args":""}', '*');
+          iframeRef.current.contentWindow.postMessage('{"method":"play"}', '*');
+        } catch (e) {}
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleResumePlayback);
+    window.addEventListener('focus', handleResumePlayback);
+
+    // Initial check & periodic heartbeat to ensure continuous loop without pausing
+    const interval = setInterval(handleResumePlayback, 3000);
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleResumePlayback);
+      window.removeEventListener('focus', handleResumePlayback);
+      clearInterval(interval);
+    };
+  }, []);
+
+  // Helper to extract embed video URL (YouTube, Vimeo, etc.) with zero controls & continuous loop
   const parseVideoEmbedUrl = (rawUrl) => {
     if (!rawUrl || typeof rawUrl !== 'string') return null;
     const cleanUrl = rawUrl.trim();
 
-    // YouTube
+    // YouTube - Silent Looping Background Video (No play/pause buttons, no controls, no branding)
     const ytMatch = cleanUrl.match(/(?:youtube(?:-nocookie)?\.com\/(?:[^\/\n\s]+\/\S+\/|(?:v|e(?:mbed)?|shorts)\/|\S*?[?&]v=)|youtu\.be\/)([a-zA-Z0-9_-]{11})/i);
     if (ytMatch && ytMatch[1]) {
-      return `https://www.youtube-nocookie.com/embed/${ytMatch[1]}?autoplay=${videoAutoplay ? 1 : 0}&mute=${videoMuted ? 1 : 0}&loop=${videoLoop ? 1 : 0}&playlist=${ytMatch[1]}`;
+      return `https://www.youtube-nocookie.com/embed/${ytMatch[1]}?autoplay=1&mute=1&loop=1&playlist=${ytMatch[1]}&controls=0&modestbranding=1&rel=0&showinfo=0&iv_load_policy=3&disablekb=1&playsinline=1&enablejsapi=1&fs=0&color=white&autohide=1`;
     }
 
-    // Vimeo
+    // Vimeo - Silent Looping Background Video (No controls)
     const vimeoMatch = cleanUrl.match(/(?:vimeo\.com\/(?:channels\/(?:\w+\/)?|groups\/[^\/]*\/videos\/|album\/\d+\/video\/|video\/|)(\d+))/i) || cleanUrl.match(/player\.vimeo\.com\/video\/(\d+)/i);
     if (vimeoMatch && vimeoMatch[1]) {
-      return `https://player.vimeo.com/video/${vimeoMatch[1]}?autoplay=${videoAutoplay ? 1 : 0}&muted=${videoMuted ? 1 : 0}&loop=${videoLoop ? 1 : 0}`;
+      return `https://player.vimeo.com/video/${vimeoMatch[1]}?autoplay=1&muted=1&loop=1&background=1&controls=0&autopause=0`;
     }
 
     return null;
@@ -422,31 +481,98 @@ export default function ArticleAdBanner({
             )}
           </div>
         ) : type === 'video' && adContent ? (
-          <div style={{ borderRadius: '8px', overflow: 'hidden', background: '#000', position: 'relative' }}>
+          <div
+            onClick={handleBannerClick}
+            style={{
+              borderRadius: '8px',
+              overflow: 'hidden',
+              background: '#000',
+              position: 'relative',
+              cursor: redirectUrl ? 'pointer' : 'default'
+            }}
+          >
+            {/* Floating Volume / Mute Toggle Button (Top-Right Badge) */}
+            <button
+              type="button"
+              onClick={toggleMute}
+              style={{
+                position: 'absolute',
+                top: '10px',
+                right: '10px',
+                zIndex: 20,
+                background: 'rgba(9, 13, 22, 0.85)',
+                backdropFilter: 'blur(8px)',
+                border: '1px solid rgba(255, 255, 255, 0.3)',
+                borderRadius: '50%',
+                width: '34px',
+                height: '34px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: isMuted ? '#cbd5e1' : '#38bdf8',
+                cursor: 'pointer',
+                boxShadow: '0 4px 14px rgba(0, 0, 0, 0.7)',
+                transition: 'all 0.2s ease',
+                pointerEvents: 'auto'
+              }}
+              onMouseEnter={(e) => { e.currentTarget.style.transform = 'scale(1.1)'; }}
+              onMouseLeave={(e) => { e.currentTarget.style.transform = 'scale(1)'; }}
+              title={isMuted ? "Click to Unmute" : "Click to Mute"}
+              aria-label={isMuted ? "Unmute video ad" : "Mute video ad"}
+            >
+              {isMuted ? <VolumeX size={16} /> : <Volume2 size={16} />}
+            </button>
+
             {videoEmbedUrl ? (
-              <iframe
-                src={videoEmbedUrl}
-                title={displayLabel}
-                style={{ width: '100%', height: '280px', border: 'none', display: 'block', borderRadius: '6px' }}
-                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                allowFullScreen
-              />
+              <div style={{ position: 'relative', width: '100%', height: isCompact ? '220px' : '280px', overflow: 'hidden', background: '#000' }}>
+                <iframe
+                  ref={iframeRef}
+                  src={videoEmbedUrl}
+                  title={displayLabel}
+                  style={{
+                    position: 'absolute',
+                    top: '50%',
+                    left: '50%',
+                    width: '145%',
+                    height: '145%',
+                    transform: 'translate(-50%, -50%)',
+                    border: 'none',
+                    display: 'block',
+                    pointerEvents: 'none'
+                  }}
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                />
+                {/* Transparent click shield: Prevents hover states inside YouTube while routing clicks to sponsor */}
+                <div
+                  onClick={handleBannerClick}
+                  style={{
+                    position: 'absolute',
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    bottom: 0,
+                    zIndex: 5,
+                    cursor: redirectUrl ? 'pointer' : 'default'
+                  }}
+                />
+              </div>
             ) : (
-              <video
-                src={adContent}
-                controls={videoControls}
-                autoPlay={videoAutoplay}
-                loop={videoLoop}
-                muted={videoMuted}
-                playsInline
-                style={{
-                  width: '100%',
-                  maxHeight: '320px',
-                  objectFit: 'contain',
-                  borderRadius: '6px',
-                  display: 'block'
-                }}
-              />
+              <div style={{ width: '100%', height: isCompact ? '220px' : '280px' }}>
+                <ContinuousCoverVideo
+                  src={adContent}
+                  controls={false}
+                  autoPlay={true}
+                  muted={isMuted}
+                  loop={true}
+                  playsInline={true}
+                  style={{
+                    width: '100%',
+                    height: '100%',
+                    objectFit: 'cover',
+                    display: 'block'
+                  }}
+                />
+              </div>
             )}
 
             {/* Video Footer Banner with Info & Clickable CTA */}

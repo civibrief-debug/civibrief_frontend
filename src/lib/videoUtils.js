@@ -61,6 +61,76 @@ export function parseMediaUrl(inputUrl, caption = '', align = 'center') {
     };
   }
 
+  // 1.5 GOOGLE DRIVE EMBED & THUMBNAIL (Videos, PDFs, Documents, Presentations, Spreadsheets, Images)
+  const gdriveInfo = parseGoogleDriveUrl(cleanUrl);
+  if (gdriveInfo) {
+    const isImg = gdriveInfo.fileType === 'image';
+    if (isImg) {
+      const imgStyle = 'max-width: 100%; height: auto; border-radius: 8px; box-shadow: 0 4px 14px rgba(0,0,0,0.3); display: block; margin: 0 auto;';
+      return {
+        type: 'image',
+        mediaType: 'image',
+        url: gdriveInfo.thumbnailUrl,
+        provider: 'Google Drive Image',
+        isEmbeddable: true,
+        badgeText: '🖼️ Google Drive Image',
+        html: `<figure class="img-wrapper" contenteditable="false" style="${wrapperStyle}"><img src="${gdriveInfo.thumbnailUrl}" alt="${caption || 'Google Drive Image'}" style="${imgStyle}" />${captionHtml}</figure><p><br></p>`
+      };
+    }
+
+    const isVideo = gdriveInfo.fileType === 'video';
+
+    return {
+      type: 'gdrive',
+      mediaType: 'embed',
+      url: gdriveInfo.previewUrl,
+      streamUrl: `https://drive.usercontent.google.com/download?id=${gdriveInfo.fileId}&export=download`,
+      thumbnailUrl: gdriveInfo.thumbnailUrl,
+      fileId: gdriveInfo.fileId,
+      provider: gdriveInfo.label,
+      isEmbeddable: true,
+      badgeText: `${gdriveInfo.icon} ${gdriveInfo.label} Embed (Continuous)`,
+      html: `
+        <figure class="media-embed-wrapper gdrive-embed-wrapper" contenteditable="false" style="${wrapperStyle}">
+          <div class="media-embed-card gdrive-card" style="width: 100%; max-width: 800px; margin: 0 auto; border-radius: 12px; overflow: hidden; background: #000000; border: 1px solid rgba(255,255,255,0.2); box-shadow: 0 8px 30px rgba(0,0,0,0.5);">
+            <div style="padding: 8px 14px; background: #0f172a; border-bottom: 1px solid rgba(255,255,255,0.1); display: flex; align-items: center; justify-content: space-between;">
+              <div style="display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 700; color: #ffffff;">
+                <span>${gdriveInfo.icon}</span>
+                <span>${gdriveInfo.label}</span>
+              </div>
+              <a href="${cleanUrl}" target="_blank" rel="noopener noreferrer" style="font-size: 12px; color: #38bdf8; text-decoration: none; font-weight: 700;">
+                Open in Google Drive ↗
+              </a>
+            </div>
+            ${isVideo ? `
+              <video 
+                src="https://drive.usercontent.google.com/download?id=${gdriveInfo.fileId}&export=download" 
+                controls 
+                autoplay 
+                muted 
+                loop 
+                playsinline 
+                style="width: 100%; height: 480px; object-fit: cover; display: block; background: #000000;"
+                onended="this.currentTime=0;this.play();"
+              ></video>
+            ` : `
+              <iframe 
+                src="${gdriveInfo.previewUrl}" 
+                title="${gdriveInfo.label}" 
+                frameborder="0" 
+                allow="autoplay; encrypted-media; fullscreen" 
+                allowfullscreen 
+                style="width: 100%; height: 480px; border: none; display: block; background: #000000;"
+              ></iframe>
+            `}
+          </div>
+          ${captionHtml}
+        </figure>
+        <p><br></p>
+      `
+    };
+  }
+
   // 2. TWITTER / X POST (e.g. https://twitter.com/user/status/12345 or https://x.com/user/status/12345)
   const twitterMatch = cleanUrl.match(/(?:twitter\.com|x\.com)\/(?:#!\/)?(\w+)\/status(?:es)?\/(\d+)/i);
   if (twitterMatch) {
@@ -467,3 +537,156 @@ export function parseMediaUrl(inputUrl, caption = '', align = 'center') {
 export function parseVideoUrl(inputUrl, caption = '', align = 'center') {
   return parseMediaUrl(inputUrl, caption, align);
 }
+
+/**
+ * Universal Google Drive URL Parser
+ * Supports files, videos, documents, PDFs, presentations, spreadsheets, thumbnails, and direct views.
+ */
+export function parseGoogleDriveUrl(rawUrl) {
+  if (!rawUrl || typeof rawUrl !== 'string') return null;
+  const cleanUrl = rawUrl.trim();
+
+  const match = cleanUrl.match(/(?:drive\.google\.com\/(?:file\/d\/|open\?id=|uc\?(?:[^&]+&)*id=|thumbnail\?(?:[^&]+&)*id=)|docs\.google\.com\/(?:document|presentation|spreadsheets|file)\/d\/|lh3\.googleusercontent\.com\/d\/)([a-zA-Z0-9_-]{25,})/i);
+
+  if (match && match[1]) {
+    const fileId = match[1];
+    const isDoc = /docs\.google\.com\/document/i.test(cleanUrl);
+    const isPresentation = /docs\.google\.com\/presentation/i.test(cleanUrl);
+    const isSpreadsheet = /docs\.google\.com\/spreadsheets/i.test(cleanUrl);
+
+    let previewUrl = `https://drive.google.com/file/d/${fileId}/preview`;
+    if (isDoc) previewUrl = `https://docs.google.com/document/d/${fileId}/preview`;
+    else if (isPresentation) previewUrl = `https://docs.google.com/presentation/d/${fileId}/preview`;
+    else if (isSpreadsheet) previewUrl = `https://docs.google.com/spreadsheets/d/${fileId}/preview`;
+
+    const thumbnailUrl = `https://drive.google.com/thumbnail?id=${fileId}&sz=w2000`;
+    const proxyImageUrl = `/api/proxy-drive-image?id=${fileId}`;
+    const directImageUrl = `https://lh3.googleusercontent.com/d/${fileId}`;
+    const directUcUrl = `https://drive.google.com/uc?export=view&id=${fileId}`;
+
+    let fileType = 'file';
+    let label = 'Google Drive File';
+    let icon = '📁';
+    if (isDoc) { fileType = 'document'; label = 'Google Docs Document'; icon = '📄'; }
+    else if (isPresentation) { fileType = 'presentation'; label = 'Google Slides Presentation'; icon = '📊'; }
+    else if (isSpreadsheet) { fileType = 'spreadsheet'; label = 'Google Sheets Spreadsheet'; icon = '📈'; }
+    else if (/\.(mp4|webm|mov|mkv|avi|m4v)/i.test(cleanUrl) || /video/i.test(cleanUrl)) { fileType = 'video'; label = 'Google Drive Video'; icon = '🎬'; }
+    else if (/\.(pdf)/i.test(cleanUrl) || /pdf/i.test(cleanUrl)) { fileType = 'pdf'; label = 'Google Drive PDF Document'; icon = '📑'; }
+    else if (/\.(jpg|jpeg|png|webp|gif|svg)/i.test(cleanUrl) || /image|photo/i.test(cleanUrl)) { fileType = 'image'; label = 'Google Drive Image'; icon = '🖼️'; }
+
+    return {
+      fileId,
+      previewUrl,
+      thumbnailUrl,
+      proxyImageUrl,
+      directImageUrl,
+      directUcUrl,
+      fileType,
+      label,
+      icon,
+      isDoc,
+      isPresentation,
+      isSpreadsheet,
+      originalUrl: cleanUrl
+    };
+  }
+  return null;
+}
+
+/**
+ * Formats any cover video/media URL (Google Drive, YouTube, Vimeo, direct MP4) into an embeddable URL or stream
+ */
+export function formatCoverMediaEmbedUrl(url) {
+  if (!url || typeof url !== 'string') return '';
+  const cleanUrl = url.trim();
+
+  // 1. Google Drive
+  const gdrive = parseGoogleDriveUrl(cleanUrl);
+  if (gdrive) {
+    return gdrive.previewUrl;
+  }
+
+  // 2. YouTube
+  const ytMatch = cleanUrl.match(/(?:youtube(?:-nocookie)?\.com\/(?:[^\/\n\s]+\/\S+\/|(?:v|e(?:mbed)?|shorts)\/|\S*?[?&]v=)|youtu\.be\/)([a-zA-Z0-9_-]{11})/i);
+  if (ytMatch && ytMatch[1]) {
+    return `https://www.youtube-nocookie.com/embed/${ytMatch[1]}`;
+  }
+
+  // 3. Vimeo
+  const vimeoMatch = cleanUrl.match(/(?:vimeo\.com\/(?:channels\/(?:\w+\/)?|groups\/[^\/]*\/videos\/|album\/\d+\/video\/|video\/|)(\d+))/i) || cleanUrl.match(/player\.vimeo\.com\/video\/(\d+)/i);
+  if (vimeoMatch && vimeoMatch[1]) {
+    return `https://player.vimeo.com/video/${vimeoMatch[1]}`;
+  }
+
+  return cleanUrl;
+}
+
+/**
+ * Formats any cover image URL (including Google Drive file/doc links) into high-resolution direct image / thumbnail
+ */
+export function formatCoverImageUrl(url) {
+  if (!url || typeof url !== 'string') return '';
+  const cleanUrl = url.trim();
+
+  const gdrive = parseGoogleDriveUrl(cleanUrl);
+  if (gdrive) {
+    return gdrive.thumbnailUrl;
+  }
+  return cleanUrl;
+}
+
+/**
+ * Returns stream URLs and embed configurations for continuous, non-breaking video playback
+ */
+export function getContinuousVideoUrls(url) {
+  if (!url || typeof url !== 'string') {
+    return { streamUrl: '', embedUrl: '', isGDrive: false, isYouTube: false, isVimeo: false };
+  }
+  const cleanUrl = url.trim();
+
+  const gdrive = parseGoogleDriveUrl(cleanUrl);
+  if (gdrive) {
+    return {
+      streamUrl: `/api/proxy-drive-video?id=${gdrive.fileId}`,
+      directDownloadUrl: `https://drive.usercontent.google.com/download?id=${gdrive.fileId}&export=download`,
+      altStreamUrl: `https://drive.google.com/uc?export=download&id=${gdrive.fileId}`,
+      embedUrl: `https://drive.google.com/file/d/${gdrive.fileId}/preview?autoplay=1&loop=1`,
+      isGDrive: true,
+      fileId: gdrive.fileId,
+      fileType: gdrive.fileType,
+      isDoc: gdrive.isDoc || gdrive.isPresentation || gdrive.isSpreadsheet
+    };
+  }
+
+  const ytMatch = cleanUrl.match(/(?:youtube(?:-nocookie)?\.com\/(?:[^\/\n\s]+\/\S+\/|(?:v|e(?:mbed)?|shorts)\/|\S*?[?&]v=)|youtu\.be\/)([a-zA-Z0-9_-]{11})/i);
+  if (ytMatch && ytMatch[1]) {
+    const videoId = ytMatch[1];
+    return {
+      streamUrl: '',
+      embedUrl: `https://www.youtube-nocookie.com/embed/${videoId}?autoplay=1&loop=1&playlist=${videoId}&mute=1&controls=1`,
+      isGDrive: false,
+      isYouTube: true
+    };
+  }
+
+  const vimeoMatch = cleanUrl.match(/(?:vimeo\.com\/(?:channels\/(?:\w+\/)?|groups\/[^\/]*\/videos\/|album\/\d+\/video\/|video\/|)(\d+))/i) || cleanUrl.match(/player\.vimeo\.com\/video\/(\d+)/i);
+  if (vimeoMatch && vimeoMatch[1]) {
+    const vimeoId = vimeoMatch[1];
+    return {
+      streamUrl: '',
+      embedUrl: `https://player.vimeo.com/video/${vimeoId}?autoplay=1&loop=1&muted=1&autopause=0`,
+      isGDrive: false,
+      isVimeo: true
+    };
+  }
+
+  return {
+    streamUrl: cleanUrl,
+    embedUrl: cleanUrl,
+    isGDrive: false,
+    isYouTube: false,
+    isVimeo: false
+  };
+}
+
+

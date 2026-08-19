@@ -3,6 +3,8 @@ import ShareModal from './ShareModal';
 import SafeArticleBody from './SafeArticleBody';
 import ArticleAdBanner from './ArticleAdBanner';
 import { useTranslation } from '../context/TranslationContext';
+import { formatCoverMediaEmbedUrl, formatCoverImageUrl, parseGoogleDriveUrl } from '../lib/videoUtils';
+import ContinuousCoverVideo from './ContinuousCoverVideo';
 
 import { LanguageSelector } from './LanguageSelector';
 import { 
@@ -972,37 +974,20 @@ export const ArticleModal = ({ article, onClose, isLoggedIn, onOpenLogin, onLogi
         </div>
         )}
 
-        {/* Optional Article Cover Media (Video or Image) */}
+        {/* Optional Article Cover Media (Video, Document, or Image) */}
         {activeArticle.coverMediaType === 'video' && activeArticle.videoUrl ? (
           <div className="article-modal-hero-img-container" style={{ width: activeArticle.coverWidth || '100%', margin: '0 auto 24px auto' }}>
-            {/(?:youtube\.com|youtu\.be|vimeo\.com)/i.test(activeArticle.videoUrl) ? (
-              <div style={{ width: '100%', height: activeArticle.coverHeight || '420px', borderRadius: 'var(--radius-md)', overflow: 'hidden', ...activeArticle.coverCropStyle }}>
-                <iframe
-                  src={activeArticle.videoUrl.replace('watch?v=', 'embed/').replace('youtu.be/', 'youtube.com/embed/')}
-                  title="Cover Video"
-                  style={{ width: '100%', height: '100%', border: 'none' }}
-                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                  allowFullScreen
-                />
-              </div>
-            ) : (
-              <video 
-                src={activeArticle.videoUrl} 
-                controls
-                autoPlay
-                muted
-                loop
-                playsInline
-                className="article-modal-hero-img"
-                style={{
-                  maxHeight: activeArticle.coverHeight === 'auto' ? 'none' : (activeArticle.coverHeight || '480px'),
-                  objectFit: 'cover',
-                  borderRadius: 'var(--radius-md)',
-                  display: 'block',
-                  ...activeArticle.coverCropStyle
-                }}
+            <div style={{ width: '100%', height: activeArticle.coverHeight === 'auto' ? '420px' : (activeArticle.coverHeight || '420px'), borderRadius: 'var(--radius-md)', overflow: 'hidden' }}>
+              <ContinuousCoverVideo
+                src={activeArticle.videoUrl}
+                cropStyle={activeArticle.coverCropStyle}
+                autoPlay={true}
+                muted={true}
+                loop={true}
+                controls={true}
+                playsInline={true}
               />
-            )}
+            </div>
             {activeArticle.imageCaption && (
               <div className="article-modal-img-caption" dir={isRtl ? 'rtl' : 'ltr'}>
                 {activeArticle.imageCaption}
@@ -1012,8 +997,9 @@ export const ArticleModal = ({ article, onClose, isLoggedIn, onOpenLogin, onLogi
         ) : (activeArticle.imageUrl && (
           <div className="article-modal-hero-img-container" style={{ width: activeArticle.coverWidth || '100%', margin: '0 auto 24px auto' }}>
             <img 
-              src={activeArticle.imageUrl} 
+              src={formatCoverImageUrl(activeArticle.imageUrl)} 
               alt={activeArticle.title} 
+              referrerPolicy="no-referrer"
               className="article-modal-hero-img"
               style={{
                 maxHeight: activeArticle.coverHeight === 'auto' ? 'none' : (activeArticle.coverHeight || '480px'),
@@ -1021,6 +1007,13 @@ export const ArticleModal = ({ article, onClose, isLoggedIn, onOpenLogin, onLogi
                 borderRadius: 'var(--radius-md)',
                 display: 'block',
                 ...activeArticle.coverCropStyle
+              }}
+              onError={(e) => {
+                const gdrive = parseGoogleDriveUrl(activeArticle.imageUrl);
+                if (gdrive && !e.currentTarget.dataset.retried) {
+                  e.currentTarget.dataset.retried = '1';
+                  e.currentTarget.src = gdrive.proxyImageUrl || `https://lh3.googleusercontent.com/d/${gdrive.fileId}`;
+                }
               }}
             />
             {activeArticle.imageCaption && (

@@ -1,5 +1,7 @@
 import { NextResponse } from 'next/server';
 
+export const runtime = 'edge';
+
 export async function POST(req) {
   try {
     const body = await req.json();
@@ -10,6 +12,30 @@ export async function POST(req) {
     }
 
     const cleanUrl = inputUrl.startsWith('http') || inputUrl.startsWith('data:') ? inputUrl : `https://${inputUrl}`;
+
+    // 0. GOOGLE DRIVE (Images, Videos, PDFs, Docs, Presentations, Sheets)
+    const gdriveMatch = cleanUrl.match(/(?:drive\.google\.com\/(?:file\/d\/|open\?id=|uc\?(?:[^&]+&)*id=)|docs\.google\.com\/(?:document|presentation|spreadsheets|file)\/d\/)([a-zA-Z0-9_-]{25,})/i);
+    if (gdriveMatch && gdriveMatch[1]) {
+      const fileId = gdriveMatch[1];
+      const isDoc = /docs\.google\.com\/document/i.test(cleanUrl);
+      const isPresentation = /docs\.google\.com\/presentation/i.test(cleanUrl);
+      const isSpreadsheet = /docs\.google\.com\/spreadsheets/i.test(cleanUrl);
+      
+      const thumbUrl = `https://drive.google.com/thumbnail?id=${fileId}&sz=w1600`;
+      let providerName = 'Google Drive File';
+      if (isDoc) providerName = 'Google Docs Document';
+      else if (isPresentation) providerName = 'Google Slides Presentation';
+      else if (isSpreadsheet) providerName = 'Google Sheets Spreadsheet';
+
+      return NextResponse.json({
+        success: true,
+        imageUrl: thumbUrl,
+        fileId: fileId,
+        previewUrl: isDoc ? `https://docs.google.com/document/d/${fileId}/preview` : (isPresentation ? `https://docs.google.com/presentation/d/${fileId}/preview` : (isSpreadsheet ? `https://docs.google.com/spreadsheets/d/${fileId}/preview` : `https://drive.google.com/file/d/${fileId}/preview`)),
+        provider: providerName,
+        caption: `Media via ${providerName}`
+      });
+    }
 
     // 1. DIRECT IMAGE URL
     const isDirectImg = /\.(jpg|jpeg|png|webp|gif|svg|avif)(\?.*)?$/i.test(cleanUrl) ||

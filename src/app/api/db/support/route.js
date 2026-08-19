@@ -1,70 +1,39 @@
 import { NextResponse } from 'next/server';
-import fs from 'fs';
-import path from 'path';
+import { queryD1 } from '../../../../lib/edgeDb';
 
-function getDb() {
-  const dbPath = path.join(process.cwd(), '..', 'shared_database.json');
-  if (fs.existsSync(dbPath)) return JSON.parse(fs.readFileSync(dbPath, 'utf8'));
-  return { articles: [], subscribers: [], supportTickets: [] };
-}
-
-function saveDb(data) {
-  const dbPath = path.join(process.cwd(), '..', 'shared_database.json');
-  fs.writeFileSync(dbPath, JSON.stringify(data, null, 2), 'utf8');
-}
+export const runtime = 'edge';
 
 export async function GET() {
-  const db = getDb();
-  return NextResponse.json({ success: true, data: db.supportTickets || [] });
+  try {
+    const rows = await queryD1('SELECT * FROM support_tickets ORDER BY createdAt DESC;');
+    return NextResponse.json({ success: true, data: rows });
+  } catch (err) {
+    return NextResponse.json({ success: false, error: err.message }, { status: 500 });
+  }
 }
 
 export async function POST(req) {
-  const body = await req.json();
-  const db = getDb();
+  try {
+    const body = await req.json();
+    const id = body.id || `tick-${Date.now()}`;
+    const name = body.name || '';
+    const email = body.email;
+    const subject = body.subject || '';
+    const message = body.message || '';
+    const status = body.status || 'Open';
+    const createdAt = new Date().toISOString();
 
-  const newTicket = {
-    id: `TICK-${Math.floor(1000 + Math.random() * 9000)}`,
-    userName: body.userName || 'Subscriber',
-    userEmail: body.userEmail || '',
-    subject: body.subject || 'Support Ticket',
-    category: body.category || 'General Issue',
-    priority: body.priority || 'Medium',
-    status: 'Open',
-    createdAt: new Date().toISOString(),
-    messages: [
-      {
-        sender: 'user',
-        text: body.message || body.subject,
-        timestamp: new Date().toISOString()
-      }
-    ]
-  };
-
-  db.supportTickets = [newTicket, ...(db.supportTickets || [])];
-  saveDb(db);
-  return NextResponse.json({ success: true, data: newTicket });
-}
-
-export async function PUT(req) {
-  const body = await req.json();
-  const db = getDb();
-
-  const idx = (db.supportTickets || []).findIndex(t => t.id === body.id);
-  if (idx !== -1) {
-    if (body.replyMessage) {
-      db.supportTickets[idx].messages = db.supportTickets[idx].messages || [];
-      db.supportTickets[idx].messages.push({
-        sender: 'admin',
-        text: body.replyMessage,
-        timestamp: new Date().toISOString()
-      });
-      if (body.status) db.supportTickets[idx].status = body.status;
-    } else {
-      db.supportTickets[idx] = { ...db.supportTickets[idx], ...body };
+    if (!email) {
+      return NextResponse.json({ success: false, error: 'Email is required' }, { status: 400 });
     }
-    saveDb(db);
-    return NextResponse.json({ success: true, data: db.supportTickets[idx] });
-  }
 
-  return NextResponse.json({ success: false, error: 'Ticket not found' }, { status: 404 });
+    await queryD1(
+      `INSERT OR REPLACE INTO support_tickets (id, name, email, subject, message, status, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?);`,
+      [id, name, email, subject, message, status, createdAt]
+    );
+
+    return NextResponse.json({ success: true, data: { id, name, email, subject, message, status, createdAt } });
+  } catch (err) {
+    return NextResponse.json({ success: false, error: err.message }, { status: 500 });
+  }
 }

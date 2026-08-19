@@ -23,6 +23,8 @@ import {
 } from '../data/newsData';
 import { ArticleModal } from '../components/ArticleModal';
 import { LoginModal } from '../components/LoginModal';
+import { formatCoverMediaEmbedUrl, formatCoverImageUrl, parseGoogleDriveUrl } from '../lib/videoUtils';
+import ContinuousCoverVideo from '../components/ContinuousCoverVideo';
 import { useTranslation } from '../context/TranslationContext';
 
 export default function HomePage() {
@@ -100,19 +102,29 @@ export default function HomePage() {
         <article className="hero-main-card">
           <div className="hero-img-box">
             {liveFeatured.coverMediaType === 'video' && liveFeatured.videoUrl ? (
-              <video 
-                src={liveFeatured.videoUrl} 
-                autoPlay
-                muted
-                loop
-                playsInline
-                style={{ width: '100%', height: '100%', objectFit: 'cover', ...liveFeatured.coverCropStyle }}
+              <ContinuousCoverVideo
+                src={liveFeatured.videoUrl}
+                cropStyle={liveFeatured.coverCropStyle}
+                autoPlay={true}
+                muted={true}
+                loop={true}
+                controls={false}
+                playsInline={true}
+                style={{ width: '100%', height: '100%' }}
               />
             ) : (
               <img 
-                src={liveFeatured.imageUrl || "https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=1200&q=80"} 
+                src={formatCoverImageUrl(liveFeatured.imageUrl) || "https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=1200&q=80"} 
                 alt={liveFeatured.title} 
+                referrerPolicy="no-referrer"
                 style={liveFeatured.coverCropStyle || undefined}
+                onError={(e) => {
+                  const gdrive = parseGoogleDriveUrl(liveFeatured.imageUrl);
+                  if (gdrive && !e.currentTarget.dataset.retried) {
+                    e.currentTarget.dataset.retried = '1';
+                    e.currentTarget.src = gdrive.proxyImageUrl || `https://lh3.googleusercontent.com/d/${gdrive.fileId}`;
+                  }
+                }}
               />
             )}
             {liveFeatured.hasAudio && (
@@ -129,17 +141,20 @@ export default function HomePage() {
               <span dir="ltr">{liveFeatured.kicker ? liveFeatured.kicker.toUpperCase() : (liveFeatured.category || 'Technology')}</span>
             </div>
 
-            <div onClick={() => setSelectedArticle(liveFeatured)} style={{ cursor: 'pointer' }}>
-              <h1 className="hero-headline">{liveFeatured.title}</h1>
-            </div>
+            <h1 className="hero-main-title" onClick={() => setSelectedArticle(liveFeatured)} style={{ cursor: 'pointer' }}>
+              {liveFeatured.title}
+            </h1>
 
-            <p className="hero-subtitle">{liveFeatured.summary || liveFeatured.subtitle}</p>
+            <p className="hero-main-summary">
+              {liveFeatured.summary || liveFeatured.excerpt}
+            </p>
 
-            <div className="author-meta" dir="ltr">
-              <div>
-                <div style={{ fontWeight: 700, color: 'var(--text-primary)' }}>{liveFeatured.author || 'Staff Reporter'}</div>
-                <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>{liveFeatured.publishedAt ? new Date(liveFeatured.publishedAt).toLocaleDateString() : 'August 2026'} • 5 min read</div>
-              </div>
+            <div className="hero-meta">
+              <span style={{ color: 'var(--accent-emerald)', fontWeight: 800 }}>{liveFeatured.author || 'Staff Reporter'}</span>
+              <span>•</span>
+              <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                <Clock size={12} /> {liveFeatured.readTime || '5 min read'}
+              </span>
             </div>
           </div>
         </article>
@@ -162,9 +177,17 @@ export default function HomePage() {
               </div>
 
               <img 
-                src={story.imageUrl || "https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?auto=format&fit=crop&w=400&q=80"} 
+                src={formatCoverImageUrl(story.imageUrl) || "https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?auto=format&fit=crop&w=400&q=80"} 
                 alt={story.title} 
+                referrerPolicy="no-referrer"
                 className="secondary-img" 
+                onError={(e) => {
+                  const gdrive = parseGoogleDriveUrl(story.imageUrl);
+                  if (gdrive && !e.currentTarget.dataset.retried) {
+                    e.currentTarget.dataset.retried = '1';
+                    e.currentTarget.src = gdrive.proxyImageUrl || `https://lh3.googleusercontent.com/d/${gdrive.fileId}`;
+                  }
+                }}
               />
             </article>
           ))}
@@ -183,19 +206,31 @@ export default function HomePage() {
           {liveArticlesList.map((article) => (
             <article key={article.id} className="article-card-horizontal" onClick={() => setSelectedArticle(article)} style={{ cursor: 'pointer' }}>
               {article.coverMediaType === 'video' && article.videoUrl ? (
-                <video 
-                  src={article.videoUrl} 
-                  muted 
-                  playsInline 
-                  className="card-h-img" 
-                  style={{ objectFit: 'cover', ...article.coverCropStyle }} 
+                <ContinuousCoverVideo
+                  src={article.videoUrl}
+                  cropStyle={article.coverCropStyle}
+                  autoPlay={true}
+                  muted={true}
+                  loop={true}
+                  controls={false}
+                  playsInline={true}
+                  className="card-h-img"
+                  style={{ objectFit: 'cover' }}
                 />
               ) : (
                 <img 
-                  src={article.imageUrl || "https://images.unsplash.com/photo-1451187580459-43490279c0fa?auto=format&fit=crop&w=600&q=80"} 
+                  src={formatCoverImageUrl(article.imageUrl) || "https://images.unsplash.com/photo-1451187580459-43490279c0fa?auto=format&fit=crop&w=600&q=80"} 
                   alt={article.title} 
+                  referrerPolicy="no-referrer"
                   className="card-h-img" 
                   style={article.coverCropStyle || undefined}
+                  onError={(e) => {
+                    const gdrive = parseGoogleDriveUrl(article.imageUrl);
+                    if (gdrive && !e.currentTarget.dataset.retried) {
+                      e.currentTarget.dataset.retried = '1';
+                      e.currentTarget.src = gdrive.proxyImageUrl || `https://lh3.googleusercontent.com/d/${gdrive.fileId}`;
+                    }
+                  }}
                 />
               )}
               <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>

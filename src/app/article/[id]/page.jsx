@@ -5,6 +5,8 @@ import Link from 'next/link';
 import ShareModal from '../../../components/ShareModal';
 import SafeArticleBody from '../../../components/SafeArticleBody';
 import ArticleAdBanner from '../../../components/ArticleAdBanner';
+import { formatCoverMediaEmbedUrl, formatCoverImageUrl, parseGoogleDriveUrl } from '../../../lib/videoUtils';
+import ContinuousCoverVideo from '../../../components/ContinuousCoverVideo';
 import { 
   Volume2, 
   Clock, 
@@ -98,37 +100,20 @@ export default function ArticlePage({ params }) {
           </div>
         </div>
 
-        {/* Featured Cover Media (Video or Image) */}
+        {/* Featured Cover Media (Video, Document, or Image) */}
         {article.coverMediaType === 'video' && article.videoUrl ? (
           <div style={{ marginBottom: '32px', width: article.coverWidth || '100%', margin: '0 auto 32px auto' }}>
-            {/(?:youtube\.com|youtu\.be|vimeo\.com)/i.test(article.videoUrl) ? (
-              <div style={{ width: '100%', height: article.coverHeight || '450px', borderRadius: 'var(--radius-lg)', overflow: 'hidden', ...article.coverCropStyle }}>
-                <iframe
-                  src={article.videoUrl.replace('watch?v=', 'embed/').replace('youtu.be/', 'youtube.com/embed/')}
-                  title="Cover Video"
-                  style={{ width: '100%', height: '100%', border: 'none' }}
-                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                  allowFullScreen
-                />
-              </div>
-            ) : (
-              <video 
-                src={article.videoUrl} 
-                controls
-                autoPlay
-                muted
-                loop
-                playsInline
-                style={{
-                  width: '100%',
-                  borderRadius: 'var(--radius-lg)',
-                  maxHeight: article.coverHeight === 'auto' ? 'none' : (article.coverHeight || '480px'),
-                  objectFit: 'cover',
-                  display: 'block',
-                  ...article.coverCropStyle
-                }} 
+            <div style={{ width: '100%', height: article.coverHeight === 'auto' ? '450px' : (article.coverHeight || '450px'), borderRadius: 'var(--radius-lg)', overflow: 'hidden' }}>
+              <ContinuousCoverVideo
+                src={article.videoUrl}
+                cropStyle={article.coverCropStyle}
+                autoPlay={true}
+                muted={true}
+                loop={true}
+                controls={true}
+                playsInline={true}
               />
-            )}
+            </div>
             {article.imageCaption && (
               <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginTop: '8px', textAlign: 'center', fontStyle: 'italic' }}>
                 {article.imageCaption}
@@ -138,8 +123,9 @@ export default function ArticlePage({ params }) {
         ) : (article.imageUrl && (
           <div style={{ marginBottom: '32px', width: article.coverWidth || '100%', margin: '0 auto 32px auto' }}>
             <img 
-              src={article.imageUrl} 
+              src={formatCoverImageUrl(article.imageUrl)} 
               alt={article.title} 
+              referrerPolicy="no-referrer" 
               style={{
                 width: '100%',
                 borderRadius: 'var(--radius-lg)',
@@ -147,7 +133,14 @@ export default function ArticlePage({ params }) {
                 objectFit: 'cover',
                 display: 'block',
                 ...article.coverCropStyle
-              }} 
+              }}
+              onError={(e) => {
+                const gdrive = parseGoogleDriveUrl(article.imageUrl);
+                if (gdrive && !e.currentTarget.dataset.retried) {
+                  e.currentTarget.dataset.retried = '1';
+                  e.currentTarget.src = gdrive.proxyImageUrl || `https://lh3.googleusercontent.com/d/${gdrive.fileId}`;
+                }
+              }}
             />
             {article.imageCaption && (
               <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginTop: '8px', textAlign: 'center', fontStyle: 'italic' }}>
