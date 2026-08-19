@@ -17,8 +17,9 @@ export const HeroStory = ({ story, onArticleClick }) => {
             loop={true}
             controls={false}
             playsInline={true}
+            onClick={() => onArticleClick(story)}
             className="hero-image"
-            style={{ width: '100%', height: '100%' }}
+            style={{ width: '100%', height: '100%', cursor: 'pointer' }}
           />
         ) : (
           <img 
@@ -27,7 +28,8 @@ export const HeroStory = ({ story, onArticleClick }) => {
             referrerPolicy="no-referrer"
             className="hero-image" 
             loading="eager" 
-            style={story.coverCropStyle || undefined}
+            onClick={() => onArticleClick(story)}
+            style={{ cursor: 'pointer', ...(story.coverCropStyle || {}) }}
             onError={(e) => {
               const gdrive = parseGoogleDriveUrl(story.imageUrl);
               if (gdrive && !e.currentTarget.dataset.retried) {

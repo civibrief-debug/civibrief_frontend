@@ -241,7 +241,10 @@ export default function SectionPageView({ slug }) {
                   }}
                 >
                   {/* Lead Cover Media */}
-                  <div style={{ position: 'relative', width: '100%', height: '420px', borderRadius: '8px', overflow: 'hidden', marginBottom: '20px', background: '#000' }}>
+                  <div 
+                    style={{ position: 'relative', width: '100%', height: '420px', borderRadius: '8px', overflow: 'hidden', marginBottom: '20px', background: '#000', cursor: 'pointer' }}
+                    onClick={() => setSelectedArticle(leadStory)}
+                  >
                     {leadStory.coverMediaType === 'video' && leadStory.videoUrl ? (
                       <ContinuousCoverVideo 
                         src={leadStory.videoUrl}
@@ -249,14 +252,17 @@ export default function SectionPageView({ slug }) {
                         autoPlay={true}
                         muted={true}
                         loop={true}
-                        controls={true}
+                        controls={false}
+                        onClick={() => setSelectedArticle(leadStory)}
+                        style={{ width: '100%', height: '100%', cursor: 'pointer' }}
                       />
                     ) : (
                       <img 
                         src={formatCoverImageUrl(leadStory.imageUrl)} 
                         alt={leadStory.title} 
                         referrerPolicy="no-referrer"
-                        style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                        onClick={() => setSelectedArticle(leadStory)}
+                        style={{ width: '100%', height: '100%', objectFit: 'cover', cursor: 'pointer' }}
                       />
                     )}
                     <span style={{ position: 'absolute', top: '14px', left: '14px', background: '#dc2626', color: '#fff', fontSize: '11px', fontWeight: 800, textTransform: 'uppercase', padding: '4px 10px', borderRadius: '4px', letterSpacing: '0.5px' }}>

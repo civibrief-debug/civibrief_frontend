@@ -13,7 +13,8 @@ export default function ContinuousCoverVideo({
   autoPlay = true,
   muted = true,
   loop = true,
-  playsInline = true
+  playsInline = true,
+  onClick
 }) {
   const videoRef = useRef(null);
   const videoMeta = getContinuousVideoUrls(src);
@@ -42,13 +43,32 @@ export default function ContinuousCoverVideo({
   // 1. If it's a YouTube / Vimeo embed, or an explicit Google Doc / Slides / Sheets document
   if (videoMeta.isYouTube || videoMeta.isVimeo || (videoMeta.isGDrive && videoMeta.isDoc)) {
     return (
-      <iframe
-        src={videoMeta.embedUrl}
-        title="Cover Media"
-        style={{ width: '100%', height: '100%', border: 'none', display: 'block', ...cropStyle, ...style }}
-        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen"
-        allowFullScreen
-      />
+      <div 
+        style={{ position: 'relative', width: '100%', height: '100%', overflow: 'hidden', ...cropStyle, ...style }}
+        onClick={onClick}
+      >
+        <iframe
+          src={videoMeta.embedUrl}
+          title="Cover Media"
+          style={{ width: '100%', height: '100%', border: 'none', display: 'block', ...cropStyle, ...style }}
+          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen"
+          allowFullScreen
+        />
+        {/* Transparent click catcher overlay when clickable as article cover */}
+        {onClick && (
+          <div 
+            style={{ 
+              position: 'absolute', 
+              inset: 0, 
+              zIndex: 10, 
+              cursor: 'pointer', 
+              background: 'transparent' 
+            }} 
+            onClick={onClick} 
+            title="Open Article"
+          />
+        )}
+      </div>
     );
   }
 
@@ -57,7 +77,10 @@ export default function ContinuousCoverVideo({
   const secondarySrc = videoMeta.isGDrive ? videoMeta.directDownloadUrl : null;
 
   return (
-    <div style={{ position: 'relative', width: '100%', height: '100%', overflow: 'hidden', ...cropStyle, ...style }}>
+    <div 
+      style={{ position: 'relative', width: '100%', height: '100%', overflow: 'hidden', ...cropStyle, ...style }}
+      onClick={onClick}
+    >
       <video
         ref={videoRef}
         poster={poster}
@@ -73,10 +96,11 @@ export default function ContinuousCoverVideo({
           objectFit: 'cover',
           display: 'block',
           background: '#000000',
+          cursor: onClick ? 'pointer' : 'default',
           ...cropStyle
         }}
+        onClick={onClick}
         onEnded={(e) => {
-          // Continuous loop without any breaks or pausing
           try {
             e.target.currentTime = 0;
             const p = e.target.play();
@@ -84,7 +108,6 @@ export default function ContinuousCoverVideo({
           } catch (err) {}
         }}
         onTimeUpdate={(e) => {
-          // Seamless loop before final frame freeze
           if (loop && e.target.duration > 0 && e.target.currentTime >= e.target.duration - 0.15) {
             try {
               e.target.currentTime = 0;
@@ -99,6 +122,21 @@ export default function ContinuousCoverVideo({
         {videoMeta.altStreamUrl && <source src={videoMeta.altStreamUrl} type="video/mp4" />}
         Your browser does not support the video tag.
       </video>
+
+      {/* Transparent overlay to guarantee cover video clicks open the article */}
+      {onClick && !controls && (
+        <div 
+          style={{ 
+            position: 'absolute', 
+            inset: 0, 
+            zIndex: 10, 
+            cursor: 'pointer', 
+            background: 'transparent' 
+          }} 
+          onClick={onClick} 
+          title="Open Article"
+        />
+      )}
     </div>
   );
 }

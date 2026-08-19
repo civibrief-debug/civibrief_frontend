@@ -100,8 +100,8 @@ export default function HomePage() {
       {/* Hero 4-Grid Section */}
       <section className="hero-section">
         {/* Main Lead Story */}
-        <article className="hero-main-card">
-          <div className="hero-img-box">
+        <article className="hero-main-card" onClick={() => setSelectedArticle(liveFeatured)} style={{ cursor: 'pointer' }}>
+          <div className="hero-img-box" onClick={() => setSelectedArticle(liveFeatured)} style={{ cursor: 'pointer' }}>
             {liveFeatured.coverMediaType === 'video' && liveFeatured.videoUrl ? (
               <ContinuousCoverVideo
                 src={liveFeatured.videoUrl}
@@ -111,14 +111,16 @@ export default function HomePage() {
                 loop={true}
                 controls={false}
                 playsInline={true}
-                style={{ width: '100%', height: '100%' }}
+                onClick={() => setSelectedArticle(liveFeatured)}
+                style={{ width: '100%', height: '100%', cursor: 'pointer' }}
               />
             ) : (
               <img 
                 src={formatCoverImageUrl(liveFeatured.imageUrl) || "https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=1200&q=80"} 
                 alt={liveFeatured.title} 
                 referrerPolicy="no-referrer"
-                style={liveFeatured.coverCropStyle || undefined}
+                style={{ cursor: 'pointer', ...(liveFeatured.coverCropStyle || {}) }}
+                onClick={() => setSelectedArticle(liveFeatured)}
                 onError={(e) => {
                   const gdrive = parseGoogleDriveUrl(liveFeatured.imageUrl);
                   if (gdrive && !e.currentTarget.dataset.retried) {
@@ -146,7 +148,7 @@ export default function HomePage() {
               {liveFeatured.title}
             </h1>
 
-            <p className="hero-main-summary">
+            <p className="hero-main-summary" onClick={() => setSelectedArticle(liveFeatured)} style={{ cursor: 'pointer' }}>
               {liveFeatured.summary || liveFeatured.excerpt}
             </p>
 
@@ -215,8 +217,9 @@ export default function HomePage() {
                   loop={true}
                   controls={false}
                   playsInline={true}
+                  onClick={() => setSelectedArticle(article)}
                   className="card-h-img"
-                  style={{ objectFit: 'cover' }}
+                  style={{ objectFit: 'cover', cursor: 'pointer' }}
                 />
               ) : (
                 <img 
@@ -224,7 +227,8 @@ export default function HomePage() {
                   alt={article.title} 
                   referrerPolicy="no-referrer"
                   className="card-h-img" 
-                  style={article.coverCropStyle || undefined}
+                  onClick={() => setSelectedArticle(article)}
+                  style={{ cursor: 'pointer', ...(article.coverCropStyle || {}) }}
                   onError={(e) => {
                     const gdrive = parseGoogleDriveUrl(article.imageUrl);
                     if (gdrive && !e.currentTarget.dataset.retried) {
