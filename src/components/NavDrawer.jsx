@@ -1,6 +1,8 @@
 'use client';
 
 import React, { useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { CATEGORIES } from '../data/newsData';
 import { 
   X, 
   Search, 
@@ -23,10 +25,11 @@ import {
 } from 'lucide-react';
 
 export function NavDrawer({ onClose, onSelectCategory, onOpenSearch, isLoggedIn, onOpenLogin }) {
+  const router = useRouter();
   const [searchQuery, setSearchQuery] = useState('');
   const [expandedCat, setExpandedCat] = useState(null);
 
-  const handleCategoryClick = (categoryName) => {
+  const handleCategoryClick = (categoryName, subSection = null) => {
     const isGated = categoryName.toLowerCase().includes('deep dive') || 
                     categoryName.toLowerCase().includes('sovereign ai') ||
                     categoryName.toLowerCase().includes('ebook') ||
@@ -37,6 +40,22 @@ export function NavDrawer({ onClose, onSelectCategory, onOpenSearch, isLoggedIn,
       onClose();
       return;
     }
+
+    if (categoryName.toLowerCase() === 'home' || categoryName.toLowerCase() === 'top stories') {
+      router.push('/');
+      if (onSelectCategory) onSelectCategory('top-stories');
+      onClose();
+      return;
+    }
+
+    const found = CATEGORIES.find(c => c.name.toLowerCase() === categoryName.toLowerCase() || c.slug === categoryName.toLowerCase());
+    const slug = found ? found.slug : categoryName.toLowerCase().replace(/[^a-z0-9]/g, '-');
+
+    const targetUrl = subSection 
+      ? `/section/${slug}?subsection=${encodeURIComponent(subSection)}`
+      : `/section/${slug}`;
+
+    router.push(targetUrl);
     if (onSelectCategory) {
       onSelectCategory(categoryName);
     }
@@ -160,22 +179,26 @@ export function NavDrawer({ onClose, onSelectCategory, onOpenSearch, isLoggedIn,
 
                   return (
                     <div key={itemIdx} className="drawer-cat-block">
-                      <button 
-                        className={`drawer-cat-btn ${item.isLive ? 'live-item' : ''} ${isExpanded ? 'cat-expanded' : ''}`}
-                        onClick={() => {
-                          if (hasSub) {
-                            toggleSubSections(item.name);
-                          } else {
-                            handleCategoryClick(item.name);
-                          }
-                        }}
-                      >
-                        {item.isLive && <span className="live-dot" />}
-                        <span className="cat-name">{item.name}</span>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
+                        <button 
+                          className={`drawer-cat-btn ${item.isLive ? 'live-item' : ''} ${isExpanded ? 'cat-expanded' : ''}`}
+                          style={{ flex: 1, textAlign: 'left', background: 'none', border: 'none', cursor: 'pointer', padding: '8px 0', color: 'inherit' }}
+                          onClick={() => handleCategoryClick(item.name)}
+                        >
+                          {item.isLive && <span className="live-dot" />}
+                          <span className="cat-name">{item.name}</span>
+                        </button>
                         {hasSub && (
-                          isExpanded ? <ChevronUp size={14} className="chevron-icon" /> : <ChevronDown size={14} className="chevron-icon" />
+                          <button
+                            type="button"
+                            onClick={() => toggleSubSections(item.name)}
+                            style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '6px', color: '#94a3b8' }}
+                            title="Toggle Subsections"
+                          >
+                            {isExpanded ? <ChevronUp size={14} className="chevron-icon" /> : <ChevronDown size={14} className="chevron-icon" />}
+                          </button>
                         )}
-                      </button>
+                      </div>
 
                       {hasSub && isExpanded && (
                         <div className="drawer-sub-accordion">
@@ -183,7 +206,7 @@ export function NavDrawer({ onClose, onSelectCategory, onOpenSearch, isLoggedIn,
                             <button
                               key={sIdx}
                               className="drawer-sub-item-btn"
-                              onClick={() => handleCategoryClick(sub)}
+                              onClick={() => handleCategoryClick(item.name, sub)}
                             >
                               <span>{sub}</span>
                             </button>

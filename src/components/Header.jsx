@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
+import { useRouter, usePathname } from 'next/navigation';
 import { 
   Search, 
   Sun, 
@@ -151,17 +152,35 @@ export function Header({
     document.documentElement.setAttribute('data-theme', nextTheme);
   };
 
-  const handleCategoryClick = (catSlug) => {
+  const router = useRouter();
+  const pathname = usePathname();
+
+  const handleCategoryClick = (catSlug, subSectionName = null) => {
     const isDeepDive = catSlug === 'deep-dives' || catSlug.toLowerCase().includes('deep dive') || catSlug.toLowerCase().includes('sovereign ai');
     if (isDeepDive && !isLoggedIn) {
       if (onOpenLogin) onOpenLogin();
       return;
     }
-    if (onSelectCategory) {
-      onSelectCategory(catSlug);
-    } else {
-      setLocalCategory(catSlug);
+
+    if (catSlug === 'top-stories' || catSlug === 'all') {
+      router.push('/');
+      if (onSelectCategory) onSelectCategory('top-stories');
+      setLocalCategory('top-stories');
+      setHoveredCategory(null);
+      return;
     }
+
+    const found = CATEGORIES.find(c => c.name.toLowerCase() === catSlug.toLowerCase() || c.slug === catSlug.toLowerCase());
+    const slug = found ? found.slug : catSlug.toLowerCase().replace(/[^a-z0-9]/g, '-');
+
+    const targetUrl = subSectionName 
+      ? `/section/${slug}?subsection=${encodeURIComponent(subSectionName)}` 
+      : `/section/${slug}`;
+
+    router.push(targetUrl);
+    if (onSelectCategory) onSelectCategory(catSlug);
+    setLocalCategory(slug);
+    setHoveredCategory(null);
   };
 
   const handleEPaperTrigger = () => {
@@ -368,11 +387,7 @@ export function Header({
                           if (onOpenLogin) onOpenLogin();
                           return;
                         }
-                        if (hasSections) {
-                          setHoveredCategory(isHovered ? null : cat.slug);
-                        } else {
-                          handleCategoryClick(cat.slug);
-                        }
+                        handleCategoryClick(cat.slug);
                       }}
                       onMouseEnter={() => {
                         if (hasSections) setHoveredCategory(cat.slug);
@@ -455,7 +470,7 @@ export function Header({
                           key={idx}
                           className="mega-sub-link"
                           onClick={() => {
-                            handleCategoryClick(sub.name);
+                            handleCategoryClick(hoveredCategory, sub.name);
                             setHoveredCategory(null);
                           }}
                         >
