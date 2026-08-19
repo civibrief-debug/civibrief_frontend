@@ -1,0 +1,202 @@
+'use client';
+
+import React, { useState } from 'react';
+import Link from 'next/link';
+import ShareModal from './ShareModal';
+import SafeArticleBody from './SafeArticleBody';
+import ArticleAdBanner from './ArticleAdBanner';
+import { formatCoverImageUrl, parseGoogleDriveUrl } from '../lib/videoUtils';
+import ContinuousCoverVideo from './ContinuousCoverVideo';
+import { 
+  Clock, 
+  Bookmark, 
+  Share2, 
+  Sparkles, 
+  Check, 
+  ArrowLeft, 
+  ThumbsUp
+} from 'lucide-react';
+import { HERO_FEATURED, MAIN_ARTICLES, HERO_SECONDARY } from '../data/newsData';
+
+export default function ArticleDetailView({ id }) {
+  const [bookmarked, setBookmarked] = useState(false);
+  const [liked, setLiked] = useState(false);
+  const [likesCount, setLikesCount] = useState(342);
+  const [showShareModal, setShowShareModal] = useState(false);
+
+  const allStories = [HERO_FEATURED, ...HERO_SECONDARY, ...MAIN_ARTICLES];
+  const article = allStories.find(a => (a.slug || a.id) === id) || HERO_FEATURED;
+
+  const toggleLike = () => {
+    if (liked) {
+      setLiked(false);
+      setLikesCount(likesCount - 1);
+    } else {
+      setLiked(true);
+      setLikesCount(likesCount + 1);
+    }
+  };
+
+  return (
+    <>
+      <ShareModal 
+        isOpen={showShareModal} 
+        onClose={() => setShowShareModal(false)} 
+        article={article} 
+      />
+
+      <main style={{ maxWidth: '900px', margin: '40px auto', padding: '0 24px' }}>
+        {/* Back Link & Category */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '24px' }}>
+          <Link href="/" style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--text-muted)', fontSize: '14px', fontWeight: 600 }}>
+            <ArrowLeft size={16} />
+            <span>Back to Briefings</span>
+          </Link>
+          <span className="category-badge">{article.category || 'NEWS'}</span>
+        </div>
+
+        {/* Title */}
+        <h1 style={{ fontFamily: 'var(--font-serif)', fontSize: '42px', fontWeight: 800, lineHeight: 1.2, marginBottom: '20px' }}>
+          {article.title}
+        </h1>
+
+        {/* Article Metadata Bar */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingBottom: '20px', borderBottom: '1px solid var(--border-color)', marginBottom: '32px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+            <span style={{ fontWeight: 700, fontSize: '14px' }}>{article.author || 'Staff Reporter'}</span>
+            <span style={{ color: 'var(--text-muted)', fontSize: '13px' }}>•</span>
+            <span style={{ color: 'var(--text-muted)', fontSize: '13px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+              <Clock size={14} />
+              {article.readTime || '4 min read'}
+            </span>
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <button 
+              onClick={toggleLike}
+              style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '6px 14px', borderRadius: 'var(--radius-sm)', background: liked ? 'var(--accent-emerald-light)' : 'var(--bg-secondary)', color: liked ? 'var(--accent-emerald)' : 'var(--text-secondary)', fontWeight: 700, fontSize: '13px' }}
+            >
+              <ThumbsUp size={16} />
+              <span>{likesCount}</span>
+            </button>
+
+            <button 
+              onClick={() => setBookmarked(!bookmarked)}
+              style={{ padding: '8px', borderRadius: 'var(--radius-sm)', background: 'var(--bg-secondary)', color: bookmarked ? 'var(--accent-emerald)' : 'var(--text-secondary)' }}
+            >
+              <Bookmark size={18} fill={bookmarked ? 'var(--accent-emerald)' : 'none'} />
+            </button>
+
+            <button 
+              onClick={() => setShowShareModal(true)} 
+              style={{ padding: '8px', borderRadius: 'var(--radius-sm)', background: 'var(--bg-secondary)', color: 'var(--text-secondary)', border: 'none', cursor: 'pointer' }}
+              title="Share Article"
+            >
+              <Share2 size={18} />
+            </button>
+          </div>
+        </div>
+
+        {/* Featured Cover Media (Video, Document, or Image) */}
+        {article.coverMediaType === 'video' && article.videoUrl ? (
+          <div style={{ marginBottom: '32px', width: article.coverWidth || '100%', margin: '0 auto 32px auto' }}>
+            <div style={{ width: '100%', height: article.coverHeight === 'auto' ? '450px' : (article.coverHeight || '450px'), borderRadius: 'var(--radius-lg)', overflow: 'hidden' }}>
+              <ContinuousCoverVideo
+                src={article.videoUrl}
+                cropStyle={article.coverCropStyle}
+                autoPlay={true}
+                muted={true}
+                loop={true}
+                controls={true}
+                playsInline={true}
+              />
+            </div>
+            {article.imageCaption && (
+              <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginTop: '8px', textAlign: 'center', fontStyle: 'italic' }}>
+                {article.imageCaption}
+              </p>
+            )}
+          </div>
+        ) : (article.imageUrl && (
+          <div style={{ marginBottom: '32px', width: article.coverWidth || '100%', margin: '0 auto 32px auto' }}>
+            <img 
+              src={formatCoverImageUrl(article.imageUrl)} 
+              alt={article.title} 
+              referrerPolicy="no-referrer" 
+              style={{
+                width: '100%',
+                borderRadius: 'var(--radius-lg)',
+                maxHeight: article.coverHeight === 'auto' ? 'none' : (article.coverHeight || '480px'),
+                objectFit: 'cover',
+                display: 'block',
+                ...article.coverCropStyle
+              }}
+              onError={(e) => {
+                const gdrive = parseGoogleDriveUrl(article.imageUrl);
+                if (gdrive && !e.currentTarget.dataset.retried) {
+                  e.currentTarget.dataset.retried = '1';
+                  e.currentTarget.src = gdrive.proxyImageUrl || `https://lh3.googleusercontent.com/d/${gdrive.fileId}`;
+                }
+              }}
+            />
+            {article.imageCaption && (
+              <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginTop: '8px', textAlign: 'center', fontStyle: 'italic' }}>
+                {article.imageCaption}
+              </p>
+            )}
+          </div>
+        ))}
+
+        {/* Key Takeaways Box */}
+        {article.takeaways && article.takeaways.length > 0 && (
+          <div style={{ background: 'var(--accent-emerald-light)', borderLeft: '4px solid var(--accent-emerald)', padding: '24px', borderRadius: 'var(--radius-md)', marginBottom: '36px' }}>
+            <div style={{ fontSize: '12px', fontWeight: 800, color: 'var(--accent-emerald)', textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: '10px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <Sparkles size={14} />
+              Executive Takeaways
+            </div>
+            <ul style={{ listStyle: 'none', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              {article.takeaways.map((point, idx) => (
+                <li key={idx} style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', fontSize: '15px', color: 'var(--text-primary)', lineHeight: 1.45 }}>
+                  <Check size={18} color="var(--accent-emerald)" style={{ flexShrink: 0, marginTop: '2px' }} />
+                  <span>{point}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+
+        {/* Article Body */}
+        <div style={{ fontFamily: 'var(--font-serif)', fontSize: '19px', lineHeight: 1.7, color: 'var(--text-primary)' }}>
+          {article.content && (article.content.includes('<') || article.content.includes('>')) ? (
+            <SafeArticleBody content={article.content} className="article-body" adConfig={article} adPlacements={article.adPlacements} />
+          ) : (
+            (article.content || article.excerpt || '').split('\n\n').map((para, i, arr) => {
+              const activeAds = Array.isArray(article?.adPlacements) && article.adPlacements.length > 0
+                ? article.adPlacements.filter(a => a && a.enabled)
+                : (article?.placeholderAdEnabled ? [article] : []);
+
+              const matchingAds = activeAds.filter(a => {
+                const targetIdx = parseInt(a.placementValue || a.placeholderAdPositionValue || '2');
+                const pType = a.placementType || a.placeholderAdPositionType || 'after_paragraph';
+                if (pType === 'after_intro') return i === 0;
+                if (pType === 'before_related') return i === arr.length - 1;
+                return i === Math.min(arr.length - 1, Math.max(0, targetIdx - 1));
+              });
+
+              return (
+                <React.Fragment key={i}>
+                  <p style={{ marginBottom: '24px' }}>
+                    {para}
+                  </p>
+                  {matchingAds.map((ad, idx) => (
+                    <ArticleAdBanner key={ad.id || idx} adConfig={ad} alignment={ad.alignment} label={ad.label} contentType={ad.contentType} content={ad.content} />
+                  ))}
+                </React.Fragment>
+              );
+            })
+          )}
+        </div>
+      </main>
+    </>
+  );
+}
