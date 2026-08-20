@@ -20,6 +20,7 @@ import { useTranslation } from '../context/TranslationContext';
 import { HERO_FEATURED, MAIN_ARTICLES, HERO_SECONDARY } from '../data/newsData';
 
 export default function ArticleDetailView({ id }) {
+  const [dbArticle, setDbArticle] = useState(null);
   const [bookmarked, setBookmarked] = useState(false);
   const [liked, setLiked] = useState(false);
   const [likesCount, setLikesCount] = useState(342);
@@ -27,22 +28,49 @@ export default function ArticleDetailView({ id }) {
   const { language, translateArticle } = useTranslation();
   const [translatedArticle, setTranslatedArticle] = useState(null);
 
-  const allStories = [HERO_FEATURED, ...HERO_SECONDARY, ...MAIN_ARTICLES];
-  const rawArticle = allStories.find(a => (a.slug || a.id) === id) || HERO_FEATURED;
+  // Fetch live article by ID from common D1 database
+  useEffect(() => {
+    let isMounted = true;
+    if (!id) return;
 
-  React.useEffect(() => {
+    const fetchSingleArticle = async () => {
+      try {
+        const res = await fetch(`/api/db/articles/${encodeURIComponent(id)}`);
+        if (res.ok) {
+          const json = await res.json();
+          if (json && json.success && json.data && isMounted) {
+            setDbArticle(json.data);
+          }
+        }
+      } catch (err) {
+        console.warn('Failed to fetch article from database:', err?.message || err);
+      }
+    };
+
+    fetchSingleArticle();
+    return () => { isMounted = false; };
+  }, [id]);
+
+  const allStories = [HERO_FEATURED, ...HERO_SECONDARY, ...MAIN_ARTICLES];
+  const staticFallback = allStories.find(a => (a.slug || a.id) === id) || HERO_FEATURED;
+  const rawArticle = dbArticle || staticFallback;
+
+  useEffect(() => {
     let isMounted = true;
     if (language === 'en') {
       setTranslatedArticle(null);
       return;
     }
-    translateArticle(rawArticle, language).then(translated => {
-      if (isMounted && translated) setTranslatedArticle(translated);
-    });
+    if (rawArticle) {
+      translateArticle(rawArticle, language).then(translated => {
+        if (isMounted && translated) setTranslatedArticle(translated);
+      });
+    }
     return () => { isMounted = false; };
   }, [rawArticle, language, translateArticle]);
 
   const article = translatedArticle || rawArticle;
+
 
   const toggleLike = () => {
     if (liked) {

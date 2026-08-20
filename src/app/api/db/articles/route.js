@@ -18,15 +18,15 @@ export async function GET(req) {
     }
 
     if (category && category !== 'All') {
-      conditions.push('category = ?');
-      params.push(category);
+      conditions.push('(category = ? OR category LIKE ?)');
+      params.push(category, `%${category}%`);
     }
 
     if (conditions.length > 0) {
       sql += ' WHERE ' + conditions.join(' AND ');
     }
 
-    sql += ' ORDER BY createdAt DESC;';
+    sql += ' ORDER BY COALESCE(updatedAt, createdAt) DESC, createdAt DESC;';
 
     const rows = await queryD1(sql, params);
     const formatted = rows.map(r => ({
@@ -36,6 +36,7 @@ export async function GET(req) {
       isTrending: Boolean(r.isTrending),
       isLive: Boolean(r.isLive),
       placeholderAdEnabled: Boolean(r.placeholderAdEnabled),
+      comments: r.comments ? (typeof r.comments === 'string' ? (JSON.parse(r.comments || '[]')) : r.comments) : [],
       adPlacements: r.adPlacements ? (typeof r.adPlacements === 'string' ? JSON.parse(r.adPlacements) : r.adPlacements) : [],
       coverImageCrop: r.coverImageCrop ? (typeof r.coverImageCrop === 'string' ? JSON.parse(r.coverImageCrop) : r.coverImageCrop) : null,
       coverVideoCrop: r.coverVideoCrop ? (typeof r.coverVideoCrop === 'string' ? JSON.parse(r.coverVideoCrop) : r.coverVideoCrop) : null
@@ -46,3 +47,4 @@ export async function GET(req) {
     return NextResponse.json({ success: false, error: err.message }, { status: 500 });
   }
 }
+
