@@ -63,9 +63,10 @@ export default function SubscriptionSection({
           <CheckCircle size={20} color="#059669" />
           <div>
             <div style={{ fontSize: '13.5px', fontWeight: 800, color: '#059669' }}>Your subscription is active.</div>
-            <div style={{ fontSize: '11.5px', color: '#047857' }}>All Premium Stories, eBooks & Editorials unlocked</div>
+            <div style={{ fontSize: '11.5px', color: '#047857' }}>All Premium Stories, Deep Dives & Editorials unlocked</div>
           </div>
         </div>
+
 
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
           <button

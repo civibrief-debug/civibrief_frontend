@@ -190,38 +190,44 @@ button {
 .masthead {
   max-width: var(--container-max);
   margin: 0 auto;
-  padding: 16px 24px;
-  display: flex;
+  padding: 14px 24px;
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
   align-items: center;
-  justify-content: space-between;
+  gap: 16px;
+  position: relative;
 }
 
 .masthead-left {
+  grid-column: 1;
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  gap: 8px;
+  justify-content: center;
+  gap: 6px;
+  justify-self: start;
 }
 
 .masthead-date-row {
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 15px;
+  font-size: 14px;
   line-height: 1.2;
 }
 
 .masthead-date {
   font-family: var(--font-sans);
   color: var(--text-primary);
-  font-weight: 500;
-  font-size: 15px;
+  font-weight: 600;
+  font-size: 14px;
+  letter-spacing: -0.2px;
 }
 
 .epaper-tag {
   color: #b90014;
   font-weight: 700;
-  font-size: 15px;
+  font-size: 14px;
   cursor: pointer;
   background: none;
   border: none;
@@ -237,8 +243,7 @@ button {
 .masthead-search-row {
   display: flex;
   align-items: center;
-  gap: 12px;
-  margin-top: 2px;
+  gap: 10px;
 }
 
 .masthead-menu-btn {
@@ -263,10 +268,10 @@ button {
   cursor: pointer;
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 5px;
   color: var(--text-primary);
-  font-size: 15px;
-  font-weight: 500;
+  font-size: 14px;
+  font-weight: 600;
   font-family: var(--font-sans);
   padding: 0;
   transition: opacity 0.2s;
@@ -274,6 +279,15 @@ button {
 
 .masthead-search-btn:hover {
   opacity: 0.7;
+}
+
+.masthead-center {
+  grid-column: 2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  justify-self: center;
+  text-align: center;
 }
 
 .brand-logo-hindu {
@@ -301,22 +315,41 @@ button {
 }
 
 .masthead-right {
+  grid-column: 3;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  justify-content: center;
+  gap: 6px;
+  justify-self: end;
+}
+
+.masthead-right-top {
   display: flex;
   align-items: center;
-  gap: 16px;
+  justify-content: flex-end;
+  gap: 12px;
+  line-height: 1.2;
+}
+
+.masthead-right-bottom {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
 }
 
 .masthead-link {
   display: flex;
   align-items: center;
-  gap: 5px;
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--text-secondary);
+  gap: 4px;
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--text-primary);
   background: none;
   border: none;
   cursor: pointer;
   transition: color 0.2s;
+  letter-spacing: 0.3px;
 }
 
 .masthead-link:hover {
@@ -362,7 +395,7 @@ button {
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 6px;
+  padding: 4px;
   border-radius: 50%;
   background: none;
   border: none;
@@ -380,7 +413,7 @@ button {
   color: #ffffff !important;
   font-weight: 800;
   font-size: 12px;
-  padding: 8px 18px;
+  padding: 6px 18px;
   border-radius: 3px;
   text-transform: uppercase;
   letter-spacing: 0.8px;
@@ -394,6 +427,7 @@ button {
   background-color: #900000;
   transform: translateY(-1px);
 }
+
 
 .subscribe-btn-red:active {
   transform: translateY(0);

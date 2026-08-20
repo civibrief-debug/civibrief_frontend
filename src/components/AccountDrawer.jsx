@@ -52,12 +52,13 @@ export default function AccountDrawer({
   const userEmail = user?.email || user?.username || 'user@example.com';
 
   const benefitsList = [
-    { id: 'ebooks', name: 'eBooks', icon: <Lock size={16} color="#b91c1c" /> },
+    { id: 'investigations', name: 'Special Investigations', icon: <Lock size={16} color="#b91c1c" /> },
     { id: 'webinars', name: 'Webinars', icon: <Lock size={16} color="#b91c1c" /> },
     { id: 'newsletters', name: 'Newsletters', icon: <Lock size={16} color="#b91c1c" /> },
     { id: 'games', name: 'Games', icon: <Lock size={16} color="#b91c1c" /> },
     { id: 'digest', name: 'Monthly Digest', icon: <Lock size={16} color="#b91c1c" /> }
   ];
+
 
   const handleBenefitClick = (benefit) => {
     if (!isSubscriber && onOpenSubscribe) {

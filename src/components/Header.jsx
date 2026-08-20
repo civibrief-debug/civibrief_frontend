@@ -264,15 +264,12 @@ export function Header({
 
   return (
     <header className={`header-wrapper ${isScrolled ? 'is-scrolled' : ''} ${showHeader ? 'show-header' : 'hide-header'}`}>
-      {/* Financial Ticker Top Bar - Appears ONLY when in Markets & Economy section */}
+      {/* Financial Ticker Top Bar - Appears ONLY when in Markets & Economy section (Live API without external Binance redirect) */}
       {isMarketsSection && (
-        <a 
-          href="https://www.binance.com/en/markets/overview"
-          target="_blank"
-          rel="noopener noreferrer"
+        <div 
           className="ticker-bar"
-          title="Click to view live global market overview on Binance"
-          style={{ textDecoration: 'none', cursor: 'pointer', display: 'block' }}
+          title="Live Global Market Indices"
+          style={{ display: 'block' }}
         >
           <div className="ticker-wrapper">
             {tickerData.concat(tickerData).map((item, idx) => (
@@ -286,7 +283,7 @@ export function Header({
               </div>
             ))}
           </div>
-        </a>
+        </div>
       )}
 
       {/* Live Global Weather & Climate Bar - Appears ONLY when in Science & Climate section */}
@@ -316,126 +313,92 @@ export function Header({
 
       {/* Main Newspaper Masthead */}
       <div className="masthead">
-        {/* Left Date, e-Paper Red Tag, Hamburger Menu & Search Bar */}
+        {/* Left Column: Date (Row 1) & Menu + Search (Row 2) */}
         <div className="masthead-left">
           <div className="masthead-date-row">
             <span className="masthead-date">{formattedDate}</span>
-            <button onClick={handleEPaperTrigger} className="epaper-tag">
-              e-Paper 💎
-            </button>
           </div>
           <div className="masthead-search-row">
             <button onClick={handleToggleMenu} className="masthead-menu-btn" title={isMenuOpen ? "Close Navigation Menu" : "Open Navigation Menu"}>
-              <Menu size={24} strokeWidth={1.5} />
+              <Menu size={22} strokeWidth={1.5} />
             </button>
             <button onClick={onOpenSearch} className="masthead-search-btn" title="Search Articles">
-              <Search size={22} strokeWidth={1.75} />
+              <Search size={18} strokeWidth={1.75} />
               <span>Search</span>
             </button>
           </div>
         </div>
 
-        {/* Center Serif Logo with Emblem Crest (The Hindu Style) */}
-        <Link href="/" className="brand-logo-hindu" title="Daily Brief Home" onClick={handleLogoClick}>
-          <span className="brand-title-word">DAILY</span>
-          <CrestLogo className="brand-crest-logo" />
-          <span className="brand-title-word">BRIEF</span>
-        </Link>
+        {/* Center Column: Perfectly Centered Serif Logo with Emblem Crest (The Hindu Style) */}
+        <div className="masthead-center">
+          <Link href="/" className="brand-logo-hindu" title="Daily Brief Home" onClick={handleLogoClick}>
+            <span className="brand-title-word">DAILY</span>
+            <CrestLogo className="brand-crest-logo" />
+            <span className="brand-title-word">BRIEF</span>
+          </Link>
+        </div>
 
-        {/* Right Action Icons, eBooks, Login, Theme Switcher & Red Subscribe Button */}
+        {/* Right Column: Utilities (Translate, Login, Theme in Top Row) & Subscribe Button (Bottom Row) */}
         <div className="masthead-right">
-          {/* eBooks Link */}
-          <button onClick={handleEPaperTrigger} className="masthead-link">
-            <Smartphone size={15} />
-            <span className="link-text">eBooks 💎</span>
-          </button>
+          {/* Row 1: Translate + Login / Member Account + Theme Switcher */}
+          <div className="masthead-right-top">
+            <LanguageSelector />
 
-          <LanguageSelector />
+            {/* Login / Member Profile Menu */}
+            {isLoggedIn ? (
+              <div className="profile-dropdown-wrapper" ref={profileMenuRef} style={{ position: 'relative' }}>
+                <button 
+                  onClick={() => setIsProfileMenuOpen(!isProfileMenuOpen)} 
+                  className="masthead-link member-status-active"
+                  style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '5px' }}
+                  title="Open Account Profile Drawer"
+                >
+                  <span className="gem-badge">💎</span>
+                  <span className="link-text">{user?.name || (user?.email ? user.email.split('@')[0] : "SUBSCRIBER")}</span>
+                  <ChevronDown size={13} style={{ transform: isProfileMenuOpen ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }} />
+                </button>
 
-          {/* Login / Member Profile Menu */}
-          {isLoggedIn ? (
-            <div className="profile-dropdown-wrapper" ref={profileMenuRef} style={{ position: 'relative' }}>
+                <AccountDrawer
+                  isOpen={isProfileMenuOpen}
+                  onClose={() => setIsProfileMenuOpen(false)}
+                  user={user}
+                  isLoggedIn={isLoggedIn}
+                  onLogout={onLogout}
+                  onOpenSubscribe={onOpenSubscribe}
+                  onOpenLogin={onOpenLogin}
+                />
+              </div>
+            ) : (
               <button 
-                onClick={() => setIsProfileMenuOpen(!isProfileMenuOpen)} 
-                className="masthead-link member-status-active"
-                style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}
-                title="Open Account Profile Drawer"
+                onClick={() => {
+                  if (onOpenLogin) onOpenLogin();
+                }} 
+                className="masthead-link" 
+                aria-label="User Login"
+                title="User Login / Account" 
+                style={{ display: 'flex', alignItems: 'center', gap: '4px', cursor: 'pointer' }}
               >
-                <span className="gem-badge">💎</span>
-                <span className="link-text">{user?.name || (user?.email ? user.email.split('@')[0] : "SUBSCRIBER")}</span>
-                <ChevronDown size={14} style={{ transform: isProfileMenuOpen ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }} />
+                <span className="link-text">LOGIN</span>
+                <User size={15} />
               </button>
+            )}
 
-              <AccountDrawer
-                isOpen={isProfileMenuOpen}
-                onClose={() => setIsProfileMenuOpen(false)}
-                user={user}
-                isLoggedIn={isLoggedIn}
-                onLogout={onLogout}
-                onOpenSubscribe={onOpenSubscribe}
-                onOpenLogin={onOpenLogin}
-              />
-            </div>
-          ) : (
-            <button 
-              onClick={() => {
-                if (onOpenLogin) onOpenLogin();
-              }} 
-              className="masthead-link" 
-              aria-label="User Login"
-              title="User Login / Account" 
-              style={{ display: 'flex', alignItems: 'center', gap: '4px', cursor: 'pointer' }}
-            >
-              <span className="link-text">LOGIN</span>
-              <User size={17} />
+            {/* Day / Night Theme Switcher */}
+            <button onClick={toggleTheme} className="theme-toggle-btn" title="Toggle Light / Dark Mode">
+              {theme === 'light' ? <Moon size={16} /> : <Sun size={16} color="#f59e0b" />}
             </button>
-          )}
+          </div>
 
-          {/* Day / Night Theme Switcher */}
-          <button onClick={toggleTheme} className="theme-toggle-btn" title="Toggle Light / Dark Mode">
-            {theme === 'light' ? <Moon size={19} /> : <Sun size={19} color="#f59e0b" />}
-          </button>
-
-          {/* Digital Edition Button (Moved directly to the left side of SUBSCRIBE button) */}
-          <button 
-            onClick={handleEPaperTrigger}
-            style={{ 
-              background: 'linear-gradient(135deg, rgba(220, 38, 38, 0.12) 0%, rgba(239, 68, 68, 0.06) 100%)', 
-              border: '1px solid rgba(220, 38, 38, 0.35)', 
-              borderRadius: '4px', 
-              cursor: 'pointer', 
-              padding: '7px 13px', 
-              fontSize: '11.5px', 
-              fontWeight: 800, 
-              color: '#dc2626', 
-              display: 'flex', 
-              alignItems: 'center', 
-              gap: '5px',
-              whiteSpace: 'nowrap',
-              boxShadow: '0 2px 6px rgba(220, 38, 38, 0.15)',
-              transition: 'all 0.2s ease',
-              textTransform: 'uppercase',
-              letterSpacing: '0.4px'
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.background = 'rgba(220, 38, 38, 0.2)';
-              e.currentTarget.style.transform = 'translateY(-1px)';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.background = 'linear-gradient(135deg, rgba(220, 38, 38, 0.12) 0%, rgba(239, 68, 68, 0.06) 100%)';
-              e.currentTarget.style.transform = 'translateY(0)';
-            }}
-            title={isLoggedIn ? "Digital Edition Reader" : "Subscriber Only Digital Edition 💎"}
-          >
-            <span>Digital Edition 💎 ➔</span>
-          </button>
-
-          {/* Red Subscribe Button */}
-          <button onClick={handleSubscribeTrigger} className="subscribe-btn-red" title="Subscribe to Daily Brief Premium">
-            SUBSCRIBE
-          </button>
+          {/* Row 2: Red Subscribe Button */}
+          <div className="masthead-right-bottom">
+            <button onClick={handleSubscribeTrigger} className="subscribe-btn-red" title="Subscribe to Daily Brief Premium">
+              SUBSCRIBE
+            </button>
+          </div>
         </div>
       </div>
+
+
 
       {/* Primary Category Navigation Bar OR Drawer Panel */}
       {isMenuOpen ? (

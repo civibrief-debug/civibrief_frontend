@@ -94,32 +94,47 @@ button {
   font-weight: 500;
 }
 
+.masthead {
+  max-width: var(--container-max);
+  margin: 0 auto;
+  padding: 14px 24px;
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: 16px;
+  position: relative;
+}
+
 .masthead-left {
+  grid-column: 1;
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  gap: 8px;
+  justify-content: center;
+  gap: 6px;
+  justify-self: start;
 }
 
 .masthead-date-row {
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 15px;
+  font-size: 14px;
   line-height: 1.2;
 }
 
 .masthead-date {
   font-family: var(--font-sans);
   color: var(--text-primary, #111111);
-  font-weight: 500;
-  font-size: 15px;
+  font-weight: 600;
+  font-size: 14px;
+  letter-spacing: -0.2px;
 }
 
 .epaper-tag {
   color: #b90014;
   font-weight: 700;
-  font-size: 15px;
+  font-size: 14px;
   cursor: pointer;
   background: none;
   border: none;
@@ -135,8 +150,7 @@ button {
 .masthead-search-row {
   display: flex;
   align-items: center;
-  gap: 12px;
-  margin-top: 2px;
+  gap: 10px;
 }
 
 .masthead-menu-btn {
@@ -161,10 +175,10 @@ button {
   cursor: pointer;
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 5px;
   color: var(--text-primary, #111111);
-  font-size: 15px;
-  font-weight: 500;
+  font-size: 14px;
+  font-weight: 600;
   font-family: var(--font-sans);
   padding: 0;
   transition: opacity 0.2s;
@@ -174,24 +188,13 @@ button {
   opacity: 0.7;
 }
 
-.epaper-link {
-  color: var(--color-brand-red);
-  font-weight: 700;
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  transition: opacity 0.2s;
-}
-
-.epaper-link:hover {
-  text-decoration: underline;
-  opacity: 0.9;
-}
-
 .masthead-center {
+  grid-column: 2;
   display: flex;
   align-items: center;
   justify-content: center;
+  justify-self: center;
+  text-align: center;
 }
 
 .brand-logo-hindu {
@@ -223,11 +226,30 @@ button {
   width: auto;
 }
 
-.top-bar-right {
+.masthead-right {
+  grid-column: 3;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  justify-content: center;
+  gap: 6px;
+  justify-self: end;
+}
+
+.masthead-right-top {
   display: flex;
   align-items: center;
-  gap: 18px;
+  justify-content: flex-end;
+  gap: 12px;
+  line-height: 1.2;
 }
+
+.masthead-right-bottom {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+}
+
 
 .btn-utility {
   display: flex;

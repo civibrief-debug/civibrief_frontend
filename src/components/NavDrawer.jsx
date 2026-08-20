@@ -139,12 +139,13 @@ export function NavDrawer({ onClose, onSelectCategory, onOpenSearch, isLoggedIn,
   ];
 
   const MEDIA_COLUMN_2 = [
-    { label: "eBooks", Icon: Smartphone },
+    { label: "DB Crossword", Icon: Grid },
     { label: "DB Games", Icon: Grid },
     { label: "Newsletter", Icon: Mail },
     { label: "Lit For Life", Icon: PenTool },
     { label: "The Huddle", Icon: Newspaper }
   ];
+
 
   return (
     <div className="nav-drawer-content" onClick={(e) => e.stopPropagation()}>

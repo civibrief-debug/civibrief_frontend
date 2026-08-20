@@ -34,9 +34,9 @@ export function Footer() {
             <li><Link href="/section/opinion" style={{ color: '#cbd5e1', textDecoration: 'none' }}>Editorial Columns</Link></li>
             <li><Link href="/section/deep-dives" style={{ color: '#cbd5e1', textDecoration: 'none' }}>Special Investigations 💎</Link></li>
             <li><Link href="/section/culture" style={{ color: '#cbd5e1', textDecoration: 'none' }}>Culture & Design</Link></li>
-            <li><Link href="/edition" style={{ color: '#cbd5e1', textDecoration: 'none' }}>Digital Edition 💎</Link></li>
           </ul>
         </div>
+
 
         <div>
           <div style={{ fontSize: '13px', fontWeight: 700, color: '#dc2626', textTransform: 'uppercase', marginBottom: '16px', letterSpacing: '0.8px' }}>Company</div>
