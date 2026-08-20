@@ -1,6 +1,8 @@
 import React, { Suspense } from 'react';
 import ArticleDetailView from '../../../components/ArticleDetailView';
 
+export const runtime = 'edge';
+
 export default async function ArticlePage({ params }) {
   const resolvedParams = await params;
   const id = resolvedParams?.id;
@@ -10,3 +12,4 @@ export default async function ArticlePage({ params }) {
     </Suspense>
   );
 }
+
