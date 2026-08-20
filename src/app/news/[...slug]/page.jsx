@@ -1,6 +1,8 @@
 import React, { Suspense } from 'react';
 import SectionPageView from '../../../components/SectionPageView';
 
+export const runtime = 'edge';
+
 export default async function NewsCategoryPage({ params }) {
   const resolvedParams = await params;
   const slug = resolvedParams?.slug;
@@ -11,5 +13,6 @@ export default async function NewsCategoryPage({ params }) {
     </Suspense>
   );
 }
+
 
 

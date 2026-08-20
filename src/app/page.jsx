@@ -4,15 +4,18 @@ import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { 
   Volume2, 
-  Clock, 
   ArrowUpRight, 
   Sparkles, 
   TrendingUp, 
   Bookmark, 
   Share2, 
   Compass, 
-  Flame,
-  Lock
+  Flame, 
+  Lock,
+  ChevronLeft,
+  ChevronRight,
+  Pause,
+  Play
 } from 'lucide-react';
 import { 
   HERO_FEATURED as FALLBACK_HERO_FEATURED, 
@@ -34,6 +37,10 @@ export default function HomePage() {
   const [isLoginOpen, setIsLoginOpen] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const { language, translateMultipleArticles, isTranslating } = useTranslation();
+
+  // Hero 3-Second Continuous Slider State
+  const [activeSlide, setActiveSlide] = useState(0);
+  const [progress, setProgress] = useState(0);
 
   // Fetch live articles from shared common database (strictly Published articles only)
   const fetchLiveArticles = async () => {
@@ -77,13 +84,63 @@ export default function HomePage() {
     return () => { isMounted = false; };
   }, [dbArticles, language, translateMultipleArticles]);
 
-  const rawActiveArticles = translatedArticles || (dbArticles.length > 0 ? dbArticles : [FALLBACK_HERO_FEATURED, ...FALLBACK_HERO_SECONDARY, ...FALLBACK_MAIN_ARTICLES]);
-  const activeArticles = rawActiveArticles.filter(a => !a.status || a.status === 'Published');
+  const isDeepDiveArticle = (a) => {
+    if (!a) return false;
+    const cat = (a.category || '').toLowerCase();
+    const id = (a.id || '').toLowerCase();
+    return id.startsWith('deep-dive-') || cat.includes('deep dive') || cat === 'special investigations' || (cat === 'investigation' && id.startsWith('deep-dive-'));
+  };
 
-  // Compute live featured story & articles
-  const liveFeatured = activeArticles.find(a => a.featured) || activeArticles[0] || FALLBACK_HERO_FEATURED;
+  const rawActiveArticles = translatedArticles || (dbArticles.length > 0 ? dbArticles : [FALLBACK_HERO_FEATURED, ...FALLBACK_HERO_SECONDARY, ...FALLBACK_MAIN_ARTICLES]);
+  const activeArticles = rawActiveArticles.filter(a => (!a.status || a.status === 'Published') && !isDeepDiveArticle(a));
+
+  // Compute Top 4 News Stories for the Hero Slider (strictly excluding Deep Dives)
+  const allHeroPool = [
+    ...activeArticles,
+    FALLBACK_HERO_FEATURED,
+    ...FALLBACK_HERO_SECONDARY,
+    ...FALLBACK_MAIN_ARTICLES
+  ].filter(a => !isDeepDiveArticle(a));
+
+  const uniqueHeroMap = new Map();
+  allHeroPool.forEach(item => {
+    if (item && item.id && !uniqueHeroMap.has(item.id)) {
+      uniqueHeroMap.set(item.id, item);
+    }
+  });
+  const heroTop4 = Array.from(uniqueHeroMap.values()).slice(0, 4);
+
+  // Active Featured Story from Top 4
+  const currentFeatured = heroTop4[activeSlide] || heroTop4[0] || FALLBACK_HERO_FEATURED;
   const liveArticlesList = activeArticles.length > 0 ? activeArticles : FALLBACK_MAIN_ARTICLES;
-  const secondaryStack = activeArticles.length > 1 ? activeArticles.slice(1, 4) : FALLBACK_HERO_SECONDARY;
+
+  // Continuous 3-Second Auto-Slide Timer (keeps going continuously)
+  useEffect(() => {
+    if (heroTop4.length <= 1) {
+      return;
+    }
+
+    const intervalTime = 50; // update progress every 50ms
+    const totalDuration = 3000; // 3 seconds
+    const step = (intervalTime / totalDuration) * 100;
+
+    const timer = setInterval(() => {
+      setProgress(prev => {
+        if (prev >= 100) {
+          setActiveSlide(curr => (curr + 1) % heroTop4.length);
+          return 0;
+        }
+        return prev + step;
+      });
+    }, intervalTime);
+
+    return () => clearInterval(timer);
+  }, [heroTop4.length, activeSlide]);
+
+  const handleSelectSlide = (idx) => {
+    setActiveSlide(idx);
+    setProgress(0);
+  };
 
   const handleDeepDiveClick = (dive) => {
     if (!isLoggedIn) {
@@ -97,32 +154,49 @@ export default function HomePage() {
 
   return (
     <main>
-      {/* Hero 4-Grid Section */}
+      {/* Hero 4-Grid Carousel Section */}
       <section className="hero-section">
-        {/* Main Lead Story */}
-        <article className="hero-main-card" onClick={() => setSelectedArticle(liveFeatured)} style={{ cursor: 'pointer' }}>
-          <div className="hero-img-box" onClick={() => setSelectedArticle(liveFeatured)} style={{ cursor: 'pointer' }}>
-            {liveFeatured.coverMediaType === 'video' && liveFeatured.videoUrl ? (
+        {/* Main Lead Story (Active Slide) */}
+        <article 
+          className="hero-main-card hero-slider-active-card" 
+          onClick={() => setSelectedArticle(currentFeatured)} 
+          style={{ cursor: 'pointer' }}
+        >
+          {/* Continuous 3-Second Slider Progress Bar */}
+          <div className="hero-progress-track">
+            <div 
+              className="hero-progress-bar" 
+              style={{ 
+                width: `${progress}%`,
+                backgroundColor: 'var(--accent-emerald, #10b981)'
+              }} 
+            />
+          </div>
+
+          <div className="hero-img-box" onClick={() => setSelectedArticle(currentFeatured)} style={{ cursor: 'pointer' }}>
+            {currentFeatured.coverMediaType === 'video' && currentFeatured.videoUrl ? (
               <ContinuousCoverVideo
-                src={liveFeatured.videoUrl}
-                cropStyle={liveFeatured.coverCropStyle}
+                key={`video-${currentFeatured.id}`}
+                src={currentFeatured.videoUrl}
+                cropStyle={currentFeatured.coverCropStyle}
                 autoPlay={true}
                 muted={true}
                 loop={true}
                 controls={false}
                 playsInline={true}
-                onClick={() => setSelectedArticle(liveFeatured)}
+                onClick={() => setSelectedArticle(currentFeatured)}
                 style={{ width: '100%', height: '100%', cursor: 'pointer' }}
               />
             ) : (
               <img 
-                src={formatCoverImageUrl(liveFeatured.imageUrl) || "https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=1200&q=80"} 
-                alt={liveFeatured.title} 
+                key={`img-${currentFeatured.id}`}
+                src={formatCoverImageUrl(currentFeatured.imageUrl) || "https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=1200&q=80"} 
+                alt={currentFeatured.title} 
                 referrerPolicy="no-referrer"
-                style={{ cursor: 'pointer', ...(liveFeatured.coverCropStyle || {}) }}
-                onClick={() => setSelectedArticle(liveFeatured)}
+                style={{ cursor: 'pointer', ...(currentFeatured.coverCropStyle || {}) }}
+                onClick={() => setSelectedArticle(currentFeatured)}
                 onError={(e) => {
-                  const gdrive = parseGoogleDriveUrl(liveFeatured.imageUrl);
+                  const gdrive = parseGoogleDriveUrl(currentFeatured.imageUrl);
                   if (gdrive && !e.currentTarget.dataset.retried) {
                     e.currentTarget.dataset.retried = '1';
                     e.currentTarget.src = gdrive.proxyImageUrl || `https://lh3.googleusercontent.com/d/${gdrive.fileId}`;
@@ -130,8 +204,11 @@ export default function HomePage() {
                 }}
               />
             )}
-            {liveFeatured.hasAudio && (
-              <div style={{ position: 'absolute', top: '16px', right: '16px', background: 'rgba(9, 13, 22, 0.85)', backdropFilter: 'blur(4px)', color: '#34d399', fontSize: '11px', fontWeight: 800, padding: '6px 12px', borderRadius: 'var(--radius-sm)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+
+            
+            {/* Audio Digest Badge if present */}
+            {currentFeatured.hasAudio && (
+              <div style={{ position: 'absolute', top: '16px', right: '16px', background: 'rgba(9, 13, 22, 0.85)', backdropFilter: 'blur(4px)', color: '#34d399', fontSize: '11px', fontWeight: 800, padding: '5px 12px', borderRadius: 'var(--radius-sm)', display: 'flex', alignItems: 'center', gap: '6px', zIndex: 10 }}>
                 <Volume2 size={14} />
                 <span>LISTEN NOW</span>
               </div>
@@ -139,57 +216,86 @@ export default function HomePage() {
           </div>
 
           <div className="hero-content" dir={isRtl ? 'rtl' : 'ltr'}>
-            <div className="category-tag">
-              <Sparkles size={13} />
-              <span dir="ltr">{liveFeatured.kicker ? liveFeatured.kicker.toUpperCase() : (liveFeatured.category || 'Technology')}</span>
+            {/* Small Dotted Pagination Indicators Below Image */}
+            <div className="hero-slide-dots-container" onClick={e => e.stopPropagation()}>
+              {heroTop4.map((s, idx) => (
+                <button
+                  key={`dot-${s.id || idx}`}
+                  type="button"
+                  onClick={() => handleSelectSlide(idx)}
+                  className={`hero-dot ${idx === activeSlide ? 'active' : ''}`}
+                  aria-label={`Go to slide ${idx + 1}`}
+                  title={`View Top Story 0${idx + 1}: ${s.title}`}
+                />
+              ))}
             </div>
 
-            <h1 className="hero-main-title" onClick={() => setSelectedArticle(liveFeatured)} style={{ cursor: 'pointer' }}>
-              {liveFeatured.title}
+            <div className="category-tag">
+              <Sparkles size={13} />
+              <span dir="ltr">{currentFeatured.kicker ? currentFeatured.kicker.toUpperCase() : (currentFeatured.category || 'Technology')}</span>
+            </div>
+
+            <h1 className="hero-main-title" onClick={() => setSelectedArticle(currentFeatured)} style={{ cursor: 'pointer' }}>
+              {currentFeatured.title}
             </h1>
 
-            <p className="hero-main-summary" onClick={() => setSelectedArticle(liveFeatured)} style={{ cursor: 'pointer' }}>
-              {liveFeatured.summary || liveFeatured.excerpt}
+            <p className="hero-main-summary" onClick={() => setSelectedArticle(currentFeatured)} style={{ cursor: 'pointer' }}>
+              {currentFeatured.summary || currentFeatured.excerpt}
             </p>
 
             <div className="hero-meta">
-              <span style={{ color: 'var(--accent-emerald)', fontWeight: 800 }}>{liveFeatured.author || 'Staff Reporter'}</span>
+              <span style={{ color: 'var(--accent-emerald)', fontWeight: 800 }}>{currentFeatured.author || 'Staff Reporter'}</span>
             </div>
           </div>
         </article>
 
-        {/* Secondary Stack */}
+        {/* Secondary Stack (Interactive 4-Story Playlist) */}
         <div className="hero-secondary-stack">
-          {secondaryStack.map((story) => (
-            <article key={story.id} className="secondary-card" onClick={() => setSelectedArticle(story)} style={{ cursor: 'pointer' }}>
-              <div className="secondary-content" dir={isRtl ? 'rtl' : 'ltr'}>
-                <div className="category-tag" style={{ fontSize: '10px' }} dir="ltr">
-                  <Sparkles size={11} />
-                  <span>{story.kicker ? story.kicker.toUpperCase() : (story.category || 'NEWS')}</span>
+          {heroTop4.map((story, idx) => {
+            const isActive = idx === activeSlide;
+            return (
+              <article 
+                key={story.id || idx} 
+                className={`secondary-card ${isActive ? 'secondary-card-active' : ''}`} 
+                onClick={() => handleSelectSlide(idx)} 
+                style={{ cursor: 'pointer', position: 'relative' }}
+              >
+                {isActive && (
+                  <div className="active-card-indicator-badge">
+                    <span>NOW SHOWING</span>
+                  </div>
+                )}
+                <div className="secondary-content" dir={isRtl ? 'rtl' : 'ltr'}>
+                  <div className="category-tag" style={{ fontSize: '10px' }} dir="ltr">
+                    <Sparkles size={11} />
+                    <span>{story.kicker ? story.kicker.toUpperCase() : (story.category || 'NEWS')}</span>
+                  </div>
+                  <h3 className="secondary-title">{story.title}</h3>
+                  <div style={{ fontSize: '12px', color: 'var(--accent-emerald)', fontWeight: 800, marginTop: '6px' }} dir="ltr">
+                    <span>{story.author || 'Desk'}</span>
+                  </div>
                 </div>
-                <h3 className="secondary-title">{story.title}</h3>
-                <div style={{ fontSize: '12px', color: 'var(--accent-emerald)', fontWeight: 800, marginTop: '6px' }} dir="ltr">
-                  <span>{story.author || 'Desk'}</span>
-                </div>
-              </div>
 
-              <img 
-                src={formatCoverImageUrl(story.imageUrl) || "https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?auto=format&fit=crop&w=400&q=80"} 
-                alt={story.title} 
-                referrerPolicy="no-referrer"
-                className="secondary-img" 
-                onError={(e) => {
-                  const gdrive = parseGoogleDriveUrl(story.imageUrl);
-                  if (gdrive && !e.currentTarget.dataset.retried) {
-                    e.currentTarget.dataset.retried = '1';
-                    e.currentTarget.src = gdrive.proxyImageUrl || `https://lh3.googleusercontent.com/d/${gdrive.fileId}`;
-                  }
-                }}
-              />
-            </article>
-          ))}
+                <img 
+                  src={formatCoverImageUrl(story.imageUrl) || "https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?auto=format&fit=crop&w=400&q=80"} 
+                  alt={story.title} 
+                  referrerPolicy="no-referrer"
+                  className="secondary-img" 
+                  onError={(e) => {
+                    const gdrive = parseGoogleDriveUrl(story.imageUrl);
+                    if (gdrive && !e.currentTarget.dataset.retried) {
+                      e.currentTarget.dataset.retried = '1';
+                      e.currentTarget.src = gdrive.proxyImageUrl || `https://lh3.googleusercontent.com/d/${gdrive.fileId}`;
+                    }
+                  }}
+                />
+              </article>
+            );
+          })}
         </div>
       </section>
+
+
 
       {/* Main Feed & Sidebar Grid */}
       <section className="main-feed-layout">

@@ -623,11 +623,65 @@ button {
   object-fit: cover;
 }
 
+.hero-slider-active-card {
+  position: relative;
+}
+
+/* 3-Second Slider Progress Bar */
+.hero-progress-track {
+  width: 100%;
+  height: 4px;
+  background: rgba(255, 255, 255, 0.1);
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 20;
+  overflow: hidden;
+}
+
+.hero-progress-bar {
+  height: 100%;
+  transition: width 0.05s linear;
+}
+
+/* Minimal Small Dotted Slide Indicators */
+.hero-slide-dots-container {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin-bottom: 12px;
+}
+
+.hero-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--border-color, rgba(255, 255, 255, 0.2));
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.hero-dot:hover {
+  background: var(--text-secondary, #94a3b8);
+  transform: scale(1.25);
+}
+
+.hero-dot.active {
+  width: 24px;
+  height: 8px;
+  border-radius: 4px;
+  background: var(--accent-emerald, #10b981);
+  box-shadow: 0 0 10px rgba(16, 185, 129, 0.4);
+}
+
+
 /* Secondary Hero Stack */
 .hero-secondary-stack {
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 16px;
 }
 
 .secondary-card {
@@ -637,13 +691,38 @@ button {
   padding: 16px;
   display: flex;
   gap: 16px;
-  transition: border-color 0.2s, box-shadow 0.2s;
+  transition: all 0.25s ease;
+  position: relative;
+  overflow: hidden;
 }
 
 .secondary-card:hover {
   border-color: var(--accent-emerald);
   box-shadow: var(--shadow-sm);
+  transform: translateX(4px);
 }
+
+.secondary-card.secondary-card-active {
+  border-color: var(--accent-emerald, #10b981);
+  background: rgba(16, 185, 129, 0.04);
+  box-shadow: 0 0 16px rgba(16, 185, 129, 0.12);
+  transform: translateX(6px);
+}
+
+.active-card-indicator-badge {
+  position: absolute;
+  top: 0;
+  right: 0;
+  background: var(--accent-emerald, #10b981);
+  color: #000;
+  font-size: 9px;
+  font-weight: 900;
+  letter-spacing: 0.5px;
+  padding: 2px 8px;
+  border-bottom-left-radius: 6px;
+  text-transform: uppercase;
+}
+
 
 .secondary-content {
   flex: 1;
