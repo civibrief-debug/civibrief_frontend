@@ -47,6 +47,18 @@ export function Header({
   const [hoveredCategory, setHoveredCategory] = useState(null);
   const [internalMenuOpen, setInternalMenuOpen] = useState(false);
   const [tickerData, setTickerData] = useState(MARKET_INDICES);
+  const [weatherData, setWeatherData] = useState([
+    { city: 'NEW DELHI', temp: '31°C', condition: 'Sunny', icon: '☀️', humidity: '58%', wind: '12 km/h' },
+    { city: 'MUMBAI', temp: '29°C', condition: 'Light Rain', icon: '🌧️', humidity: '82%', wind: '18 km/h' },
+    { city: 'BENGALURU', temp: '25°C', condition: 'Partly Cloudy', icon: '⛅', humidity: '65%', wind: '14 km/h' },
+    { city: 'NEW YORK', temp: '24°C', condition: 'Clear Sky', icon: '🌤️', humidity: '52%', wind: '10 km/h' },
+    { city: 'LONDON', temp: '19°C', condition: 'Overcast', icon: '☁️', humidity: '70%', wind: '15 km/h' },
+    { city: 'TOKYO', temp: '28°C', condition: 'Sunny', icon: '☀️', humidity: '60%', wind: '8 km/h' },
+    { city: 'PARIS', temp: '22°C', condition: 'Scattered Clouds', icon: '⛅', humidity: '55%', wind: '11 km/h' },
+    { city: 'DUBAI', temp: '38°C', condition: 'Clear', icon: '☀️', humidity: '45%', wind: '16 km/h' },
+    { city: 'SINGAPORE', temp: '30°C', condition: 'Thunderstorm', icon: '⛈️', humidity: '85%', wind: '12 km/h' },
+    { city: 'SYDNEY', temp: '20°C', condition: 'Breezy', icon: '🌤️', humidity: '50%', wind: '22 km/h' }
+  ]);
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
 
   const profileMenuRef = useRef(null);
@@ -72,6 +84,28 @@ export function Header({
     const interval = setInterval(() => {
       fetchLiveTicker().catch(() => {});
     }, 30000);
+    return () => clearInterval(interval);
+  }, []);
+
+  // Fetch live OpenWeatherMap & Climate data
+  useEffect(() => {
+    const fetchLiveWeather = async () => {
+      try {
+        const res = await fetch('/api/weather-ticker');
+        if (!res.ok) return;
+        const json = await res.json();
+        if (json && json.success && Array.isArray(json.data) && json.data.length > 0) {
+          setWeatherData(json.data);
+        }
+      } catch (err) {
+        console.warn('Failed to fetch live weather ticker (suppressed):', err?.message || err);
+      }
+    };
+
+    fetchLiveWeather().catch(() => {});
+    const interval = setInterval(() => {
+      fetchLiveWeather().catch(() => {});
+    }, 45000);
     return () => clearInterval(interval);
   }, []);
 
@@ -222,6 +256,12 @@ export function Header({
     activeCatStr.includes('stock') ||
     activeCatStr.includes('capital');
 
+  const isScienceSection = 
+    activeCatStr === 'science' || 
+    activeCatStr.includes('science') || 
+    activeCatStr.includes('climate') ||
+    activeCatStr.includes('weather');
+
   return (
     <header className={`header-wrapper ${isScrolled ? 'is-scrolled' : ''} ${showHeader ? 'show-header' : 'hide-header'}`}>
       {/* Financial Ticker Top Bar - Appears ONLY when in Markets & Economy section */}
@@ -243,6 +283,31 @@ export function Header({
                   {item.change}
                 </span>
                 <span style={{ color: '#475569', margin: '0 8px' }}>|</span>
+              </div>
+            ))}
+          </div>
+        </a>
+      )}
+
+      {/* Live Global Weather & Climate Bar - Appears ONLY when in Science & Climate section */}
+      {isScienceSection && (
+        <a 
+          href="https://weather-forecast-theta-green.vercel.app/"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="weather-ticker-bar"
+          title="Click to view live interactive weather forecasting dashboard"
+          style={{ textDecoration: 'none', cursor: 'pointer', display: 'block' }}
+        >
+          <div className="weather-ticker-wrapper">
+            {weatherData.concat(weatherData).map((w, idx) => (
+              <div key={idx} className="weather-ticker-item">
+                <span style={{ fontWeight: 800, color: '#38bdf8', letterSpacing: '0.4px' }}>{w.city}:</span>
+                <span style={{ fontWeight: 700, color: '#f8fafc' }}>{w.temp}</span>
+                <span style={{ fontSize: '13px' }}>{w.icon}</span>
+                <span style={{ color: '#94a3b8', fontSize: '11.5px' }}>{w.condition}</span>
+                <span style={{ color: 'rgba(255,255,255,0.4)', fontSize: '11px' }}>({w.humidity} Hum • {w.wind})</span>
+                <span style={{ color: '#334155', margin: '0 10px' }}>|</span>
               </div>
             ))}
           </div>

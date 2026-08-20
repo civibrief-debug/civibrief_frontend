@@ -132,6 +132,37 @@ button {
   color: #f87171;
 }
 
+/* Weather & Climate Ticker Top Bar */
+.weather-ticker-bar {
+  background: linear-gradient(90deg, #030d1a 0%, #081d33 50%, #030d1a 100%);
+  color: #f8fafc;
+  font-family: var(--font-mono, monospace);
+  font-size: 12px;
+  padding: 6px 0;
+  overflow: hidden;
+  white-space: nowrap;
+  border-bottom: 1px solid rgba(56, 189, 248, 0.25);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+.weather-ticker-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  animation: scrollTicker 38s linear infinite;
+}
+
+.weather-ticker-wrapper:hover {
+  animation-play-state: running;
+}
+
+.weather-ticker-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 500;
+}
+
 /* Header Component */
 .header-wrapper {
   background: var(--bg-card);

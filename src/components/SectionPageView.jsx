@@ -50,9 +50,9 @@ function matchCategory(slug) {
   return found || { name: slug.charAt(0).toUpperCase() + slug.slice(1), slug };
 }
 
-export default function SectionPageView({ slug }) {
+function SectionPageInner({ slug }) {
   const searchParams = useSearchParams();
-  const subSectionParam = searchParams.get('subsection') || 'All';
+  const subSectionParam = searchParams ? searchParams.get('subsection') || 'All' : 'All';
 
   const categoryMeta = useMemo(() => matchCategory(slug), [slug]);
   const sectionsData = CATEGORY_SECTIONS[categoryMeta.slug];
@@ -444,5 +444,13 @@ export default function SectionPageView({ slug }) {
         />
       )}
     </div>
+  );
+}
+
+export default function SectionPageView({ slug }) {
+  return (
+    <React.Suspense fallback={<div style={{ minHeight: '100vh', background: 'var(--bg-primary, #090d16)' }} />}>
+      <SectionPageInner slug={slug} />
+    </React.Suspense>
   );
 }
