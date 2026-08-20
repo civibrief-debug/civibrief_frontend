@@ -290,13 +290,8 @@ function SectionPageInner({ slug }) {
                   )}
 
                   {/* Meta Byline */}
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '14px', fontSize: '13px', color: 'var(--text-muted, #94a3b8)', fontWeight: 600 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '14px', fontSize: '13px', color: 'var(--accent-emerald, #34d399)', fontWeight: 700 }}>
                     <span>{leadStory.author || 'Staff Reporter'}</span>
-                    <span>•</span>
-                    <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                      <Clock size={13} />
-                      {leadStory.readTime || '4 min read'}
-                    </span>
                   </div>
                 </article>
               )}
@@ -333,15 +328,11 @@ function SectionPageInner({ slug }) {
                           {art.summary}
                         </p>
                       )}
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '12px', fontSize: '12px', color: 'var(--text-muted, #94a3b8)', fontWeight: 600 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '12px', fontSize: '12px', color: 'var(--accent-emerald, #34d399)', fontWeight: 700 }}>
                         <span>{art.author || 'Staff Reporter'}</span>
-                        <span>•</span>
-                        <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                          <Clock size={12} />
-                          {art.readTime || '3 min read'}
-                        </span>
                       </div>
                     </div>
+
 
                     {art.imageUrl && (
                       <div style={{ width: '200px', height: '130px', borderRadius: '6px', overflow: 'hidden', background: '#1e293b' }}>

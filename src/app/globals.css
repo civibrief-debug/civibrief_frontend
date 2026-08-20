@@ -681,10 +681,105 @@ button {
   gap: 36px;
 }
 
-.feed-grid {
+.feed-grid-wrapper {
   display: flex;
   flex-direction: column;
+  gap: 20px;
+}
+
+.feed-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
   gap: 24px;
+}
+
+@media (max-width: 860px) {
+  .feed-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.article-card-vertical {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  box-shadow: var(--shadow-sm);
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+}
+
+.article-card-vertical:hover {
+  transform: translateY(-3px);
+  box-shadow: var(--shadow-md);
+  border-color: var(--accent-emerald);
+}
+
+.card-v-img-box {
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  position: relative;
+  overflow: hidden;
+  background: var(--bg-secondary, #1e293b);
+}
+
+.card-v-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  transition: transform 0.4s ease;
+}
+
+.article-card-vertical:hover .card-v-img {
+  transform: scale(1.03);
+}
+
+.card-v-content {
+  padding: 18px 20px;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+}
+
+.card-v-title {
+  font-family: var(--font-serif);
+  font-size: 20px;
+  font-weight: 800;
+  color: var(--text-primary);
+  line-height: 1.35;
+  margin: 6px 0 10px 0;
+  cursor: pointer;
+  transition: color 0.15s ease;
+}
+
+.card-v-title:hover {
+  color: var(--accent-emerald);
+}
+
+.card-v-summary {
+  font-size: 14px;
+  color: var(--text-secondary);
+  line-height: 1.5;
+  margin-bottom: 14px;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.card-v-meta {
+  margin-top: auto;
+  font-size: 13px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.card-v-author {
+  font-weight: 800;
+  color: var(--accent-emerald);
 }
 
 .article-card-horizontal {
@@ -708,6 +803,7 @@ button {
   border-radius: var(--radius-sm);
   flex-shrink: 0;
 }
+
 
 /* Sidebar Trending Top 5 */
 .sidebar-trending {

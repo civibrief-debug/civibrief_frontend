@@ -21,8 +21,9 @@ export function AudioPlayerBar() {
 
         <div>
           <div style={{ fontSize: '11px', fontWeight: 800, color: 'var(--accent-emerald)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-            Daily Brief Audio Digest • 5 Min Read
+            Daily Brief Audio Digest • Official Broadcast
           </div>
+
           <div style={{ fontSize: '13px', fontWeight: 600, color: '#f8fafc' }}>
             Next-Gen Compute Models & Global Energy Grids Overview
           </div>

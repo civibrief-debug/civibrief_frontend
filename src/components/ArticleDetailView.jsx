@@ -108,13 +108,9 @@ export default function ArticleDetailView({ id }) {
         {/* Article Metadata Bar */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingBottom: '20px', borderBottom: '1px solid var(--border-color)', marginBottom: '32px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-            <span style={{ fontWeight: 700, fontSize: '14px' }}>{article.author || 'Staff Reporter'}</span>
-            <span style={{ color: 'var(--text-muted)', fontSize: '13px' }}>•</span>
-            <span style={{ color: 'var(--text-muted)', fontSize: '13px', display: 'flex', alignItems: 'center', gap: '4px' }}>
-              <Clock size={14} />
-              {article.readTime || '4 min read'}
-            </span>
+            <span style={{ fontWeight: 800, fontSize: '14px', color: 'var(--accent-emerald)' }}>{article.author || 'Staff Reporter'}</span>
           </div>
+
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
             <button 

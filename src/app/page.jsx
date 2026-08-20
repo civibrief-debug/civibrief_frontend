@@ -133,7 +133,7 @@ export default function HomePage() {
             {liveFeatured.hasAudio && (
               <div style={{ position: 'absolute', top: '16px', right: '16px', background: 'rgba(9, 13, 22, 0.85)', backdropFilter: 'blur(4px)', color: '#34d399', fontSize: '11px', fontWeight: 800, padding: '6px 12px', borderRadius: 'var(--radius-sm)', display: 'flex', alignItems: 'center', gap: '6px' }}>
                 <Volume2 size={14} />
-                <span>LISTEN • 5 MIN</span>
+                <span>LISTEN NOW</span>
               </div>
             )}
           </div>
@@ -154,10 +154,6 @@ export default function HomePage() {
 
             <div className="hero-meta">
               <span style={{ color: 'var(--accent-emerald)', fontWeight: 800 }}>{liveFeatured.author || 'Staff Reporter'}</span>
-              <span>•</span>
-              <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                <Clock size={12} /> {liveFeatured.readTime || '5 min read'}
-              </span>
             </div>
           </div>
         </article>
@@ -168,14 +164,12 @@ export default function HomePage() {
             <article key={story.id} className="secondary-card" onClick={() => setSelectedArticle(story)} style={{ cursor: 'pointer' }}>
               <div className="secondary-content" dir={isRtl ? 'rtl' : 'ltr'}>
                 <div className="category-tag" style={{ fontSize: '10px' }} dir="ltr">
-                  {story.kicker ? <span style={{ color: 'var(--accent-gold, #d97706)', fontWeight: 800 }}>{story.kicker}</span> : story.category}
+                  <Sparkles size={11} />
+                  <span>{story.kicker ? story.kicker.toUpperCase() : (story.category || 'NEWS')}</span>
                 </div>
                 <h3 className="secondary-title">{story.title}</h3>
-                <div style={{ fontSize: '12px', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '6px', marginTop: '6px' }} dir="ltr">
+                <div style={{ fontSize: '12px', color: 'var(--accent-emerald)', fontWeight: 800, marginTop: '6px' }} dir="ltr">
                   <span>{story.author || 'Desk'}</span>
-                  <span>•</span>
-                  <Clock size={12} />
-                  <span>3 min read</span>
                 </div>
               </div>
 
@@ -200,62 +194,67 @@ export default function HomePage() {
       {/* Main Feed & Sidebar Grid */}
       <section className="main-feed-layout">
         {/* Left Column Feed */}
-        <div className="feed-grid">
+        <div className="feed-grid-wrapper">
           <div className="section-title">
-            <span>Latest Intelligence (Live Shared DB)</span>
+            <span>Latest Intelligence</span>
             <Compass size={20} color="var(--accent-emerald)" />
           </div>
 
-          {liveArticlesList.map((article) => (
-            <article key={article.id} className="article-card-horizontal" onClick={() => setSelectedArticle(article)} style={{ cursor: 'pointer' }}>
-              {article.coverMediaType === 'video' && article.videoUrl ? (
-                <ContinuousCoverVideo
-                  src={article.videoUrl}
-                  cropStyle={article.coverCropStyle}
-                  autoPlay={true}
-                  muted={true}
-                  loop={true}
-                  controls={false}
-                  playsInline={true}
-                  onClick={() => setSelectedArticle(article)}
-                  className="card-h-img"
-                  style={{ objectFit: 'cover', cursor: 'pointer' }}
-                />
-              ) : (
-                <img 
-                  src={formatCoverImageUrl(article.imageUrl) || "https://images.unsplash.com/photo-1451187580459-43490279c0fa?auto=format&fit=crop&w=600&q=80"} 
-                  alt={article.title} 
-                  referrerPolicy="no-referrer"
-                  className="card-h-img" 
-                  onClick={() => setSelectedArticle(article)}
-                  style={{ cursor: 'pointer', ...(article.coverCropStyle || {}) }}
-                  onError={(e) => {
-                    const gdrive = parseGoogleDriveUrl(article.imageUrl);
-                    if (gdrive && !e.currentTarget.dataset.retried) {
-                      e.currentTarget.dataset.retried = '1';
-                      e.currentTarget.src = gdrive.proxyImageUrl || `https://lh3.googleusercontent.com/d/${gdrive.fileId}`;
-                    }
-                  }}
-                />
-              )}
-              <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
-                <div className="category-tag" style={{ fontSize: '10px' }}>
-                  {article.kicker ? <span style={{ color: 'var(--accent-gold, #d97706)', fontWeight: 800 }}>{article.kicker}</span> : article.category}
+          <div className="feed-grid">
+            {liveArticlesList.map((article) => (
+              <article key={article.id} className="article-card-vertical" onClick={() => setSelectedArticle(article)} style={{ cursor: 'pointer' }}>
+                <div className="card-v-img-box">
+                  {article.coverMediaType === 'video' && article.videoUrl ? (
+                    <ContinuousCoverVideo
+                      src={article.videoUrl}
+                      cropStyle={article.coverCropStyle}
+                      autoPlay={true}
+                      muted={true}
+                      loop={true}
+                      controls={false}
+                      playsInline={true}
+                      onClick={() => setSelectedArticle(article)}
+                      className="card-v-img"
+                      style={{ objectFit: 'cover', cursor: 'pointer' }}
+                    />
+                  ) : (
+                    <img 
+                      src={formatCoverImageUrl(article.imageUrl) || "https://images.unsplash.com/photo-1451187580459-43490279c0fa?auto=format&fit=crop&w=600&q=80"} 
+                      alt={article.title} 
+                      referrerPolicy="no-referrer"
+                      className="card-v-img" 
+                      onClick={() => setSelectedArticle(article)}
+                      style={{ cursor: 'pointer', ...(article.coverCropStyle || {}) }}
+                      onError={(e) => {
+                        const gdrive = parseGoogleDriveUrl(article.imageUrl);
+                        if (gdrive && !e.currentTarget.dataset.retried) {
+                          e.currentTarget.dataset.retried = '1';
+                          e.currentTarget.src = gdrive.proxyImageUrl || `https://lh3.googleusercontent.com/d/${gdrive.fileId}`;
+                        }
+                      }}
+                    />
+                  )}
                 </div>
-                <h2 style={{ fontFamily: 'var(--font-serif)', fontSize: '20px', fontWeight: 800, color: 'var(--text-primary)', lineHeight: 1.3, marginBottom: '8px' }}>
-                  {article.title}
-                </h2>
-                <p style={{ fontSize: '14px', color: 'var(--text-secondary)', lineHeight: 1.5, marginBottom: '12px' }}>
-                  {article.summary || article.excerpt}
-                </p>
-                <div style={{ marginTop: 'auto', fontSize: '12px', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '10px' }}>
-                  <span style={{ fontWeight: 700, color: 'var(--text-primary)' }}>{article.author || 'Staff Reporter'}</span>
-                  <span>•</span>
-                  <span>4 min read</span>
+                <div className="card-v-content">
+                  <div className="category-tag" style={{ fontSize: '11px' }}>
+                    <Sparkles size={12} />
+                    <span>{article.kicker ? article.kicker.toUpperCase() : (article.category || 'TECHNOLOGY')}</span>
+                  </div>
+                  <h3 className="card-v-title">
+                    {article.title}
+                  </h3>
+                  {article.summary && (
+                    <p className="card-v-summary">
+                      {article.summary || article.excerpt}
+                    </p>
+                  )}
+                  <div className="card-v-meta">
+                    <span className="card-v-author">{article.author || 'Staff Reporter'}</span>
+                  </div>
                 </div>
-              </div>
-            </article>
-          ))}
+              </article>
+            ))}
+          </div>
         </div>
 
         {/* Right Sidebar */}
@@ -273,12 +272,13 @@ export default function HomePage() {
                 <span className="rank-number" dir="ltr">0{idx + 1}</span>
                 <div>
                   <div className="category-tag" style={{ fontSize: '9px', marginBottom: '2px' }} dir="ltr">
-                    {item.category}
+                    <Sparkles size={10} />
+                    <span>{item.kicker ? item.kicker.toUpperCase() : item.category}</span>
                   </div>
                   <h4 style={{ fontFamily: 'var(--font-serif)', fontSize: '14px', fontWeight: 700, color: 'var(--text-primary)', lineHeight: 1.35 }}>
                     {item.title}
                   </h4>
-                  <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '4px' }} dir="ltr">
+                  <div style={{ fontSize: '11px', color: 'var(--accent-emerald)', fontWeight: 700, marginTop: '4px' }} dir="ltr">
                     {item.author || 'Staff Desk'}
                   </div>
                 </div>
@@ -331,7 +331,8 @@ export default function HomePage() {
                 )}
                 <div className="deep-card-content">
                   <div className="category-tag" style={{ fontSize: '10px' }}>
-                    {dive.category} • {dive.readTime}
+                    <Sparkles size={11} />
+                    <span>{dive.category}</span>
                   </div>
                   <h3 style={{ fontFamily: 'var(--font-serif)', fontSize: '22px', fontWeight: 800, color: '#ffffff', marginBottom: '8px' }}>
                     {dive.title}
@@ -339,7 +340,7 @@ export default function HomePage() {
                   <p style={{ fontSize: '14px', color: '#cbd5e1', lineHeight: 1.5, marginBottom: '14px' }}>
                     {dive.subtitle}
                   </p>
-                  <div style={{ fontSize: '12px', color: '#94a3b8', fontWeight: 600 }}>
+                  <div style={{ fontSize: '12px', color: 'var(--accent-emerald)', fontWeight: 700 }}>
                     By {dive.author}
                   </div>
                 </div>
@@ -348,6 +349,7 @@ export default function HomePage() {
           </div>
         </div>
       </section>
+
 
       {/* Article Modal */}
       {selectedArticle && (
