@@ -546,8 +546,8 @@ export function Header({
                     </div>
                     <div className="mega-card">
                       <img 
-                        src={CATEGORY_SECTIONS[hoveredCategory].spotlight.image} 
-                        alt={CATEGORY_SECTIONS[hoveredCategory].spotlight.title}
+                        src={CATEGORY_SECTIONS[hoveredCategory]?.spotlight?.image || "https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=400&q=80"} 
+                        alt={CATEGORY_SECTIONS[hoveredCategory]?.spotlight?.title || 'Spotlight'}
                         className="mega-card-img"
                       />
                       <div className="mega-card-info">

@@ -1002,7 +1002,7 @@ export const ArticleModal = ({ article, onClose, isLoggedIn, onOpenLogin, onLogi
         ) : (activeArticle.imageUrl && (
           <div className="article-modal-hero-img-container" style={{ width: activeArticle.coverWidth || '100%', margin: '0 auto 24px auto' }}>
             <img 
-              src={formatCoverImageUrl(activeArticle.imageUrl)} 
+              src={formatCoverImageUrl(activeArticle.imageUrl) || "https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=1200&q=80"} 
               alt={activeArticle.title} 
               referrerPolicy="no-referrer"
               className="article-modal-hero-img"

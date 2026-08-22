@@ -258,7 +258,7 @@ function SectionPageInner({ slug }) {
                       />
                     ) : (
                       <img 
-                        src={formatCoverImageUrl(leadStory.imageUrl)} 
+                        src={formatCoverImageUrl(leadStory.imageUrl) || "https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=1200&q=80"} 
                         alt={leadStory.title} 
                         referrerPolicy="no-referrer"
                         onClick={() => setSelectedArticle(leadStory)}
@@ -337,7 +337,7 @@ function SectionPageInner({ slug }) {
                     {art.imageUrl && (
                       <div style={{ width: '200px', height: '130px', borderRadius: '6px', overflow: 'hidden', background: '#1e293b' }}>
                         <img 
-                          src={formatCoverImageUrl(art.imageUrl)} 
+                          src={formatCoverImageUrl(art.imageUrl) || "https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=400&q=80"} 
                           alt={art.title} 
                           referrerPolicy="no-referrer"
                           style={{ width: '100%', height: '100%', objectFit: 'cover' }}

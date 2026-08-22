@@ -2,8 +2,6 @@ import { NextResponse } from 'next/server';
 import { translatePlainText, translateHtmlContent } from '../../../lib/translationService';
 import { checkRateLimit } from '../../../lib/rateLimit';
 
-export const runtime = 'edge';
-
 const IS_VALID_LANG_CODE = (code) => typeof code === 'string' && /^[a-z]{2,3}(-[A-Za-z0-9]+)?$/i.test(code);
 
 export async function POST(req) {

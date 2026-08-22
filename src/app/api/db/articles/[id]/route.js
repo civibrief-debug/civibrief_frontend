@@ -1,8 +1,6 @@
 import { NextResponse } from 'next/server';
 import { queryD1 } from '../../../../../lib/edgeDb';
 
-export const runtime = 'edge';
-
 export async function GET(req, { params }) {
   try {
     const { id } = await params;

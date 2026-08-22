@@ -529,7 +529,12 @@ button {
   padding: 0 24px;
   display: grid;
   grid-template-columns: 1.8fr 1.2fr;
-  gap: 32px;
+  gap: 28px;
+  align-items: stretch;
+  clear: both;
+  width: 100%;
+  box-sizing: border-box;
+  position: relative;
 }
 
 .hero-main-card {
@@ -541,6 +546,9 @@ button {
   transition: transform 0.2s, box-shadow 0.2s;
   display: flex;
   flex-direction: column;
+  height: 100%;
+  box-sizing: border-box;
+  position: relative;
 }
 
 .hero-main-card:hover {
@@ -553,12 +561,18 @@ button {
   aspect-ratio: 16 / 9;
   position: relative;
   overflow: hidden;
+  background: #111827;
+  flex-shrink: 0;
+  box-sizing: border-box;
 }
 
-.hero-img-box img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
+.hero-img-box img,
+.hero-img-box video,
+.hero-img-box iframe {
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: cover !important;
+  display: block;
   transition: transform 0.5s ease;
 }
 
@@ -567,10 +581,38 @@ button {
 }
 
 .hero-content {
-  padding: 28px;
+  padding: 20px 24px 18px;
   display: flex;
   flex-direction: column;
   flex: 1;
+  justify-content: space-between;
+}
+
+.hero-main-title {
+  font-family: var(--font-serif);
+  font-size: 24px;
+  line-height: 1.3;
+  font-weight: 800;
+  color: var(--text-primary);
+  margin: 4px 0 6px;
+  cursor: pointer;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  height: 62px; /* Fixed uniform height so title length never changes card height */
+}
+
+.hero-main-summary {
+  font-size: 14px;
+  color: var(--text-secondary);
+  line-height: 1.45;
+  margin-bottom: 8px;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  height: 40px; /* Fixed uniform height */
 }
 
 .category-tag {
@@ -580,10 +622,13 @@ button {
   color: var(--accent-emerald);
   text-transform: uppercase;
   letter-spacing: 0.8px;
-  margin-bottom: 8px;
+  margin-bottom: 4px;
   display: inline-flex;
   align-items: center;
   gap: 6px;
+  height: 18px;
+  overflow: hidden;
+  white-space: nowrap;
 }
 
 .hero-headline {
@@ -627,29 +672,13 @@ button {
   position: relative;
 }
 
-/* 3-Second Slider Progress Bar */
-.hero-progress-track {
-  width: 100%;
-  height: 4px;
-  background: rgba(255, 255, 255, 0.1);
-  position: absolute;
-  top: 0;
-  left: 0;
-  z-index: 20;
-  overflow: hidden;
-}
-
-.hero-progress-bar {
-  height: 100%;
-  transition: width 0.05s linear;
-}
-
 /* Minimal Small Dotted Slide Indicators */
 .hero-slide-dots-container {
   display: flex;
   align-items: center;
   gap: 7px;
-  margin-bottom: 12px;
+  margin-bottom: 8px;
+  height: 10px;
 }
 
 .hero-dot {
@@ -676,77 +705,100 @@ button {
   box-shadow: 0 0 10px rgba(16, 185, 129, 0.4);
 }
 
-
-/* Secondary Hero Stack */
+/* Secondary Hero Stack - Exactly 4 Uniform Rows */
 .hero-secondary-stack {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
+  display: grid;
+  grid-template-rows: repeat(4, 1fr);
+  gap: 12px;
+  height: 100%;
 }
 
 .secondary-card {
   background: var(--bg-card);
   border: 1px solid var(--border-color);
   border-radius: var(--radius-md);
-  padding: 16px;
+  padding: 10px 14px;
   display: flex;
-  gap: 16px;
-  transition: all 0.25s ease;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  box-sizing: border-box;
+  transition: border-color 0.25s ease, background 0.25s ease;
   position: relative;
   overflow: hidden;
+  height: 100%;
 }
 
 .secondary-card:hover {
   border-color: var(--accent-emerald);
   box-shadow: var(--shadow-sm);
-  transform: translateX(4px);
 }
-
-.secondary-card.secondary-card-active {
-  border-color: var(--accent-emerald, #10b981);
-  background: rgba(16, 185, 129, 0.04);
-  box-shadow: 0 0 16px rgba(16, 185, 129, 0.12);
-  transform: translateX(6px);
-}
-
-.active-card-indicator-badge {
-  position: absolute;
-  top: 0;
-  right: 0;
-  background: var(--accent-emerald, #10b981);
-  color: #000;
-  font-size: 9px;
-  font-weight: 900;
-  letter-spacing: 0.5px;
-  padding: 2px 8px;
-  border-bottom-left-radius: 6px;
-  text-transform: uppercase;
-}
-
 
 .secondary-content {
   flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+/* Secondary Card Dotted Bullets (Matching Main Hero Card) */
+.secondary-dots-row {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin-bottom: 3px;
+  height: 8px;
+}
+
+.secondary-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--border-color, rgba(255, 255, 255, 0.2));
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.secondary-dot:hover {
+  background: var(--text-secondary, #94a3b8);
+  transform: scale(1.25);
+}
+
+.secondary-dot.active {
+  width: 18px;
+  height: 6px;
+  border-radius: 3px;
+  background: var(--accent-emerald, #10b981);
+  box-shadow: 0 0 8px rgba(16, 185, 129, 0.4);
 }
 
 .secondary-title {
   font-family: var(--font-serif);
-  font-size: 17px;
-  line-height: 1.35;
+  font-size: 14px;
+  line-height: 1.3;
   font-weight: 700;
   color: var(--text-primary);
-  margin-bottom: 6px;
-  cursor: pointer;
-}
-
-.secondary-title:hover {
-  color: var(--accent-emerald);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  height: 36px; /* Fixed uniform height */
+  margin: 1px 0 3px;
 }
 
 .secondary-img {
-  width: 110px;
-  height: 85px;
-  border-radius: var(--radius-sm);
+  width: 95px;
+  min-width: 95px;
+  max-width: 95px;
+  height: 65px;
+  min-height: 65px;
+  max-height: 65px;
   object-fit: cover;
+  border-radius: var(--radius-sm);
+  background: #1e293b;
   flex-shrink: 0;
 }
 
@@ -2414,6 +2466,894 @@ img[data-source-url] {
 img[data-source-url]:hover {
   filter: brightness(1.05);
   box-shadow: 0 8px 24px rgba(56, 189, 248, 0.25) !important;
+}
+
+/* ==========================================================================
+   DIGITAL NEWSPAPER HOMEPAGE ARCHITECTURE (THE HINDU + THE ECONOMIC TIMES)
+   ========================================================================== */
+
+/* 1. Live Market & Financial Indices Bar */
+.newspaper-market-bar {
+  background: var(--bg-card);
+  border-bottom: 1px solid var(--border-color);
+  padding: 6px 0;
+  font-size: 11.5px;
+  font-family: var(--font-mono, monospace);
+  overflow-x: auto;
+  white-space: nowrap;
+  scrollbar-width: none;
+}
+.newspaper-market-bar::-webkit-scrollbar {
+  display: none;
+}
+.newspaper-market-inner {
+  width: 100%;
+  max-width: 100%;
+  margin: 0 auto;
+  padding: 0 10px;
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  box-sizing: border-box;
+}
+.market-badge-label {
+  background: #1e293b;
+  color: #f8fafc;
+  font-size: 9.5px;
+  font-weight: 800;
+  padding: 2px 6px;
+  border-radius: 3px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  flex-shrink: 0;
+}
+[data-theme='dark'] .market-badge-label {
+  background: #334155;
+}
+.market-index-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+  font-weight: 600;
+}
+.market-name {
+  color: var(--text-muted);
+  font-weight: 700;
+}
+.market-val {
+  color: var(--text-primary);
+  font-weight: 800;
+}
+.market-delta-pos {
+  color: #059669;
+  font-weight: 800;
+}
+.market-delta-neg {
+  color: #dc2626;
+  font-weight: 800;
+}
+
+/* 2. ETPrime-Style Promotional Offer Strip */
+.et-promo-strip {
+  background: linear-gradient(90deg, #fff7ed 0%, #ffedd5 50%, #fed7aa 100%);
+  border-bottom: 1px solid #fdba74;
+  padding: 8px 0;
+  color: #7c2d12;
+}
+[data-theme='dark'] .et-promo-strip {
+  background: linear-gradient(90deg, #431407 0%, #7c2d12 50%, #431407 100%);
+  border-bottom: 1px solid #9a3412;
+  color: #ffedd5;
+}
+.et-promo-inner {
+  width: 100%;
+  max-width: 100%;
+  margin: 0 auto;
+  padding: 0 10px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  box-sizing: border-box;
+}
+.et-promo-text-group {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.et-promo-badge {
+  background: #ea580c;
+  color: #ffffff;
+  font-size: 10px;
+  font-weight: 900;
+  padding: 2px 8px;
+  border-radius: 3px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.et-promo-headline {
+  font-size: 13px;
+  font-weight: 800;
+}
+.et-promo-timer {
+  background: rgba(0, 0, 0, 0.08);
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-family: var(--font-mono, monospace);
+  font-size: 12px;
+  font-weight: 800;
+  color: #c2410c;
+}
+[data-theme='dark'] .et-promo-timer {
+  background: rgba(0, 0, 0, 0.35);
+  color: #fb923c;
+}
+.et-promo-btn {
+  background: #ea580c;
+  color: #ffffff !important;
+  font-size: 11px;
+  font-weight: 800;
+  padding: 5px 14px;
+  border-radius: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  box-shadow: 0 2px 6px rgba(234, 88, 12, 0.3);
+  transition: transform 0.15s ease, background 0.15s ease;
+}
+.et-promo-btn:hover {
+  background: #c2410c;
+  transform: translateY(-1px);
+}
+
+/* 3. Live Breaking News Alert Wire */
+.breaking-alert-strip {
+  background: var(--bg-card);
+  border-bottom: 1px solid var(--border-color);
+  padding: 6px 0;
+  font-size: 12.5px;
+}
+.breaking-alert-inner {
+  width: 100%;
+  max-width: 100%;
+  margin: 0 auto;
+  padding: 0 10px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  box-sizing: border-box;
+}
+.breaking-badge {
+  color: #b90014;
+  font-weight: 900;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+.breaking-pulse-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #b90014;
+  display: inline-block;
+  animation: pulseBeacon 1.5s infinite;
+}
+@keyframes pulseBeacon {
+  0% { transform: scale(0.95); opacity: 1; }
+  50% { transform: scale(1.3); opacity: 0.5; }
+  100% { transform: scale(0.95); opacity: 1; }
+}
+.breaking-headline-text {
+  font-weight: 600;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex: 1;
+}
+
+/* 4. Above-the-Fold Hero Multi-Column Newspaper Cluster (The Hindu + ET Style) */
+.newspaper-hero-cluster {
+  width: 100%;
+  max-width: 100%;
+  margin: 18px 0 24px;
+  padding: 0 4px;
+  display: grid;
+  grid-template-columns: 42% 31% 27%;
+  gap: 18px;
+  align-items: start;
+  clear: both;
+  box-sizing: border-box;
+}
+@media (max-width: 1100px) {
+  .newspaper-hero-cluster {
+    grid-template-columns: 55% 45%;
+  }
+  .newspaper-hero-cluster > .newspaper-hero-col:last-child {
+    grid-column: 1 / -1;
+    margin-top: 16px;
+  }
+}
+@media (max-width: 768px) {
+  .newspaper-hero-cluster {
+    grid-template-columns: 1fr;
+    gap: 24px;
+  }
+}
+.newspaper-hero-col {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.col-divider-right {
+  padding-right: 22px;
+  border-right: 1px solid var(--border-color);
+}
+@media (max-width: 1100px) {
+  .col-divider-right {
+    padding-right: 0;
+    border-right: none;
+  }
+}
+
+/* Section Kickers / Labels */
+.news-kicker {
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  color: #b90014;
+  margin-bottom: 4px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.news-kicker.emerald {
+  color: #059669;
+}
+.news-kicker.amber {
+  color: #b45309;
+}
+.news-kicker.blue {
+  color: #2563eb;
+}
+
+/* Primary Lead Story Card */
+.lead-story-hero-card {
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.lead-story-img-box {
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  position: relative;
+  overflow: hidden;
+  border-radius: 4px;
+  background: var(--bg-secondary);
+}
+.lead-story-img-box img,
+.lead-story-img-box video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  transition: transform 0.4s ease;
+}
+.lead-story-hero-card:hover .lead-story-img-box img {
+  transform: scale(1.02);
+}
+.lead-story-title {
+  font-family: var(--font-serif);
+  font-size: 24px;
+  line-height: 1.25;
+  font-weight: 800;
+  color: var(--text-primary);
+  margin: 0;
+  transition: color 0.15s ease;
+}
+.lead-story-hero-card:hover .lead-story-title {
+  color: #b90014;
+}
+.lead-story-deck {
+  font-size: 13.5px;
+  color: var(--text-secondary);
+  line-height: 1.45;
+  margin: 0;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.lead-story-byline {
+  font-size: 11.5px;
+  color: var(--text-muted);
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.lead-story-byline strong {
+  color: #b90014;
+}
+
+/* 2-Column Compact Sub-Grid below Main Lead */
+.hero-sub-grid-2col {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 14px;
+  border-top: 1px solid var(--border-color);
+  padding-top: 14px;
+}
+.sub-story-card {
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.sub-story-img {
+  width: 100%;
+  height: 100px;
+  object-fit: cover;
+  border-radius: 3px;
+  background: var(--bg-secondary);
+}
+.sub-story-title {
+  font-family: var(--font-serif);
+  font-size: 13.5px;
+  line-height: 1.35;
+  font-weight: 700;
+  color: var(--text-primary);
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  margin: 0;
+}
+.sub-story-card:hover .sub-story-title {
+  color: #b90014;
+}
+
+/* Center Column Second Lead & Stacked Rows */
+.second-lead-card {
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.second-lead-img {
+  width: 100%;
+  height: 170px;
+  object-fit: cover;
+  border-radius: 4px;
+  background: var(--bg-secondary);
+}
+.second-lead-title {
+  font-family: var(--font-serif);
+  font-size: 19px;
+  line-height: 1.3;
+  font-weight: 800;
+  color: var(--text-primary);
+  margin: 0;
+}
+.second-lead-card:hover .second-lead-title {
+  color: #b90014;
+}
+.second-lead-deck {
+  font-size: 12.5px;
+  color: var(--text-secondary);
+  line-height: 1.4;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  margin: 0;
+}
+
+/* Stacked Horizontal Stories List */
+.stacked-story-row {
+  cursor: pointer;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 0;
+  border-top: 1px solid var(--border-color);
+}
+.stacked-story-content {
+  flex: 1;
+  min-width: 0;
+}
+.stacked-story-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-primary);
+  line-height: 1.35;
+  margin: 0;
+}
+.stacked-story-row:hover .stacked-story-title {
+  color: #b90014;
+}
+.stacked-story-thumb {
+  width: 70px;
+  height: 52px;
+  object-fit: cover;
+  border-radius: 3px;
+  flex-shrink: 0;
+  background: var(--bg-secondary);
+}
+
+/* Right Rail Column: Editorial / Opinion Box (The Hindu Style) */
+.the-hindu-opinion-box {
+  background: var(--bg-secondary);
+  border: 1.5px solid var(--border-color);
+  border-radius: 4px;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.opinion-crest-header {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border-bottom: 1px solid var(--border-color);
+  padding-bottom: 8px;
+}
+.opinion-crest-title {
+  font-family: var(--font-serif);
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--text-primary);
+}
+.opinion-main-title {
+  font-family: var(--font-serif);
+  font-size: 14.5px;
+  font-weight: 800;
+  line-height: 1.35;
+  color: var(--text-primary);
+  cursor: pointer;
+}
+.opinion-main-title:hover {
+  color: #b90014;
+}
+.opinion-deck {
+  font-size: 12px;
+  color: var(--text-secondary);
+  line-height: 1.4;
+}
+.opinion-read-link {
+  font-size: 10.5px;
+  font-weight: 900;
+  color: #b90014;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  margin-top: 4px;
+}
+
+/* Right Rail Fast Live News Timeline (ET Style) */
+.et-fast-news-box {
+  border-top: 2px solid #111827;
+  padding-top: 10px;
+}
+[data-theme='dark'] .et-fast-news-box {
+  border-top: 2px solid #f8fafc;
+}
+.fast-news-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+.fast-news-title {
+  font-family: var(--font-serif);
+  font-size: 13px;
+  font-weight: 900;
+  color: #b90014;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.fast-news-item {
+  cursor: pointer;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--border-color);
+}
+.fast-news-time {
+  font-size: 9.5px;
+  font-weight: 800;
+  color: #b90014;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+}
+.fast-news-text {
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--text-primary);
+  line-height: 1.35;
+  margin-top: 2px;
+}
+.fast-news-item:hover .fast-news-text {
+  color: #b90014;
+}
+
+/* 5. Second Major Editorial Band (National, World & Economy Intelligence) */
+.newspaper-editorial-band {
+  width: 100%;
+  max-width: 100%;
+  margin: 24px 0;
+  padding: 0 4px;
+  display: grid;
+  grid-template-columns: 40% 32% 28%;
+  gap: 18px;
+  align-items: start;
+  clear: both;
+  box-sizing: border-box;
+}
+@media (max-width: 1100px) {
+  .newspaper-editorial-band {
+    grid-template-columns: 55% 45%;
+  }
+  .newspaper-editorial-band > div:last-child {
+    grid-column: 1 / -1;
+    margin-top: 16px;
+  }
+}
+@media (max-width: 768px) {
+  .newspaper-editorial-band {
+    grid-template-columns: 1fr;
+    gap: 24px;
+  }
+}
+
+/* 6. Section Department Banners & Grids */
+.newspaper-department-section {
+  width: 100%;
+  max-width: 100%;
+  margin: 28px 0;
+  padding: 0 4px;
+  clear: both;
+  box-sizing: border-box;
+}
+.section-ribbon-header {
+  border-bottom: 2px solid #111827;
+  padding-bottom: 6px;
+  margin-bottom: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+[data-theme='dark'] .section-ribbon-header {
+  border-bottom: 2px solid #f8fafc;
+}
+.section-ribbon-title {
+  font-family: var(--font-serif);
+  font-size: 20px;
+  font-weight: 900;
+  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.section-ribbon-title span.bar {
+  width: 4px;
+  height: 18px;
+  background: #b90014;
+  display: inline-block;
+}
+.section-view-all-link {
+  font-size: 11px;
+  font-weight: 800;
+  color: #b90014;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  text-decoration: none;
+  display: flex;
+  align-items: center;
+  gap: 3px;
+}
+.department-grid-4col {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 18px;
+}
+@media (max-width: 1024px) {
+  .department-grid-4col {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+@media (max-width: 600px) {
+  .department-grid-4col {
+    grid-template-columns: 1fr;
+  }
+}
+.dept-card {
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.dept-card-img {
+  width: 100%;
+  aspect-ratio: 16 / 10;
+  object-fit: cover;
+  border-radius: 4px;
+  background: var(--bg-secondary);
+}
+.dept-card-title {
+  font-family: var(--font-serif);
+  font-size: 14.5px;
+  font-weight: 700;
+  line-height: 1.35;
+  color: var(--text-primary);
+  margin: 0;
+}
+.dept-card:hover .dept-card-title {
+  color: #b90014;
+}
+.dept-card-byline {
+  font-size: 11px;
+  color: var(--text-muted);
+  font-weight: 700;
+}
+
+/* 7. Most Read Today Numbered Ranking (The Hindu + ET Style) */
+.most-read-newspaper-box {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  padding: 14px;
+}
+.most-read-header {
+  font-family: var(--font-serif);
+  font-size: 14px;
+  font-weight: 900;
+  color: var(--text-primary);
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  border-bottom: 1px solid var(--border-color);
+  padding-bottom: 8px;
+  margin-bottom: 10px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.most-read-rank-row {
+  cursor: pointer;
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--border-color);
+}
+.most-read-rank-row:last-child {
+  border-bottom: none;
+}
+.rank-digit {
+  font-family: var(--font-serif);
+  font-size: 20px;
+  font-weight: 900;
+  color: #b90014;
+  line-height: 1;
+  min-width: 24px;
+}
+.rank-headline-content {
+  flex: 1;
+}
+.rank-headline-text {
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--text-primary);
+  line-height: 1.35;
+}
+.most-read-rank-row:hover .rank-headline-text {
+  color: #b90014;
+}
+
+/* 8. Utility Modules: Interactive Currency Converter & Top Mutual Funds */
+.utility-modules-container {
+  width: 100%;
+  max-width: 100%;
+  margin: 28px 0;
+  padding: 0 4px;
+  display: grid;
+  grid-template-columns: 1fr 1.6fr;
+  gap: 24px;
+  box-sizing: border-box;
+}
+@media (max-width: 900px) {
+  .utility-modules-container {
+    grid-template-columns: 1fr;
+  }
+}
+.utility-card-box {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  padding: 16px;
+}
+.converter-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 12px 0;
+  flex-wrap: wrap;
+}
+.converter-input {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  padding: 8px 10px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-primary);
+  width: 100px;
+  outline: none;
+}
+.converter-select {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  padding: 8px 10px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-primary);
+  outline: none;
+}
+.converter-convert-btn {
+  background: #0284c7;
+  color: #ffffff;
+  font-size: 11px;
+  font-weight: 800;
+  padding: 8px 16px;
+  border-radius: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* Mutual Funds Performance Table */
+.mf-tabs-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border-bottom: 1px solid var(--border-color);
+  padding-bottom: 8px;
+  margin-bottom: 12px;
+}
+.mf-tab-btn {
+  padding: 4px 10px;
+  border-radius: 3px;
+  font-size: 11px;
+  font-weight: 800;
+  color: var(--text-muted);
+}
+.mf-tab-btn.active {
+  background: #fee2e2;
+  color: #b90014;
+  border: 1px solid #fca5a5;
+}
+[data-theme='dark'] .mf-tab-btn.active {
+  background: rgba(185, 0, 20, 0.25);
+  color: #fca5a5;
+  border: 1px solid rgba(185, 0, 20, 0.5);
+}
+.mf-row-item {
+  display: grid;
+  grid-template-columns: 2fr 1fr 1fr 1fr;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--border-color);
+  font-size: 11.5px;
+}
+.mf-fund-name {
+  font-weight: 800;
+  color: var(--text-primary);
+}
+.mf-return-val {
+  font-weight: 900;
+  color: #059669;
+}
+.mf-stars {
+  color: #f59e0b;
+}
+
+/* 9. Top Trending Terms Pill Cloud */
+.trending-terms-wrapper {
+  width: 100%;
+  max-width: 100%;
+  margin: 14px 0 20px;
+  padding: 0 4px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  box-sizing: border-box;
+}
+.trending-terms-label {
+  font-size: 11px;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+.trending-term-pill {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 20px;
+  padding: 4px 12px;
+  font-size: 11.5px;
+  font-weight: 700;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.trending-term-pill:hover {
+  background: var(--bg-secondary);
+  border-color: #b90014;
+  color: #b90014;
+}
+
+/* 10. "For You" Curated Editorial Bottom Shelf (The Hindu Style) */
+.for-you-shelf-section {
+  width: 100%;
+  max-width: 100%;
+  margin: 28px 0 40px;
+  padding: 0 4px;
+  clear: both;
+  box-sizing: border-box;
+}
+
+/* ==========================================================================
+   CLEAN NEWSPAPER LAYOUT (RESPONSIVE FULL-WIDTH EDITORIAL CONTAINER)
+   ========================================================================== */
+
+.newspaper-page-outer {
+  position: relative;
+  width: 100%;
+  margin: 0 auto;
+  min-height: 100vh;
+  box-sizing: border-box;
+}
+
+.newspaper-main-content-column {
+  width: 100%;
+  max-width: 1280px;
+  margin: 0 auto;
+  position: relative;
+  box-sizing: border-box;
+  padding: 0 16px;
+}
+
+@media (min-width: 1520px) {
+  .newspaper-main-content-column {
+    max-width: 1360px;
+    padding: 0 24px;
+  }
+}
+
+@media (max-width: 768px) {
+  .newspaper-main-content-column {
+    padding: 0 12px;
+  }
 }
 
 

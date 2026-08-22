@@ -23,7 +23,7 @@ export const HeroStory = ({ story, onArticleClick }) => {
           />
         ) : (
           <img 
-            src={formatCoverImageUrl(story.imageUrl)} 
+            src={formatCoverImageUrl(story.imageUrl) || "https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=1200&q=80"} 
             alt={story.title} 
             referrerPolicy="no-referrer"
             className="hero-image" 

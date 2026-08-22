@@ -1,7 +1,5 @@
 import { NextResponse } from 'next/server';
 
-export const runtime = 'edge';
-
 export async function GET(request) {
   const { searchParams } = new URL(request.url);
   const fileId = searchParams.get('id') || searchParams.get('fileId');
@@ -51,6 +49,7 @@ export async function GET(request) {
     if (response && videoStream) {
       const headers = new Headers();
       headers.set('Content-Type', response.headers.get('content-type') || 'video/mp4');
+      headers.set('Content-Disposition', 'inline');
       headers.set('Cache-Control', 'public, max-age=86400, stale-while-revalidate=43200');
       headers.set('Accept-Ranges', 'bytes');
       if (response.headers.get('content-length')) {
@@ -63,10 +62,10 @@ export async function GET(request) {
       });
     }
 
-    // Fallback: Redirect directly
-    return NextResponse.redirect(`https://drive.usercontent.google.com/download?id=${cleanId}&export=download`);
+    // Fallback: Redirect to Google Drive preview embed (NEVER download)
+    return NextResponse.redirect(`https://drive.google.com/file/d/${cleanId}/preview`);
   } catch (error) {
     console.error('Error proxying Google Drive video:', error);
-    return NextResponse.redirect(`https://drive.google.com/uc?export=download&id=${cleanId}`);
+    return NextResponse.redirect(`https://drive.google.com/file/d/${cleanId}/preview`);
   }
 }

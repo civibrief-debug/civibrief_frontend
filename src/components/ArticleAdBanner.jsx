@@ -326,7 +326,7 @@ export default function ArticleAdBanner({
                       if (el) el.style.transform = 'scale(1)';
                     }}
                   >
-                    {isVideo ? (
+                    {isVideo && item.url ? (
                       <video
                         src={item.url}
                         autoPlay

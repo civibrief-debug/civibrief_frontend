@@ -17,11 +17,22 @@ export default function ContinuousCoverVideo({
   onClick
 }) {
   const videoRef = useRef(null);
-  const videoMeta = getContinuousVideoUrls(src);
+  const [videoError, setVideoError] = useState(false);
+  const cleanSrc = (typeof src === 'string' ? src.trim() : '') || '';
+  const videoMeta = getContinuousVideoUrls(cleanSrc);
+
+  // Reset error state on src change
+  useEffect(() => {
+    setVideoError(false);
+  }, [src]);
+
+  if (!cleanSrc) {
+    return null;
+  }
 
   // Auto-play and continuous playback loop
   useEffect(() => {
-    if (videoRef.current && autoPlay) {
+    if (videoRef.current && autoPlay && !videoError) {
       videoRef.current.defaultMuted = muted;
       videoRef.current.muted = muted;
       const playPromise = videoRef.current.play();
@@ -31,7 +42,7 @@ export default function ContinuousCoverVideo({
         });
       }
     }
-  }, [src, autoPlay]);
+  }, [src, autoPlay, muted, videoError]);
 
   // Synchronize dynamic mute/unmute changes from parent
   useEffect(() => {
@@ -40,17 +51,19 @@ export default function ContinuousCoverVideo({
     }
   }, [muted]);
 
-  // 1. If it's a YouTube / Vimeo embed, or an explicit Google Doc / Slides / Sheets document
-  if (videoMeta.isYouTube || videoMeta.isVimeo || (videoMeta.isGDrive && videoMeta.isDoc)) {
+  // 1. If it's a YouTube / Vimeo embed, Google Drive document, or if HTML5 video errored
+  const isEmbedSource = videoMeta.isYouTube || videoMeta.isVimeo || videoMeta.isEmbed || (videoMeta.isGDrive && videoMeta.isDoc) || (videoError && videoMeta.embedUrl && !videoMeta.isGDrive);
+
+  if (isEmbedSource && videoMeta.embedUrl) {
     return (
       <div 
-        style={{ position: 'relative', width: '100%', height: '100%', overflow: 'hidden', ...cropStyle, ...style }}
+        style={{ position: 'relative', width: '100%', height: '100%', overflow: 'hidden', background: '#000000', ...cropStyle, ...style }}
         onClick={onClick}
       >
         <iframe
           src={videoMeta.embedUrl}
           title="Cover Media"
-          style={{ width: '100%', height: '100%', border: 'none', display: 'block', ...cropStyle, ...style }}
+          style={{ width: '100%', height: '100%', border: 'none', display: 'block', background: '#000000', pointerEvents: onClick ? 'none' : 'auto', ...cropStyle, ...style }}
           allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen"
           allowFullScreen
         />
@@ -65,30 +78,33 @@ export default function ContinuousCoverVideo({
               background: 'transparent' 
             }} 
             onClick={onClick} 
-            title="Open Article"
+            title="Open Content"
           />
         )}
       </div>
     );
   }
 
-  // 2. Continuous Looping HTML5 Video Player for all videos (Google Drive, MP4, WebM, Blobs, uploaded files)
-  const primarySrc = videoMeta.isGDrive ? videoMeta.streamUrl : (videoMeta.streamUrl || src);
-  const secondarySrc = videoMeta.isGDrive ? videoMeta.directDownloadUrl : null;
+  // 2. Continuous Looping HTML5 Video Player for all videos (Google Drive, Pexels, MP4, WebM, Blobs, uploaded files)
+  const streamSrc = videoMeta.streamUrl || src;
 
   return (
     <div 
-      style={{ position: 'relative', width: '100%', height: '100%', overflow: 'hidden', ...cropStyle, ...style }}
+      style={{ position: 'relative', width: '100%', height: '100%', overflow: 'hidden', background: '#000000', ...cropStyle, ...style }}
       onClick={onClick}
     >
       <video
         ref={videoRef}
+        src={streamSrc}
         poster={poster}
         controls={controls}
         autoPlay={autoPlay}
         muted={muted}
         loop={loop}
         playsInline={playsInline}
+        crossOrigin="anonymous"
+        referrerPolicy="no-referrer"
+        preload="auto"
         className={className}
         style={{
           width: '100%',
@@ -98,6 +114,23 @@ export default function ContinuousCoverVideo({
           background: '#000000',
           cursor: onClick ? 'pointer' : 'default',
           ...cropStyle
+        }}
+        onError={() => {
+          if (!videoError && videoMeta.proxyStreamUrl && streamSrc !== videoMeta.proxyStreamUrl) {
+            if (videoRef.current) {
+              videoRef.current.src = videoMeta.proxyStreamUrl;
+              videoRef.current.load();
+              videoRef.current.play().catch(() => {});
+            }
+          } else if (!videoError && videoMeta.directStreamUrl && streamSrc !== videoMeta.directStreamUrl) {
+            if (videoRef.current) {
+              videoRef.current.src = videoMeta.directStreamUrl;
+              videoRef.current.load();
+              videoRef.current.play().catch(() => {});
+            }
+          } else {
+            setVideoError(true);
+          }
         }}
         onClick={onClick}
         onEnded={(e) => {
@@ -117,13 +150,11 @@ export default function ContinuousCoverVideo({
           }
         }}
       >
-        <source src={primarySrc} type="video/mp4" />
-        {secondarySrc && <source src={secondarySrc} type="video/mp4" />}
-        {videoMeta.altStreamUrl && <source src={videoMeta.altStreamUrl} type="video/mp4" />}
+        <source src={streamSrc} type="video/mp4" />
         Your browser does not support the video tag.
       </video>
 
-      {/* Transparent overlay to guarantee cover video clicks open the article */}
+      {/* Transparent overlay to guarantee cover video clicks open the article / ad destination */}
       {onClick && !controls && (
         <div 
           style={{ 
@@ -134,9 +165,10 @@ export default function ContinuousCoverVideo({
             background: 'transparent' 
           }} 
           onClick={onClick} 
-          title="Open Article"
+          title="Open Content"
         />
       )}
     </div>
   );
 }
+

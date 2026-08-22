@@ -1,7 +1,5 @@
 import { NextResponse } from 'next/server';
 
-export const runtime = 'edge';
-
 const OPENWEATHER_KEY = process.env.OPENWEATHER_KEY || process.env.NEXT_PUBLIC_OPENWEATHER_KEY || '8f3c77ea4f58f821b75dfe278c671288';
 
 const CITIES = [

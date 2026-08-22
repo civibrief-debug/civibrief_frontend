@@ -546,7 +546,7 @@ export function parseGoogleDriveUrl(rawUrl) {
   if (!rawUrl || typeof rawUrl !== 'string') return null;
   const cleanUrl = rawUrl.trim();
 
-  const match = cleanUrl.match(/(?:drive\.google\.com\/(?:file\/d\/|open\?id=|uc\?(?:[^&]+&)*id=|thumbnail\?(?:[^&]+&)*id=)|docs\.google\.com\/(?:document|presentation|spreadsheets|file)\/d\/|lh3\.googleusercontent\.com\/d\/)([a-zA-Z0-9_-]{25,})/i);
+  const match = cleanUrl.match(/(?:drive\.google\.com\/(?:file\/(?:u\/\d+\/)?d\/|open\?id=|uc\?(?:[^&]+&)*id=|thumbnail\?(?:[^&]+&)*id=)|docs\.google\.com\/(?:document|presentation|spreadsheets|file)\/(?:u\/\d+\/)?d\/|lh3\.googleusercontent\.com\/d\/)([a-zA-Z0-9_-]{10,})/i);
 
   if (match && match[1]) {
     const fileId = match[1];
@@ -646,15 +646,17 @@ export function getContinuousVideoUrls(url) {
 
   const gdrive = parseGoogleDriveUrl(cleanUrl);
   if (gdrive) {
+    const isDoc = gdrive.isDoc || gdrive.isPresentation || gdrive.isSpreadsheet;
     return {
       streamUrl: `/api/proxy-drive-video?id=${gdrive.fileId}`,
-      directDownloadUrl: `https://drive.usercontent.google.com/download?id=${gdrive.fileId}&export=download`,
-      altStreamUrl: `https://drive.google.com/uc?export=download&id=${gdrive.fileId}`,
-      embedUrl: `https://drive.google.com/file/d/${gdrive.fileId}/preview?autoplay=1&loop=1`,
+      directStreamUrl: `https://drive.usercontent.google.com/download?id=${gdrive.fileId}&export=download&authuser=0`,
+      proxyStreamUrl: `/api/proxy-drive-video?id=${gdrive.fileId}`,
+      embedUrl: `https://drive.google.com/file/d/${gdrive.fileId}/preview`,
       isGDrive: true,
+      isVideo: !isDoc,
       fileId: gdrive.fileId,
       fileType: gdrive.fileType,
-      isDoc: gdrive.isDoc || gdrive.isPresentation || gdrive.isSpreadsheet
+      isDoc
     };
   }
 
@@ -663,7 +665,7 @@ export function getContinuousVideoUrls(url) {
     const videoId = ytMatch[1];
     return {
       streamUrl: '',
-      embedUrl: `https://www.youtube-nocookie.com/embed/${videoId}?autoplay=1&loop=1&playlist=${videoId}&mute=1&controls=1`,
+      embedUrl: `https://www.youtube-nocookie.com/embed/${videoId}?autoplay=1&loop=1&playlist=${videoId}&mute=1&controls=0&modestbranding=1&rel=0`,
       isGDrive: false,
       isYouTube: true
     };
@@ -674,19 +676,50 @@ export function getContinuousVideoUrls(url) {
     const vimeoId = vimeoMatch[1];
     return {
       streamUrl: '',
-      embedUrl: `https://player.vimeo.com/video/${vimeoId}?autoplay=1&loop=1&muted=1&autopause=0`,
+      embedUrl: `https://player.vimeo.com/video/${vimeoId}?autoplay=1&muted=1&loop=1&background=1&controls=0&autopause=0`,
       isGDrive: false,
       isVimeo: true
     };
   }
 
+  const dmMatch = cleanUrl.match(/(?:dailymotion\.com\/(?:video|embed\/video)\/|dai\.ly\/)([a-zA-Z0-9]+)/i);
+  if (dmMatch && dmMatch[1]) {
+    return {
+      streamUrl: '',
+      embedUrl: `https://www.dailymotion.com/embed/video/${dmMatch[1]}?autoplay=1&mute=1`,
+      isGDrive: false,
+      isEmbed: true
+    };
+  }
+
+  const loomMatch = cleanUrl.match(/loom\.com\/(?:share|embed)\/([a-zA-Z0-9]+)/i);
+  if (loomMatch && loomMatch[1]) {
+    return {
+      streamUrl: '',
+      embedUrl: `https://www.loom.com/embed/${loomMatch[1]}?autoplay=1&hide_owner=true&hide_share=true`,
+      isGDrive: false,
+      isEmbed: true
+    };
+  }
+
+  // Pexels Videos (Avoid attachment header download prompt, stream inline via proxy)
+  if (/pexels\.com/i.test(cleanUrl)) {
+    return {
+      streamUrl: `/api/proxy-video?url=${encodeURIComponent(cleanUrl)}`,
+      embedUrl: `/api/proxy-video?url=${encodeURIComponent(cleanUrl)}`,
+      isGDrive: false,
+      isYouTube: false,
+      isVimeo: false,
+      isPexels: true
+    };
+  }
+
   return {
     streamUrl: cleanUrl,
+    proxyStreamUrl: `/api/proxy-video?url=${encodeURIComponent(cleanUrl)}`,
     embedUrl: cleanUrl,
     isGDrive: false,
     isYouTube: false,
     isVimeo: false
   };
 }
-
-
