@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import { queryD1 } from '../../../../lib/edgeDb';
 
+export const runtime = 'edge';
+
 const FALLBACK_HOMEPAGE_ADS = [
   {
     id: "ad-masthead-top",
