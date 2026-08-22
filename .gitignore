@@ -30,5 +30,9 @@ dist-ssr
 *.sw?
 
 vercel.env
+.vercel/
+.wrangler/
 .env*
+!.env.example
+
 
