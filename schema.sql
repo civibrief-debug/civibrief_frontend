@@ -150,3 +150,22 @@ CREATE TABLE IF NOT EXISTS article_comments (
 );
 
 CREATE INDEX IF NOT EXISTS idx_article_comments_article ON article_comments(article_id);
+
+-- ----------------------------------------------------------------------------
+-- 8. HOMEPAGE ADS CONFIGURATION TABLE
+-- ----------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS homepage_ads (
+  id TEXT PRIMARY KEY,
+  data TEXT,
+  updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+);
+
+-- ----------------------------------------------------------------------------
+-- 9. HOMEPAGE ARTICLE PLACEMENT CONFIGURATION TABLE
+-- ----------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS homepage_articles (
+  id TEXT PRIMARY KEY,
+  data TEXT,
+  updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+);
+
