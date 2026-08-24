@@ -3,7 +3,7 @@ import ShareModal from './ShareModal';
 import SafeArticleBody from './SafeArticleBody';
 import ArticleAdBanner from './ArticleAdBanner';
 import { useTranslation } from '../context/TranslationContext';
-import { formatCoverMediaEmbedUrl, formatCoverImageUrl, parseGoogleDriveUrl } from '../lib/videoUtils';
+import { formatCoverMediaEmbedUrl, formatCoverImageUrl, parseGoogleDriveUrl, isArticleCoverVideo, getArticleCoverVideoUrl } from '../lib/videoUtils';
 import ContinuousCoverVideo from './ContinuousCoverVideo';
 
 import { LanguageSelector } from './LanguageSelector';
@@ -980,12 +980,12 @@ export const ArticleModal = ({ article, onClose, isLoggedIn, onOpenLogin, onLogi
         )}
 
         {/* Optional Article Cover Media (Video, Document, or Image) */}
-        {activeArticle.coverMediaType === 'video' && activeArticle.videoUrl ? (
+        {isArticleCoverVideo(activeArticle) ? (
           <div className="article-modal-hero-img-container" style={{ width: activeArticle.coverWidth || '100%', margin: '0 auto 24px auto' }}>
             <div style={{ width: '100%', height: activeArticle.coverHeight === 'auto' ? '420px' : (activeArticle.coverHeight || '420px'), borderRadius: 'var(--radius-md)', overflow: 'hidden' }}>
               <ContinuousCoverVideo
-                src={activeArticle.videoUrl}
-                cropStyle={activeArticle.coverCropStyle}
+                src={getArticleCoverVideoUrl(activeArticle)}
+                cropStyle={activeArticle.coverCropStyle || activeArticle.coverVideoCrop}
                 autoPlay={true}
                 muted={true}
                 loop={true}
@@ -1011,7 +1011,7 @@ export const ArticleModal = ({ article, onClose, isLoggedIn, onOpenLogin, onLogi
                 objectFit: 'cover',
                 borderRadius: 'var(--radius-md)',
                 display: 'block',
-                ...activeArticle.coverCropStyle
+                ...(activeArticle.coverCropStyle || activeArticle.coverImageCrop || {})
               }}
               onError={(e) => {
                 const gdrive = parseGoogleDriveUrl(activeArticle.imageUrl);

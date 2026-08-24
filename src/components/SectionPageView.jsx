@@ -26,7 +26,7 @@ import {
 } from '../data/newsData';
 import { ArticleModal } from './ArticleModal';
 import { LoginModal } from './LoginModal';
-import { formatCoverImageUrl, parseGoogleDriveUrl } from '../lib/videoUtils';
+import { formatCoverImageUrl, parseGoogleDriveUrl, isArticleCoverVideo, getArticleCoverVideoUrl } from '../lib/videoUtils';
 import ContinuousCoverVideo from './ContinuousCoverVideo';
 import { useTranslation } from '../context/TranslationContext';
 
@@ -245,10 +245,10 @@ function SectionPageInner({ slug }) {
                     style={{ position: 'relative', width: '100%', height: '420px', borderRadius: '8px', overflow: 'hidden', marginBottom: '20px', background: '#000', cursor: 'pointer' }}
                     onClick={() => setSelectedArticle(leadStory)}
                   >
-                    {leadStory.coverMediaType === 'video' && leadStory.videoUrl ? (
+                    {isArticleCoverVideo(leadStory) ? (
                       <ContinuousCoverVideo 
-                        src={leadStory.videoUrl}
-                        cropStyle={leadStory.coverCropStyle}
+                        src={getArticleCoverVideoUrl(leadStory)}
+                        cropStyle={leadStory.coverCropStyle || leadStory.coverVideoCrop}
                         autoPlay={true}
                         muted={true}
                         loop={true}
@@ -334,14 +334,27 @@ function SectionPageInner({ slug }) {
                     </div>
 
 
-                    {art.imageUrl && (
-                      <div style={{ width: '200px', height: '130px', borderRadius: '6px', overflow: 'hidden', background: '#1e293b' }}>
-                        <img 
-                          src={formatCoverImageUrl(art.imageUrl) || "https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=400&q=80"} 
-                          alt={art.title} 
-                          referrerPolicy="no-referrer"
-                          style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                        />
+                    {(isArticleCoverVideo(art) || art.imageUrl) && (
+                      <div style={{ width: '200px', height: '130px', borderRadius: '6px', overflow: 'hidden', background: '#000' }}>
+                        {isArticleCoverVideo(art) ? (
+                          <ContinuousCoverVideo
+                            src={getArticleCoverVideoUrl(art)}
+                            cropStyle={art.coverCropStyle || art.coverVideoCrop}
+                            autoPlay={true}
+                            muted={true}
+                            loop={true}
+                            controls={false}
+                            playsInline={true}
+                            style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                          />
+                        ) : (
+                          <img 
+                            src={formatCoverImageUrl(art.imageUrl) || "https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=400&q=80"} 
+                            alt={art.title} 
+                            referrerPolicy="no-referrer"
+                            style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                          />
+                        )}
                       </div>
                     )}
                   </article>

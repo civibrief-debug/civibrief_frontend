@@ -1,5 +1,5 @@
 import React from 'react';
-import { formatCoverImageUrl, parseGoogleDriveUrl } from '../lib/videoUtils';
+import { formatCoverImageUrl, parseGoogleDriveUrl, isArticleCoverVideo, getArticleCoverVideoUrl } from '../lib/videoUtils';
 import ContinuousCoverVideo from './ContinuousCoverVideo';
 
 export const HeroStory = ({ story, onArticleClick }) => {
@@ -8,10 +8,10 @@ export const HeroStory = ({ story, onArticleClick }) => {
   return (
     <article className="hero-column col-divider">
       <div className="hero-image-wrapper" onClick={() => onArticleClick(story)}>
-        {story.coverMediaType === 'video' && story.videoUrl ? (
+        {isArticleCoverVideo(story) ? (
           <ContinuousCoverVideo
-            src={story.videoUrl}
-            cropStyle={story.coverCropStyle}
+            src={getArticleCoverVideoUrl(story)}
+            cropStyle={story.coverCropStyle || story.coverVideoCrop}
             autoPlay={true}
             muted={true}
             loop={true}

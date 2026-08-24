@@ -5,7 +5,7 @@ import Link from 'next/link';
 import ShareModal from './ShareModal';
 import SafeArticleBody from './SafeArticleBody';
 import ArticleAdBanner from './ArticleAdBanner';
-import { formatCoverImageUrl, parseGoogleDriveUrl } from '../lib/videoUtils';
+import { formatCoverImageUrl, parseGoogleDriveUrl, isArticleCoverVideo, getArticleCoverVideoUrl } from '../lib/videoUtils';
 import ContinuousCoverVideo from './ContinuousCoverVideo';
 import { 
   Clock, 
@@ -139,12 +139,12 @@ export default function ArticleDetailView({ id }) {
         </div>
 
         {/* Featured Cover Media (Video, Document, or Image) */}
-        {article.coverMediaType === 'video' && article.videoUrl ? (
+        {isArticleCoverVideo(article) ? (
           <div style={{ marginBottom: '32px', width: article.coverWidth || '100%', margin: '0 auto 32px auto' }}>
             <div style={{ width: '100%', height: article.coverHeight === 'auto' ? '450px' : (article.coverHeight || '450px'), borderRadius: 'var(--radius-lg)', overflow: 'hidden' }}>
               <ContinuousCoverVideo
-                src={article.videoUrl}
-                cropStyle={article.coverCropStyle}
+                src={getArticleCoverVideoUrl(article)}
+                cropStyle={article.coverCropStyle || article.coverVideoCrop}
                 autoPlay={true}
                 muted={true}
                 loop={true}
@@ -170,7 +170,7 @@ export default function ArticleDetailView({ id }) {
                 maxHeight: article.coverHeight === 'auto' ? 'none' : (article.coverHeight || '480px'),
                 objectFit: 'cover',
                 display: 'block',
-                ...article.coverCropStyle
+                ...(article.coverCropStyle || article.coverImageCrop || {})
               }}
               onError={(e) => {
                 const gdrive = parseGoogleDriveUrl(article.imageUrl);

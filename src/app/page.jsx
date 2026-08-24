@@ -37,7 +37,7 @@ import {
 import { ArticleModal } from '../components/ArticleModal';
 import { LoginModal } from '../components/LoginModal';
 import { CrestLogo } from '../components/CrestLogo';
-import { formatCoverMediaEmbedUrl, formatCoverImageUrl, parseGoogleDriveUrl } from '../lib/videoUtils';
+import { formatCoverMediaEmbedUrl, formatCoverImageUrl, parseGoogleDriveUrl, isArticleCoverVideo, getArticleCoverVideoUrl } from '../lib/videoUtils';
 import ContinuousCoverVideo from '../components/ContinuousCoverVideo';
 import { useTranslation } from '../context/TranslationContext';
 
@@ -661,11 +661,11 @@ export default function HomePage() {
               onClick={() => setSelectedArticle(leadStory)}
             >
               <div className="lead-story-img-box">
-                {leadStory.coverMediaType === 'video' && leadStory.videoUrl ? (
+                {isArticleCoverVideo(leadStory) ? (
                   <ContinuousCoverVideo
                     key={`hero-vid-${leadStory.id}`}
-                    src={leadStory.videoUrl}
-                    cropStyle={leadStory.coverCropStyle}
+                    src={getArticleCoverVideoUrl(leadStory)}
+                    cropStyle={leadStory.coverCropStyle || leadStory.coverVideoCrop}
                     autoPlay={true}
                     muted={true}
                     loop={true}
@@ -721,12 +721,28 @@ export default function HomePage() {
           <div className="hero-sub-grid-2col">
             {subLead1 && (
               <article className="sub-story-card" onClick={() => setSelectedArticle(subLead1)}>
-                <img
-                  src={formatCoverImageUrl(subLead1.imageUrl) || "https://images.unsplash.com/photo-1526304640581-d334cdbbf45e?auto=format&fit=crop&w=400&q=80"}
-                  alt={subLead1.title}
-                  className="sub-story-img"
-                  referrerPolicy="no-referrer"
-                />
+                {isArticleCoverVideo(subLead1) ? (
+                  <div style={{ width: '100%', height: '140px', overflow: 'hidden', borderRadius: '4px', background: '#000', marginBottom: '8px' }}>
+                    <ContinuousCoverVideo
+                      key={`sub1-vid-${subLead1.id}`}
+                      src={getArticleCoverVideoUrl(subLead1)}
+                      cropStyle={subLead1.coverCropStyle || subLead1.coverVideoCrop}
+                      autoPlay={true}
+                      muted={true}
+                      loop={true}
+                      controls={false}
+                      playsInline={true}
+                      style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                    />
+                  </div>
+                ) : (
+                  <img
+                    src={formatCoverImageUrl(subLead1.imageUrl) || "https://images.unsplash.com/photo-1526304640581-d334cdbbf45e?auto=format&fit=crop&w=400&q=80"}
+                    alt={subLead1.title}
+                    className="sub-story-img"
+                    referrerPolicy="no-referrer"
+                  />
+                )}
                 <span className="news-kicker" style={{ fontSize: '10px' }}>
                   {subLead1.kicker ? subLead1.kicker.toUpperCase() : subLead1.category}
                 </span>
@@ -738,12 +754,28 @@ export default function HomePage() {
 
             {subLead2 && (
               <article className="sub-story-card" onClick={() => setSelectedArticle(subLead2)}>
-                <img
-                  src={formatCoverImageUrl(subLead2.imageUrl) || "https://images.unsplash.com/photo-1611974789855-9c2a0a7236a3?auto=format&fit=crop&w=400&q=80"}
-                  alt={subLead2.title}
-                  className="sub-story-img"
-                  referrerPolicy="no-referrer"
-                />
+                {isArticleCoverVideo(subLead2) ? (
+                  <div style={{ width: '100%', height: '140px', overflow: 'hidden', borderRadius: '4px', background: '#000', marginBottom: '8px' }}>
+                    <ContinuousCoverVideo
+                      key={`sub2-vid-${subLead2.id}`}
+                      src={getArticleCoverVideoUrl(subLead2)}
+                      cropStyle={subLead2.coverCropStyle || subLead2.coverVideoCrop}
+                      autoPlay={true}
+                      muted={true}
+                      loop={true}
+                      controls={false}
+                      playsInline={true}
+                      style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                    />
+                  </div>
+                ) : (
+                  <img
+                    src={formatCoverImageUrl(subLead2.imageUrl) || "https://images.unsplash.com/photo-1611974789855-9c2a0a7236a3?auto=format&fit=crop&w=400&q=80"}
+                    alt={subLead2.title}
+                    className="sub-story-img"
+                    referrerPolicy="no-referrer"
+                  />
+                )}
                 <span className="news-kicker" style={{ fontSize: '10px' }}>
                   {subLead2.kicker ? subLead2.kicker.toUpperCase() : subLead2.category}
                 </span>
@@ -759,12 +791,28 @@ export default function HomePage() {
         <div className="newspaper-hero-col col-divider-right">
           {secondLead && (
             <article className="second-lead-card" onClick={() => setSelectedArticle(secondLead)}>
-              <img
-                src={formatCoverImageUrl(secondLead.imageUrl) || "https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?auto=format&fit=crop&w=600&q=80"}
-                alt={secondLead.title}
-                className="second-lead-img"
-                referrerPolicy="no-referrer"
-              />
+              {isArticleCoverVideo(secondLead) ? (
+                <div style={{ width: '100%', height: '220px', overflow: 'hidden', borderRadius: '4px', background: '#000', marginBottom: '8px' }}>
+                  <ContinuousCoverVideo
+                    key={`second-vid-${secondLead.id}`}
+                    src={getArticleCoverVideoUrl(secondLead)}
+                    cropStyle={secondLead.coverCropStyle || secondLead.coverVideoCrop}
+                    autoPlay={true}
+                    muted={true}
+                    loop={true}
+                    controls={false}
+                    playsInline={true}
+                    style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                  />
+                </div>
+              ) : (
+                <img
+                  src={formatCoverImageUrl(secondLead.imageUrl) || "https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?auto=format&fit=crop&w=600&q=80"}
+                  alt={secondLead.title}
+                  className="second-lead-img"
+                  referrerPolicy="no-referrer"
+                />
+              )}
               <span className="news-kicker">
                 {secondLead.kicker ? secondLead.kicker.toUpperCase() : secondLead.category}
               </span>
@@ -799,12 +847,27 @@ export default function HomePage() {
                     {story.author || 'News Desk'}
                   </div>
                 </div>
-                <img
-                  src={formatCoverImageUrl(story.imageUrl) || "https://images.unsplash.com/photo-1451187580459-43490279c0fa?auto=format&fit=crop&w=200&q=80"}
-                  alt={story.title}
-                  className="stacked-story-thumb"
-                  referrerPolicy="no-referrer"
-                />
+                {isArticleCoverVideo(story) ? (
+                  <div style={{ width: '80px', height: '60px', borderRadius: '4px', overflow: 'hidden', background: '#000', flexShrink: 0 }}>
+                    <ContinuousCoverVideo
+                      src={getArticleCoverVideoUrl(story)}
+                      cropStyle={story.coverCropStyle || story.coverVideoCrop}
+                      autoPlay={true}
+                      muted={true}
+                      loop={true}
+                      controls={false}
+                      playsInline={true}
+                      style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                    />
+                  </div>
+                ) : (
+                  <img
+                    src={formatCoverImageUrl(story.imageUrl) || "https://images.unsplash.com/photo-1451187580459-43490279c0fa?auto=format&fit=crop&w=200&q=80"}
+                    alt={story.title}
+                    className="stacked-story-thumb"
+                    referrerPolicy="no-referrer"
+                  />
+                )}
               </article>
             ))}
           </div>
@@ -896,12 +959,28 @@ export default function HomePage() {
 
           {band1Stories[0] && (
             <article className="lead-story-hero-card" onClick={() => setSelectedArticle(band1Stories[0])}>
-              <img
-                src={formatCoverImageUrl(band1Stories[0].imageUrl) || "https://images.unsplash.com/photo-1526304640581-d334cdbbf45e?auto=format&fit=crop&w=600&q=80"}
-                alt={band1Stories[0].title}
-                style={{ width: '100%', height: '200px', objectFit: 'cover', borderRadius: '4px' }}
-                referrerPolicy="no-referrer"
-              />
+              {isArticleCoverVideo(band1Stories[0]) ? (
+                <div style={{ width: '100%', height: '200px', borderRadius: '4px', overflow: 'hidden', background: '#000', marginBottom: '8px' }}>
+                  <ContinuousCoverVideo
+                    key={`band1-vid-${band1Stories[0].id}`}
+                    src={getArticleCoverVideoUrl(band1Stories[0])}
+                    cropStyle={band1Stories[0].coverCropStyle || band1Stories[0].coverVideoCrop}
+                    autoPlay={true}
+                    muted={true}
+                    loop={true}
+                    controls={false}
+                    playsInline={true}
+                    style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                  />
+                </div>
+              ) : (
+                <img
+                  src={formatCoverImageUrl(band1Stories[0].imageUrl) || "https://images.unsplash.com/photo-1526304640581-d334cdbbf45e?auto=format&fit=crop&w=600&q=80"}
+                  alt={band1Stories[0].title}
+                  style={{ width: '100%', height: '200px', objectFit: 'cover', borderRadius: '4px' }}
+                  referrerPolicy="no-referrer"
+                />
+              )}
               <span className="news-kicker">{band1Stories[0].kicker || band1Stories[0].category || 'POLICY & INFRASTRUCTURE'}</span>
               <h3 style={{ fontFamily: 'var(--font-serif)', fontSize: '18px', fontWeight: 800, color: 'var(--text-primary)', margin: '2px 0' }}>
                 {band1Stories[0].title}
@@ -920,12 +999,27 @@ export default function HomePage() {
                 <h4 className="stacked-story-title">{art.title}</h4>
                 <div style={{ fontSize: '10.5px', color: 'var(--text-muted)', marginTop: '2px' }}>{art.author || 'Desk'}</div>
               </div>
-              <img
-                src={formatCoverImageUrl(art.imageUrl) || "https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=200&q=80"}
-                alt={art.title}
-                className="stacked-story-thumb"
-                referrerPolicy="no-referrer"
-              />
+              {isArticleCoverVideo(art) ? (
+                <div style={{ width: '80px', height: '60px', borderRadius: '4px', overflow: 'hidden', background: '#000', flexShrink: 0 }}>
+                  <ContinuousCoverVideo
+                    src={getArticleCoverVideoUrl(art)}
+                    cropStyle={art.coverCropStyle || art.coverVideoCrop}
+                    autoPlay={true}
+                    muted={true}
+                    loop={true}
+                    controls={false}
+                    playsInline={true}
+                    style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                  />
+                </div>
+              ) : (
+                <img
+                  src={formatCoverImageUrl(art.imageUrl) || "https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=200&q=80"}
+                  alt={art.title}
+                  className="stacked-story-thumb"
+                  referrerPolicy="no-referrer"
+                />
+              )}
             </article>
           ))}
         </div>
@@ -1027,12 +1121,28 @@ export default function HomePage() {
         <div className="department-grid-4col">
           {(businessStories.length > 0 ? businessStories : activeArticles.slice(0, 4)).map((art, idx) => (
             <article key={`biz-${art.id || idx}`} className="dept-card" onClick={() => setSelectedArticle(art)}>
-              <img
-                src={formatCoverImageUrl(art.imageUrl) || "https://images.unsplash.com/photo-1611974789855-9c2a0a7236a3?auto=format&fit=crop&w=400&q=80"}
-                alt={art.title}
-                className="dept-card-img"
-                referrerPolicy="no-referrer"
-              />
+              {isArticleCoverVideo(art) ? (
+                <div style={{ width: '100%', height: '150px', borderRadius: '4px', overflow: 'hidden', background: '#000', marginBottom: '8px' }}>
+                  <ContinuousCoverVideo
+                    key={`biz-vid-${art.id || idx}`}
+                    src={getArticleCoverVideoUrl(art)}
+                    cropStyle={art.coverCropStyle || art.coverVideoCrop}
+                    autoPlay={true}
+                    muted={true}
+                    loop={true}
+                    controls={false}
+                    playsInline={true}
+                    style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                  />
+                </div>
+              ) : (
+                <img
+                  src={formatCoverImageUrl(art.imageUrl) || "https://images.unsplash.com/photo-1611974789855-9c2a0a7236a3?auto=format&fit=crop&w=400&q=80"}
+                  alt={art.title}
+                  className="dept-card-img"
+                  referrerPolicy="no-referrer"
+                />
+              )}
               <span className="news-kicker" style={{ fontSize: '9.5px' }}>{art.category || 'BUSINESS'}</span>
               <h3 className="dept-card-title">{art.title}</h3>
               <div className="dept-card-byline">{art.author || 'Markets Desk'}</div>
@@ -1059,12 +1169,28 @@ export default function HomePage() {
         <div className="department-grid-4col">
           {(techStories.length > 0 ? techStories : activeArticles.slice(2, 6)).map((art, idx) => (
             <article key={`tech-${art.id || idx}`} className="dept-card" onClick={() => setSelectedArticle(art)}>
-              <img
-                src={formatCoverImageUrl(art.imageUrl) || "https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=400&q=80"}
-                alt={art.title}
-                className="dept-card-img"
-                referrerPolicy="no-referrer"
-              />
+              {isArticleCoverVideo(art) ? (
+                <div style={{ width: '100%', height: '150px', borderRadius: '4px', overflow: 'hidden', background: '#000', marginBottom: '8px' }}>
+                  <ContinuousCoverVideo
+                    key={`tech-vid-${art.id || idx}`}
+                    src={getArticleCoverVideoUrl(art)}
+                    cropStyle={art.coverCropStyle || art.coverVideoCrop}
+                    autoPlay={true}
+                    muted={true}
+                    loop={true}
+                    controls={false}
+                    playsInline={true}
+                    style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                  />
+                </div>
+              ) : (
+                <img
+                  src={formatCoverImageUrl(art.imageUrl) || "https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=400&q=80"}
+                  alt={art.title}
+                  className="dept-card-img"
+                  referrerPolicy="no-referrer"
+                />
+              )}
               <span className="news-kicker" style={{ fontSize: '9.5px' }}>{art.category || 'TECH & AI'}</span>
               <h3 className="dept-card-title">{art.title}</h3>
               <div className="dept-card-byline">{art.author || 'Tech Reporter'}</div>
@@ -1287,12 +1413,28 @@ export default function HomePage() {
         <div className="department-grid-4col">
           {forYouStories.map((art, idx) => (
             <article key={`foryou-${art.id || idx}`} className="dept-card" onClick={() => setSelectedArticle(art)}>
-              <img
-                src={formatCoverImageUrl(art.imageUrl) || "https://images.unsplash.com/photo-1451187580459-43490279c0fa?auto=format&fit=crop&w=400&q=80"}
-                alt={art.title}
-                className="dept-card-img"
-                referrerPolicy="no-referrer"
-              />
+              {isArticleCoverVideo(art) ? (
+                <div style={{ width: '100%', height: '150px', borderRadius: '4px', overflow: 'hidden', background: '#000', marginBottom: '8px' }}>
+                  <ContinuousCoverVideo
+                    key={`foryou-vid-${art.id || idx}`}
+                    src={getArticleCoverVideoUrl(art)}
+                    cropStyle={art.coverCropStyle || art.coverVideoCrop}
+                    autoPlay={true}
+                    muted={true}
+                    loop={true}
+                    controls={false}
+                    playsInline={true}
+                    style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                  />
+                </div>
+              ) : (
+                <img
+                  src={formatCoverImageUrl(art.imageUrl) || "https://images.unsplash.com/photo-1451187580459-43490279c0fa?auto=format&fit=crop&w=400&q=80"}
+                  alt={art.title}
+                  className="dept-card-img"
+                  referrerPolicy="no-referrer"
+                />
+              )}
               <span className="news-kicker" style={{ fontSize: '9.5px' }}>{art.category || 'FEATURE'}</span>
               <h3 className="dept-card-title">{art.title}</h3>
               <div className="dept-card-byline">{art.author || 'Desk Correspondent'}</div>

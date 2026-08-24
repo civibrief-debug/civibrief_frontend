@@ -622,6 +622,37 @@ export function formatCoverMediaEmbedUrl(url) {
 }
 
 /**
+ * Determines if an article has a cover video (supporting coverMediaType, videoUrl, or video media formats)
+ */
+export function isArticleCoverVideo(article) {
+  if (!article) return false;
+  if (article.coverMediaType === 'video') return true;
+  if (article.videoUrl && typeof article.videoUrl === 'string' && article.videoUrl.trim().length > 0) return true;
+  const url = (typeof article.imageUrl === 'string' ? article.imageUrl.trim() : '');
+  if (url) {
+    if (/\.(mp4|webm|ogg|mov|m4v)(\?.*)?$/i.test(url)) return true;
+    if (/youtube\.com|youtu\.be|vimeo\.com|dailymotion\.com|loom\.com/i.test(url)) return true;
+    const gdrive = parseGoogleDriveUrl(url);
+    if (gdrive && (gdrive.fileType === 'video' || (!gdrive.isDoc && !gdrive.isImage))) return true;
+  }
+  return false;
+}
+
+/**
+ * Returns the effective cover video URL for an article
+ */
+export function getArticleCoverVideoUrl(article) {
+  if (!article) return '';
+  if (article.videoUrl && typeof article.videoUrl === 'string' && article.videoUrl.trim().length > 0) {
+    return article.videoUrl.trim();
+  }
+  if (article.imageUrl && typeof article.imageUrl === 'string') {
+    return article.imageUrl.trim();
+  }
+  return '';
+}
+
+/**
  * Formats any cover image URL (including Google Drive file/doc links) into high-resolution direct image / thumbnail
  */
 export function formatCoverImageUrl(url) {
