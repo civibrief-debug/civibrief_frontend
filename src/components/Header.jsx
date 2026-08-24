@@ -109,7 +109,7 @@ export function Header({
     return () => clearInterval(interval);
   }, []);
 
-  // Handle click outside to close profile dropdown
+  // Handle click / touch outside to close profile dropdown (Cross-browser for Safari iOS, Chrome, Edge)
   useEffect(() => {
     const handleClickOutside = (e) => {
       if (profileMenuRef.current && !profileMenuRef.current.contains(e.target)) {
@@ -117,7 +117,20 @@ export function Header({
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    document.addEventListener('touchstart', handleClickOutside, { passive: true });
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('touchstart', handleClickOutside);
+    };
+  }, []);
+
+  // Initialize theme from storage / document safely
+  useEffect(() => {
+    try {
+      const savedTheme = localStorage.getItem('theme') || document.documentElement.getAttribute('data-theme') || 'light';
+      setTheme(savedTheme);
+      document.documentElement.setAttribute('data-theme', savedTheme);
+    } catch (e) {}
   }, []);
 
   const handleToggleMenu = () => {
@@ -203,7 +216,10 @@ export function Header({
   const toggleTheme = () => {
     const nextTheme = theme === 'light' ? 'dark' : 'light';
     setTheme(nextTheme);
-    document.documentElement.setAttribute('data-theme', nextTheme);
+    try {
+      document.documentElement.setAttribute('data-theme', nextTheme);
+      localStorage.setItem('theme', nextTheme);
+    } catch (e) {}
   };
 
   const handleCategoryClick = (catSlug, subSectionName = null) => {

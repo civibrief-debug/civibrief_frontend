@@ -27,17 +27,60 @@ export default function ShareModal({ isOpen, onClose, article }) {
   
   const shareTitle = article.title || 'Check out this news story on Daily Brief';
 
-  const handleCopyUrl = () => {
-    navigator.clipboard?.writeText?.(articleUrl);
+  // Universal Cross-Browser Clipboard Copy (Safari, Chrome, Edge, iOS WebViews, HTTP fallback)
+  const copyToClipboard = async (text) => {
+    try {
+      if (typeof navigator !== 'undefined' && navigator.clipboard && window.isSecureContext) {
+        await navigator.clipboard.writeText(text);
+        return true;
+      }
+    } catch (err) {}
+
+    // Fallback for Safari, iOS older WebKits, in-app browsers, or non-secure contexts
+    try {
+      if (typeof document !== 'undefined') {
+        const textarea = document.createElement('textarea');
+        textarea.value = text;
+        textarea.style.position = 'fixed';
+        textarea.style.left = '-999999px';
+        textarea.style.top = '-999999px';
+        textarea.setAttribute('readonly', '');
+        document.body.appendChild(textarea);
+        textarea.select();
+        textarea.setSelectionRange(0, 99999);
+        const successful = document.execCommand('copy');
+        document.body.removeChild(textarea);
+        return successful;
+      }
+    } catch (err) {}
+    return false;
+  };
+
+  const handleCopyUrl = async () => {
+    await copyToClipboard(articleUrl);
     setCopied(true);
     setTimeout(() => setCopied(false), 2500);
   };
 
-  const handleCopyEmbed = () => {
+  const handleCopyEmbed = async () => {
     const embedSnippet = `<iframe src="${origin}/embed/article/${article.id || 1}" width="600" height="400" frameborder="0" allowfullscreen title="${shareTitle}"></iframe>`;
-    navigator.clipboard?.writeText?.(embedSnippet);
+    await copyToClipboard(embedSnippet);
     setEmbedCopied(true);
     setTimeout(() => setEmbedCopied(false), 2500);
+  };
+
+  const handleNativeShare = async () => {
+    if (typeof navigator !== 'undefined' && navigator.share) {
+      try {
+        await navigator.share({
+          title: shareTitle,
+          text: shareTitle,
+          url: articleUrl
+        });
+      } catch (err) {}
+    } else {
+      handleCopyUrl();
+    }
   };
 
   const scrollPlatforms = (direction) => {
@@ -47,7 +90,20 @@ export default function ShareModal({ isOpen, onClose, article }) {
     }
   };
 
-  // YouTube Share Platforms List matching Screenshot 2 & 3
+  // Safe Universal Platform Launcher (Handles Safari popup blocker gracefully)
+  const openPlatform = (url, isDirectScheme = false) => {
+    if (!url) return;
+    if (isDirectScheme || url.startsWith('sms:') || url.startsWith('mailto:')) {
+      window.location.href = url;
+    } else {
+      const win = window.open(url, '_blank', 'noopener,noreferrer');
+      if (!win || win.closed || typeof win.closed === 'undefined') {
+        window.location.href = url;
+      }
+    }
+  };
+
+  // YouTube / Social Share Platforms List
   const platforms = [
     {
       name: 'Embed',
@@ -72,7 +128,8 @@ export default function ShareModal({ isOpen, onClose, article }) {
       bg: '#007AFF',
       color: '#ffffff',
       icon: <MessageCircle size={22} color="#ffffff" />,
-      url: `sms:?body=${encodeURIComponent(shareTitle + ' ' + articleUrl)}`
+      url: `sms:?&body=${encodeURIComponent(shareTitle + ' ' + articleUrl)}`,
+      isDirectScheme: true
     },
     {
       name: 'Facebook',
@@ -101,7 +158,8 @@ export default function ShareModal({ isOpen, onClose, article }) {
       bg: '#64748b',
       color: '#ffffff',
       icon: <Mail size={22} color="#ffffff" />,
-      url: `mailto:?subject=${encodeURIComponent(shareTitle)}&body=${encodeURIComponent(articleUrl)}`
+      url: `mailto:?subject=${encodeURIComponent(shareTitle)}&body=${encodeURIComponent(articleUrl)}`,
+      isDirectScheme: true
     },
     {
       name: 'Reddit',
@@ -152,6 +210,7 @@ export default function ShareModal({ isOpen, onClose, article }) {
         inset: 0,
         backgroundColor: 'rgba(0, 0, 0, 0.75)',
         backdropFilter: 'blur(8px)',
+        WebkitBackdropFilter: 'blur(8px)',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
@@ -290,7 +349,7 @@ export default function ShareModal({ isOpen, onClose, article }) {
                       if (platform.onClick) {
                         platform.onClick();
                       } else if (platform.url) {
-                        window.open(platform.url, '_blank', 'noopener,noreferrer');
+                        openPlatform(platform.url, platform.isDirectScheme);
                       }
                     }}
                     style={{
