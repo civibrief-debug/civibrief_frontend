@@ -103,11 +103,20 @@ export async function GET() {
     if (rows && rows.length > 0 && rows[0].data) {
       const parsed = JSON.parse(rows[0].data);
       if (Array.isArray(parsed) && parsed.length > 0) {
-        return NextResponse.json({ success: true, data: parsed });
+        return NextResponse.json(
+          { success: true, data: parsed },
+          { headers: { 'Cache-Control': 'public, max-age=2, s-maxage=5, stale-while-revalidate=59' } }
+        );
       }
     }
-    return NextResponse.json({ success: true, data: FALLBACK_HOMEPAGE_ADS });
+    return NextResponse.json(
+      { success: true, data: FALLBACK_HOMEPAGE_ADS },
+      { headers: { 'Cache-Control': 'public, max-age=2, s-maxage=5, stale-while-revalidate=59' } }
+    );
   } catch (err) {
-    return NextResponse.json({ success: true, data: FALLBACK_HOMEPAGE_ADS });
+    return NextResponse.json(
+      { success: true, data: FALLBACK_HOMEPAGE_ADS },
+      { headers: { 'Cache-Control': 'public, max-age=2, s-maxage=5, stale-while-revalidate=59' } }
+    );
   }
 }

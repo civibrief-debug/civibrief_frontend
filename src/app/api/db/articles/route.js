@@ -42,7 +42,10 @@ export async function GET(req) {
       coverVideoCrop: r.coverVideoCrop ? (typeof r.coverVideoCrop === 'string' ? JSON.parse(r.coverVideoCrop) : r.coverVideoCrop) : null
     }));
 
-    return NextResponse.json({ success: true, data: formatted });
+    return NextResponse.json(
+      { success: true, data: formatted },
+      { headers: { 'Cache-Control': 'public, max-age=2, s-maxage=5, stale-while-revalidate=59' } }
+    );
   } catch (err) {
     return NextResponse.json({ success: false, error: err.message }, { status: 500 });
   }

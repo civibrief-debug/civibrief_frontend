@@ -159,12 +159,21 @@ export async function GET() {
       const parsed = JSON.parse(rows[0].data);
       if (Array.isArray(parsed) && parsed.length > 0) {
         memorySections = parsed;
-        return NextResponse.json({ success: true, data: parsed });
+        return NextResponse.json(
+          { success: true, data: parsed },
+          { headers: { 'Cache-Control': 'public, max-age=2, s-maxage=5, stale-while-revalidate=59' } }
+        );
       }
     }
-    return NextResponse.json({ success: true, data: memorySections });
+    return NextResponse.json(
+      { success: true, data: memorySections },
+      { headers: { 'Cache-Control': 'public, max-age=2, s-maxage=5, stale-while-revalidate=59' } }
+    );
   } catch (err) {
-    return NextResponse.json({ success: true, data: memorySections });
+    return NextResponse.json(
+      { success: true, data: memorySections },
+      { headers: { 'Cache-Control': 'public, max-age=2, s-maxage=5, stale-while-revalidate=59' } }
+    );
   }
 }
 

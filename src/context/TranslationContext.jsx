@@ -10,16 +10,26 @@ export const useTranslation = () => useContext(TranslationContext);
 // Global In-Memory Article Cache (Key: `${articleId || articleTitle}_${targetLang}`)
 const ARTICLE_CACHE = new Map();
 
+// Hydrate ARTICLE_CACHE from sessionStorage on startup
+if (typeof window !== 'undefined') {
+  try {
+    const raw = sessionStorage.getItem('daily_brief_article_cache_v2');
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      Object.entries(parsed).forEach(([k, v]) => ARTICLE_CACHE.set(k, v));
+    }
+  } catch (e) {}
+}
+
 export const TranslationProvider = ({ children }) => {
   const [language, setLanguage] = useState('en');
   const [isTranslating, setIsTranslating] = useState(false);
 
-  // Initialize from localStorage
   useEffect(() => {
     try {
-      const savedLang = localStorage.getItem('dailyBriefLanguage');
-      if (savedLang) {
-        setLanguage(savedLang);
+      const saved = localStorage.getItem('dailyBriefLanguage');
+      if (saved && saved !== 'en') {
+        setLanguage(saved);
       }
     } catch (e) {}
   }, []);

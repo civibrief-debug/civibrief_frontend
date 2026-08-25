@@ -80,7 +80,10 @@ function SectionPageInner({ slug }) {
         const json = await res.json();
         if (json && json.success && Array.isArray(json.data)) {
           const published = json.data.filter(a => a.status === 'Published');
-          setDbArticles(published);
+          setDbArticles(prev => {
+            if (JSON.stringify(prev) === JSON.stringify(published)) return prev;
+            return published;
+          });
           return;
         }
       }
