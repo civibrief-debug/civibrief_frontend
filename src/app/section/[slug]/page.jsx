@@ -1,12 +1,7 @@
 import React, { Suspense } from 'react';
 import SectionPageView from '../../../components/SectionPageView';
-import { CATEGORIES } from '../../../data/newsData';
 
-export async function generateStaticParams() {
-  return CATEGORIES.map((cat) => ({
-    slug: cat.slug,
-  }));
-}
+export const runtime = 'edge';
 
 export default async function SectionPage({ params }) {
   const resolvedParams = await params;
