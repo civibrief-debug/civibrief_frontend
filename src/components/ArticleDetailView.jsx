@@ -5,7 +5,7 @@ import Link from 'next/link';
 import ShareModal from './ShareModal';
 import SafeArticleBody from './SafeArticleBody';
 import ArticleAdBanner from './ArticleAdBanner';
-import { formatCoverImageUrl, parseGoogleDriveUrl, isArticleCoverVideo, getArticleCoverVideoUrl } from '../lib/videoUtils';
+import { formatCoverImageUrl, parseGoogleDriveUrl, isArticleCoverVideo, getArticleCoverVideoUrl, getDefaultArticleImage } from '../lib/videoUtils';
 import ContinuousCoverVideo from './ContinuousCoverVideo';
 import { 
   Clock, 
@@ -158,12 +158,15 @@ export default function ArticleDetailView({ id }) {
               </p>
             )}
           </div>
-        ) : (article.imageUrl && (
+        ) : (
           <div style={{ marginBottom: '32px', width: article.coverWidth || '100%', margin: '0 auto 32px auto' }}>
             <img 
-              src={formatCoverImageUrl(article.imageUrl) || "https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=1200&q=80"} 
-              alt={article.title} 
+              src={formatCoverImageUrl(article.imageUrl, article) || getDefaultArticleImage(article)} 
+              alt={article.title || 'Article Cover'} 
               referrerPolicy="no-referrer" 
+              loading="eager"
+              fetchPriority="high"
+              decoding="async"
               style={{
                 width: '100%',
                 borderRadius: 'var(--radius-lg)',
@@ -177,6 +180,9 @@ export default function ArticleDetailView({ id }) {
                 if (gdrive && !e.currentTarget.dataset.retried) {
                   e.currentTarget.dataset.retried = '1';
                   e.currentTarget.src = gdrive.proxyImageUrl || `https://lh3.googleusercontent.com/d/${gdrive.fileId}`;
+                } else if (!e.currentTarget.dataset.retriedDefault) {
+                  e.currentTarget.dataset.retriedDefault = '1';
+                  e.currentTarget.src = getDefaultArticleImage(article);
                 }
               }}
             />
@@ -186,7 +192,7 @@ export default function ArticleDetailView({ id }) {
               </p>
             )}
           </div>
-        ))}
+        )}
 
         {/* Key Takeaways Box */}
         {article.takeaways && article.takeaways.length > 0 && (

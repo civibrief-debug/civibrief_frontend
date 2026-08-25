@@ -622,18 +622,56 @@ export function formatCoverMediaEmbedUrl(url) {
 }
 
 /**
+ * Returns a high-res contextual default cover image if an article has no image URL
+ */
+export function getDefaultArticleImage(article) {
+  const cat = (article?.category || article?.section || '').toLowerCase();
+  if (cat.includes('tech') || cat.includes('ai') || cat.includes('compute') || cat.includes('quantum') || cat.includes('space') || cat.includes('cyber')) {
+    return "https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=1200&q=80";
+  }
+  if (cat.includes('market') || cat.includes('econom') || cat.includes('business') || cat.includes('finan') || cat.includes('stock') || cat.includes('bank')) {
+    return "https://images.unsplash.com/photo-1611974789855-9c2a0a7236a3?auto=format&fit=crop&w=1200&q=80";
+  }
+  if (cat.includes('science') || cat.includes('climate') || cat.includes('energy') || cat.includes('green') || cat.includes('health') || cat.includes('enviro')) {
+    return "https://images.unsplash.com/photo-1451187580459-43490279c0fa?auto=format&fit=crop&w=1200&q=80";
+  }
+  if (cat.includes('india') || cat.includes('nation') || cat.includes('policy') || cat.includes('gover') || cat.includes('parliament')) {
+    return "https://images.unsplash.com/photo-1526304640581-d334cdbbf45e?auto=format&fit=crop&w=1200&q=80";
+  }
+  if (cat.includes('sport') || cat.includes('cricket') || cat.includes('athletic') || cat.includes('football')) {
+    return "https://images.unsplash.com/photo-1461896836934-ffe607ba8211?auto=format&fit=crop&w=1200&q=80";
+  }
+  if (cat.includes('world') || cat.includes('global') || cat.includes('diplomacy') || cat.includes('foreign')) {
+    return "https://images.unsplash.com/photo-1526778548025-fa2f459cd5c1?auto=format&fit=crop&w=1200&q=80";
+  }
+  return "https://images.unsplash.com/photo-1585829365295-ab7cd400c167?auto=format&fit=crop&w=1200&q=80";
+}
+
+/**
  * Determines if an article has a cover video (supporting coverMediaType, videoUrl, or video media formats)
  */
 export function isArticleCoverVideo(article) {
   if (!article) return false;
-  if (article.coverMediaType === 'video') return true;
-  if (article.videoUrl && typeof article.videoUrl === 'string' && article.videoUrl.trim().length > 0) return true;
+  // If explicitly designated as image, it is an image
+  if (article.coverMediaType === 'image') return false;
+  // If explicitly designated as video, check for video source
+  if (article.coverMediaType === 'video') {
+    return Boolean((article.videoUrl && article.videoUrl.trim()) || (article.imageUrl && article.imageUrl.trim()));
+  }
+  // If videoUrl is provided and distinct from standard image files
+  if (article.videoUrl && typeof article.videoUrl === 'string' && article.videoUrl.trim().length > 0) {
+    const vUrl = article.videoUrl.trim();
+    if (!/\.(jpg|jpeg|png|webp|gif|svg|avif)(\?.*)?$/i.test(vUrl)) {
+      return true;
+    }
+  }
+  // Check if imageUrl is an explicit video file or video host
   const url = (typeof article.imageUrl === 'string' ? article.imageUrl.trim() : '');
   if (url) {
     if (/\.(mp4|webm|ogg|mov|m4v)(\?.*)?$/i.test(url)) return true;
-    if (/youtube\.com|youtu\.be|vimeo\.com|dailymotion\.com|loom\.com/i.test(url)) return true;
+    if (/youtube\.com|youtu\.be|vimeo\.com|dailymotion\.com|loom\.com|player\.vimeo\.com/i.test(url)) return true;
     const gdrive = parseGoogleDriveUrl(url);
-    if (gdrive && (gdrive.fileType === 'video' || (!gdrive.isDoc && !gdrive.isImage))) return true;
+    if (gdrive && gdrive.fileType === 'video') return true;
   }
   return false;
 }
@@ -643,11 +681,24 @@ export function isArticleCoverVideo(article) {
  */
 export function getArticleCoverVideoUrl(article) {
   if (!article) return '';
-  if (article.videoUrl && typeof article.videoUrl === 'string' && article.videoUrl.trim().length > 0) {
+  if (article.coverMediaType === 'video' && article.videoUrl && article.videoUrl.trim()) {
     return article.videoUrl.trim();
   }
+  if (article.videoUrl && typeof article.videoUrl === 'string' && article.videoUrl.trim().length > 0) {
+    const vUrl = article.videoUrl.trim();
+    if (!/\.(jpg|jpeg|png|webp|gif|svg|avif)(\?.*)?$/i.test(vUrl)) {
+      return vUrl;
+    }
+  }
   if (article.imageUrl && typeof article.imageUrl === 'string') {
-    return article.imageUrl.trim();
+    const imgUrl = article.imageUrl.trim();
+    if (article.coverMediaType === 'video' || /\.(mp4|webm|ogg|mov|m4v)(\?.*)?$/i.test(imgUrl) || /youtube\.com|youtu\.be|vimeo\.com|dailymotion\.com|loom\.com/i.test(imgUrl)) {
+      return imgUrl;
+    }
+    const gdrive = parseGoogleDriveUrl(imgUrl);
+    if (gdrive && gdrive.fileType === 'video') {
+      return imgUrl;
+    }
   }
   return '';
 }
@@ -655,8 +706,10 @@ export function getArticleCoverVideoUrl(article) {
 /**
  * Formats any cover image URL (including Google Drive file/doc links) into high-resolution direct image / thumbnail
  */
-export function formatCoverImageUrl(url) {
-  if (!url || typeof url !== 'string') return '';
+export function formatCoverImageUrl(url, article = null) {
+  if (!url || typeof url !== 'string' || !url.trim()) {
+    return article ? getDefaultArticleImage(article) : '';
+  }
   const cleanUrl = url.trim();
 
   const gdrive = parseGoogleDriveUrl(cleanUrl);

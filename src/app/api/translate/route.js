@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { translatePlainText, translateHtmlContent } from '../../../lib/translationService';
+import { translatePlainText, translateHtmlContent, translateBatchTexts } from '../../../lib/translationService';
 import { checkRateLimit } from '../../../lib/rateLimit';
 
 export const runtime = 'edge';
@@ -7,7 +7,7 @@ export const runtime = 'edge';
 const IS_VALID_LANG_CODE = (code) => typeof code === 'string' && /^[a-z]{2,3}(-[A-Za-z0-9]+)?$/i.test(code);
 
 export async function POST(req) {
-  if (!checkRateLimit(req, 60, 60 * 1000)) {
+  if (!checkRateLimit(req, 120, 60 * 1000)) {
     return NextResponse.json(
       { success: false, error: 'Rate limit exceeded for translation service' },
       { status: 429 }
@@ -29,22 +29,24 @@ export async function POST(req) {
       return NextResponse.json({ success: true, data: articleData });
     }
 
+    const keys = ['title', 'subtitle', 'summary', 'kicker'];
+    const texts = keys.map(k => (articleData[k] && typeof articleData[k] === 'string' ? articleData[k] : ''));
+
+    const [translatedMeta, translatedContent] = await Promise.all([
+      translateBatchTexts(texts, targetLang),
+      (articleData.content && typeof articleData.content === 'string') 
+        ? translateHtmlContent(articleData.content, targetLang) 
+        : Promise.resolve('')
+    ]);
+
     const translatedData = { ...articleData };
-    
-    if (articleData.title && typeof articleData.title === 'string') {
-      translatedData.title = await translatePlainText(articleData.title.slice(0, 1000), targetLang);
-    }
-    if (articleData.subtitle && typeof articleData.subtitle === 'string') {
-      translatedData.subtitle = await translatePlainText(articleData.subtitle.slice(0, 1000), targetLang);
-    }
-    if (articleData.summary && typeof articleData.summary === 'string') {
-      translatedData.summary = await translatePlainText(articleData.summary.slice(0, 2000), targetLang);
-    }
-    if (articleData.kicker && typeof articleData.kicker === 'string') {
-      translatedData.kicker = await translatePlainText(articleData.kicker.slice(0, 500), targetLang);
-    }
-    if (articleData.content && typeof articleData.content === 'string') {
-      translatedData.content = await translateHtmlContent(articleData.content, targetLang);
+    keys.forEach((k, idx) => {
+      if (translatedMeta[idx]) {
+        translatedData[k] = translatedMeta[idx];
+      }
+    });
+    if (translatedContent) {
+      translatedData.content = translatedContent;
     }
 
     return NextResponse.json({ success: true, data: translatedData });

@@ -3,7 +3,7 @@ import ShareModal from './ShareModal';
 import SafeArticleBody from './SafeArticleBody';
 import ArticleAdBanner from './ArticleAdBanner';
 import { useTranslation } from '../context/TranslationContext';
-import { formatCoverMediaEmbedUrl, formatCoverImageUrl, parseGoogleDriveUrl, isArticleCoverVideo, getArticleCoverVideoUrl } from '../lib/videoUtils';
+import { formatCoverMediaEmbedUrl, formatCoverImageUrl, parseGoogleDriveUrl, isArticleCoverVideo, getArticleCoverVideoUrl, getDefaultArticleImage } from '../lib/videoUtils';
 import ContinuousCoverVideo from './ContinuousCoverVideo';
 
 import { LanguageSelector } from './LanguageSelector';
@@ -999,14 +999,18 @@ export const ArticleModal = ({ article, onClose, isLoggedIn, onOpenLogin, onLogi
               </div>
             )}
           </div>
-        ) : (activeArticle.imageUrl && (
+        ) : (
           <div className="article-modal-hero-img-container" style={{ width: activeArticle.coverWidth || '100%', margin: '0 auto 24px auto' }}>
             <img 
-              src={formatCoverImageUrl(activeArticle.imageUrl) || "https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=1200&q=80"} 
-              alt={activeArticle.title} 
+              src={formatCoverImageUrl(activeArticle.imageUrl, activeArticle) || getDefaultArticleImage(activeArticle)} 
+              alt={activeArticle.title || 'Article Cover'} 
               referrerPolicy="no-referrer"
               className="article-modal-hero-img"
+              loading="eager"
+              fetchPriority="high"
+              decoding="async"
               style={{
+                width: '100%',
                 maxHeight: activeArticle.coverHeight === 'auto' ? 'none' : (activeArticle.coverHeight || '480px'),
                 objectFit: 'cover',
                 borderRadius: 'var(--radius-md)',
@@ -1018,6 +1022,9 @@ export const ArticleModal = ({ article, onClose, isLoggedIn, onOpenLogin, onLogi
                 if (gdrive && !e.currentTarget.dataset.retried) {
                   e.currentTarget.dataset.retried = '1';
                   e.currentTarget.src = gdrive.proxyImageUrl || `https://lh3.googleusercontent.com/d/${gdrive.fileId}`;
+                } else if (!e.currentTarget.dataset.retriedDefault) {
+                  e.currentTarget.dataset.retriedDefault = '1';
+                  e.currentTarget.src = getDefaultArticleImage(activeArticle);
                 }
               }}
             />
@@ -1027,7 +1034,7 @@ export const ArticleModal = ({ article, onClose, isLoggedIn, onOpenLogin, onLogi
               </div>
             )}
           </div>
-        ))}
+        )}
 
         {/* Article Body Content */}
         <div 
