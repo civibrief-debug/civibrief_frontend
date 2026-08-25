@@ -144,6 +144,7 @@ export default function ArticleDetailView({ id }) {
             <div style={{ width: '100%', height: article.coverHeight === 'auto' ? '450px' : (article.coverHeight || '450px'), borderRadius: 'var(--radius-lg)', overflow: 'hidden' }}>
               <ContinuousCoverVideo
                 src={getArticleCoverVideoUrl(article)}
+                poster={formatCoverImageUrl(article.imageUrl, article) || getDefaultArticleImage(article)}
                 cropStyle={article.coverCropStyle || article.coverVideoCrop}
                 autoPlay={true}
                 muted={true}

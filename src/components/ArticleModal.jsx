@@ -985,6 +985,7 @@ export const ArticleModal = ({ article, onClose, isLoggedIn, onOpenLogin, onLogi
             <div style={{ width: '100%', height: activeArticle.coverHeight === 'auto' ? '420px' : (activeArticle.coverHeight || '420px'), borderRadius: 'var(--radius-md)', overflow: 'hidden' }}>
               <ContinuousCoverVideo
                 src={getArticleCoverVideoUrl(activeArticle)}
+                poster={formatCoverImageUrl(activeArticle.imageUrl, activeArticle) || getDefaultArticleImage(activeArticle)}
                 cropStyle={activeArticle.coverCropStyle || activeArticle.coverVideoCrop}
                 autoPlay={true}
                 muted={true}

@@ -80,8 +80,8 @@ export default function ContinuousCoverVideo({
     return null;
   }
 
-  // 1. If it's a YouTube / Vimeo embed, Google Drive document, or if HTML5 video errored
-  const isEmbedSource = videoMeta.isYouTube || videoMeta.isVimeo || videoMeta.isEmbed || (videoMeta.isGDrive && videoMeta.isDoc) || (videoError && videoMeta.embedUrl && !videoMeta.isGDrive);
+  // 1. If it's a genuine YouTube / Vimeo / Dailymotion / Loom embed or Google Drive document preview
+  const isEmbedSource = (videoMeta.isYouTube || videoMeta.isVimeo || videoMeta.isEmbed || (videoMeta.isGDrive && videoMeta.isDoc)) && Boolean(videoMeta.embedUrl);
 
   if (isEmbedSource && videoMeta.embedUrl) {
     return (
@@ -114,7 +114,38 @@ export default function ContinuousCoverVideo({
     );
   }
 
-  // 2. Continuous Looping HTML5 Video Player for all videos (Google Drive, Pexels, MP4, WebM, Blobs, uploaded files)
+  // 2. If video playback encounters an error, fallback gracefully to the poster image (NEVER an iframe that causes 'refused to connect')
+  if (videoError) {
+    const fallbackImage = poster || (typeof src === 'string' && /\.(jpg|jpeg|png|webp|gif|svg|avif)/i.test(src) ? src : 'https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=1200&q=80');
+    return (
+      <div 
+        style={{ position: 'relative', width: '100%', height: '100%', overflow: 'hidden', background: '#000000', ...cropStyle, ...style }}
+        onClick={onClick}
+      >
+        <img
+          src={fallbackImage}
+          alt="Media Cover"
+          style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block', ...cropStyle }}
+          referrerPolicy="no-referrer"
+        />
+        {onClick && (
+          <div 
+            style={{ 
+              position: 'absolute', 
+              inset: 0, 
+              zIndex: 10, 
+              cursor: 'pointer', 
+              background: 'transparent' 
+            }} 
+            onClick={onClick} 
+            title="Open Content"
+          />
+        )}
+      </div>
+    );
+  }
+
+  // 3. Continuous Looping HTML5 Video Player for all videos (Google Drive, Pexels, MP4, WebM, Blobs, uploaded files)
   const streamSrc = videoMeta.streamUrl || src;
 
   return (

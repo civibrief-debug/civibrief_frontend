@@ -11,6 +11,7 @@ export const HeroStory = ({ story, onArticleClick }) => {
         {isArticleCoverVideo(story) ? (
           <ContinuousCoverVideo
             src={getArticleCoverVideoUrl(story)}
+            poster={formatCoverImageUrl(story.imageUrl) || "https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=1200&q=80"}
             cropStyle={story.coverCropStyle || story.coverVideoCrop}
             autoPlay={true}
             muted={true}

@@ -451,6 +451,7 @@ export default function HomePage() {
             {ad.contentType === 'video' ? (
               <ContinuousCoverVideo
                 src={ad.mediaUrl}
+                poster={formatCoverImageUrl(ad.mediaUrl) || ad.mediaUrl}
                 autoPlay={true}
                 muted={true}
                 loop={true}
@@ -519,6 +520,7 @@ export default function HomePage() {
               {ad.contentType === 'video' ? (
                 <ContinuousCoverVideo
                   src={ad.mediaUrl}
+                  poster={formatCoverImageUrl(ad.mediaUrl) || ad.mediaUrl}
                   autoPlay={true}
                   muted={true}
                   loop={true}
@@ -642,6 +644,7 @@ export default function HomePage() {
                 {ad.contentType === 'video' ? (
                   <ContinuousCoverVideo
                     src={ad.mediaUrl}
+                    poster={formatCoverImageUrl(ad.mediaUrl) || ad.mediaUrl}
                     autoPlay={true}
                     muted={true}
                     loop={true}
@@ -767,6 +770,7 @@ export default function HomePage() {
                 {ad.contentType === 'video' ? (
                   <ContinuousCoverVideo
                     src={ad.mediaUrl}
+                    poster={formatCoverImageUrl(ad.mediaUrl) || ad.mediaUrl}
                     autoPlay={true}
                     muted={true}
                     loop={true}
@@ -921,6 +925,7 @@ export default function HomePage() {
                           <ContinuousCoverVideo
                             key={`hero-vid-${story.id}`}
                             src={getArticleCoverVideoUrl(story)}
+                            poster={formatCoverImageUrl(story.imageUrl, story) || getDefaultArticleImage(story)}
                             cropStyle={story.coverCropStyle || story.coverVideoCrop}
                             autoPlay={true}
                             muted={true}
@@ -1005,6 +1010,7 @@ export default function HomePage() {
                       <ContinuousCoverVideo
                         key={`sub1-vid-${subLead1.id}`}
                         src={getArticleCoverVideoUrl(subLead1)}
+                        poster={formatCoverImageUrl(subLead1.imageUrl, subLead1) || getDefaultArticleImage(subLead1)}
                         cropStyle={subLead1.coverCropStyle || subLead1.coverVideoCrop}
                         autoPlay={true}
                         muted={true}
@@ -1040,6 +1046,7 @@ export default function HomePage() {
                       <ContinuousCoverVideo
                         key={`sub2-vid-${subLead2.id}`}
                         src={getArticleCoverVideoUrl(subLead2)}
+                        poster={formatCoverImageUrl(subLead2.imageUrl, subLead2) || getDefaultArticleImage(subLead2)}
                         cropStyle={subLead2.coverCropStyle || subLead2.coverVideoCrop}
                         autoPlay={true}
                         muted={true}
@@ -1079,6 +1086,7 @@ export default function HomePage() {
                     <ContinuousCoverVideo
                       key={`second-vid-${secondLead.id}`}
                       src={getArticleCoverVideoUrl(secondLead)}
+                      poster={formatCoverImageUrl(secondLead.imageUrl, secondLead) || getDefaultArticleImage(secondLead)}
                       cropStyle={secondLead.coverCropStyle || secondLead.coverVideoCrop}
                       autoPlay={true}
                       muted={true}
@@ -1136,6 +1144,7 @@ export default function HomePage() {
                     <div style={{ width: '80px', height: '60px', borderRadius: '4px', overflow: 'hidden', background: '#000', flexShrink: 0 }}>
                       <ContinuousCoverVideo
                         src={getArticleCoverVideoUrl(story)}
+                        poster={formatCoverImageUrl(story.imageUrl, story) || getDefaultArticleImage(story)}
                         cropStyle={story.coverCropStyle || story.coverVideoCrop}
                         autoPlay={true}
                         muted={true}
@@ -1251,6 +1260,7 @@ export default function HomePage() {
                     <ContinuousCoverVideo
                       key={`band1-vid-${band1Stories[0].id}`}
                       src={getArticleCoverVideoUrl(band1Stories[0])}
+                      poster={formatCoverImageUrl(band1Stories[0].imageUrl, band1Stories[0]) || getDefaultArticleImage(band1Stories[0])}
                       cropStyle={band1Stories[0].coverCropStyle || band1Stories[0].coverVideoCrop}
                       autoPlay={true}
                       muted={true}
@@ -1290,6 +1300,7 @@ export default function HomePage() {
                   <div style={{ width: '80px', height: '60px', borderRadius: '4px', overflow: 'hidden', background: '#000', flexShrink: 0 }}>
                     <ContinuousCoverVideo
                       src={getArticleCoverVideoUrl(art)}
+                      poster={formatCoverImageUrl(art.imageUrl, art) || getDefaultArticleImage(art)}
                       cropStyle={art.coverCropStyle || art.coverVideoCrop}
                       autoPlay={true}
                       muted={true}
@@ -1346,6 +1357,7 @@ export default function HomePage() {
                   <div style={{ width: '100%', height: '120px', background: '#000', overflow: 'hidden' }}>
                     <ContinuousCoverVideo
                       src={getArticleCoverVideoUrl(band2Stories[4] || activeArticles[0])}
+                      poster={formatCoverImageUrl((band2Stories[4] || activeArticles[0])?.imageUrl, (band2Stories[4] || activeArticles[0])) || getDefaultArticleImage(band2Stories[4] || activeArticles[0])}
                       autoPlay={true}
                       muted={true}
                       loop={true}
@@ -1432,6 +1444,7 @@ export default function HomePage() {
                     <ContinuousCoverVideo
                       key={`biz-vid-${art.id || idx}`}
                       src={getArticleCoverVideoUrl(art)}
+                      poster={formatCoverImageUrl(art.imageUrl, art) || getDefaultArticleImage(art)}
                       cropStyle={art.coverCropStyle || art.coverVideoCrop}
                       autoPlay={true}
                       muted={true}
@@ -1482,6 +1495,7 @@ export default function HomePage() {
                     <ContinuousCoverVideo
                       key={`tech-vid-${art.id || idx}`}
                       src={getArticleCoverVideoUrl(art)}
+                      poster={formatCoverImageUrl(art.imageUrl, art) || getDefaultArticleImage(art)}
                       cropStyle={art.coverCropStyle || art.coverVideoCrop}
                       autoPlay={true}
                       muted={true}
@@ -1536,6 +1550,7 @@ export default function HomePage() {
                       <ContinuousCoverVideo
                         key={`dyn-vid-${art.id || idx}`}
                         src={getArticleCoverVideoUrl(art)}
+                        poster={formatCoverImageUrl(art.imageUrl, art) || getDefaultArticleImage(art)}
                         cropStyle={art.coverCropStyle || art.coverVideoCrop}
                         autoPlay={true}
                         muted={true}
@@ -1784,6 +1799,7 @@ export default function HomePage() {
                   <ContinuousCoverVideo
                     key={`foryou-vid-${art.id || idx}`}
                     src={getArticleCoverVideoUrl(art)}
+                    poster={formatCoverImageUrl(art.imageUrl, art) || getDefaultArticleImage(art)}
                     cropStyle={art.coverCropStyle || art.coverVideoCrop}
                     autoPlay={true}
                     muted={true}

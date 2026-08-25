@@ -790,7 +790,9 @@ export function getContinuousVideoUrls(url) {
   if (/pexels\.com/i.test(cleanUrl)) {
     return {
       streamUrl: `/api/proxy-video?url=${encodeURIComponent(cleanUrl)}`,
-      embedUrl: `/api/proxy-video?url=${encodeURIComponent(cleanUrl)}`,
+      directStreamUrl: cleanUrl,
+      proxyStreamUrl: `/api/proxy-video?url=${encodeURIComponent(cleanUrl)}`,
+      embedUrl: '',
       isGDrive: false,
       isYouTube: false,
       isVimeo: false,
@@ -800,8 +802,9 @@ export function getContinuousVideoUrls(url) {
 
   return {
     streamUrl: cleanUrl,
+    directStreamUrl: cleanUrl,
     proxyStreamUrl: `/api/proxy-video?url=${encodeURIComponent(cleanUrl)}`,
-    embedUrl: cleanUrl,
+    embedUrl: '',
     isGDrive: false,
     isYouTube: false,
     isVimeo: false
