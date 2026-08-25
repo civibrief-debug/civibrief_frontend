@@ -974,14 +974,6 @@ export default function HomePage() {
             {topStoriesList.length > 1 && (
               <div 
                 className="hero-carousel-dots"
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: '6px',
-                  margin: '10px 0 16px 0',
-                  padding: 0
-                }}
                 aria-label="Top stories navigation dots"
               >
                 {topStoriesList.map((story, dotIdx) => {
@@ -990,6 +982,7 @@ export default function HomePage() {
                     <button
                       key={`top-dot-${story.id || dotIdx}`}
                       type="button"
+                      className={`hero-carousel-dot ${isActive ? 'active' : ''}`}
                       onClick={(e) => {
                         e.stopPropagation();
                         setTopStoriesSlideIndex(dotIdx);
@@ -997,17 +990,6 @@ export default function HomePage() {
                       title={`Jump to story ${dotIdx + 1}: ${story.title || ''}`}
                       aria-label={`Jump to slide ${dotIdx + 1}`}
                       aria-current={isActive ? 'true' : undefined}
-                      style={{
-                        width: isActive ? '22px' : '7px',
-                        height: '7px',
-                        borderRadius: '4px',
-                        background: isActive ? '#b90014' : 'rgba(255, 255, 255, 0.25)',
-                        border: 'none',
-                        padding: 0,
-                        cursor: 'pointer',
-                        transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                        outline: 'none'
-                      }}
                     />
                   );
                 })}
