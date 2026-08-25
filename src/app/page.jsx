@@ -363,13 +363,14 @@ export default function HomePage() {
     else if (align === 'right') flexJustify = 'flex-end';
     else if (align === 'full') flexJustify = 'stretch';
 
+    const isSidebarSlot = slotId === 'sidebar-sticky' || slotId?.includes('sidebar') || slotId?.includes('rail');
     const containerWidth = ad.customWidth || (align === 'full' ? '100%' : '100%');
     const targetUrl = ad.targetUrl || '#';
     const openNewTab = ad.openNewTab !== false;
 
-    const layout = ad.mediaLayout || (ad.format === 'billboard' ? 'full_banner' : 'side_media');
-    const fitMode = ad.mediaFit || 'contain';
-    const mediaHeight = ad.mediaHeight || (layout === 'full_banner' || layout === 'media_only' ? (ad.customHeight && ad.customHeight !== 'auto' ? ad.customHeight : '220px') : '140px');
+    const layout = ad.mediaLayout || (isSidebarSlot || ad.format === 'rectangle' ? 'stacked' : (ad.format === 'billboard' ? 'full_banner' : 'side_media'));
+    const fitMode = ad.mediaFit || (layout === 'stacked' || isSidebarSlot ? 'cover' : 'contain');
+    const mediaHeight = ad.mediaHeight || (layout === 'full_banner' || layout === 'media_only' ? (ad.customHeight && ad.customHeight !== 'auto' ? ad.customHeight : '220px') : (layout === 'stacked' || isSidebarSlot ? '160px' : '140px'));
     const mediaWidth = ad.mediaWidth || (layout === 'side_media' ? '220px' : '100%');
     const mediaBg = ad.mediaBg || (fitMode === 'contain' ? 'rgba(0, 0, 0, 0.95)' : 'transparent');
     const aspectRatio = ad.mediaAspectRatio && ad.mediaAspectRatio !== 'auto' ? ad.mediaAspectRatio : undefined;
@@ -522,7 +523,155 @@ export default function HomePage() {
       );
     }
 
-    // 3. SIDE-BY-SIDE SPLIT CARD LAYOUT
+    // 3. VERTICAL STACKED CARD LAYOUT (For Sidebar, Rectangles, and Vertical Rails)
+    if (layout === 'stacked' || isSidebarSlot || ad.format === 'rectangle') {
+      return (
+        <div style={{
+          width: '100%',
+          maxWidth: containerWidth,
+          margin: '14px auto',
+          boxSizing: 'border-box'
+        }}>
+          <div style={{
+            background: 'var(--bg-card)',
+            border: '1px solid var(--border-color)',
+            borderRadius: '8px',
+            overflow: 'hidden',
+            boxShadow: 'var(--shadow-sm)',
+            display: 'flex',
+            flexDirection: 'column',
+            width: '100%',
+            boxSizing: 'border-box'
+          }}>
+            {/* Top Sponsor Header */}
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              padding: '7px 12px',
+              background: 'var(--bg-secondary, #111827)',
+              borderBottom: '1px solid var(--border-color)'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', minWidth: 0 }}>
+                <span style={{
+                  background: '#b90014',
+                  color: '#ffffff',
+                  fontSize: '9px',
+                  fontWeight: 900,
+                  padding: '2px 6px',
+                  borderRadius: '2px',
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.5px',
+                  flexShrink: 0
+                }}>
+                  {ad.badgeText || 'SPONSORED'}
+                </span>
+                <span style={{ color: 'var(--text-muted)', fontSize: '11px', fontWeight: 800, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                  {ad.sponsorName}
+                </span>
+              </div>
+            </div>
+
+            {/* Media Box */}
+            {ad.mediaUrl && (
+              <a
+                href={targetUrl}
+                target={openNewTab ? "_blank" : "_self"}
+                rel="noopener noreferrer"
+                style={{
+                  width: '100%',
+                  height: mediaHeight === 'auto' ? '160px' : mediaHeight,
+                  aspectRatio: aspectRatio,
+                  background: mediaBg,
+                  position: 'relative',
+                  display: 'block',
+                  overflow: 'hidden',
+                  textDecoration: 'none'
+                }}
+              >
+                {ad.contentType === 'video' ? (
+                  <ContinuousCoverVideo
+                    src={ad.mediaUrl}
+                    autoPlay={true}
+                    muted={true}
+                    loop={true}
+                    playsInline={true}
+                    controls={false}
+                    style={{ width: '100%', height: '100%', objectFit: fitMode }}
+                  />
+                ) : (
+                  <img
+                    src={formatCoverImageUrl(ad.mediaUrl) || ad.mediaUrl}
+                    alt={ad.headline || 'Sponsored'}
+                    style={{ width: '100%', height: '100%', objectFit: fitMode, display: 'block' }}
+                    referrerPolicy="no-referrer"
+                  />
+                )}
+              </a>
+            )}
+
+            {/* Headline, Subtitle, and Full-Width/Flex CTA */}
+            <div style={{
+              padding: '12px 14px',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '6px',
+              background: 'var(--bg-card)'
+            }}>
+              {ad.headline && (
+                <div style={{
+                  fontSize: '14.5px',
+                  fontWeight: 800,
+                  fontFamily: 'var(--font-serif)',
+                  color: 'var(--text-primary)',
+                  lineHeight: 1.3
+                }}>
+                  {ad.headline}
+                </div>
+              )}
+              {ad.subtitle && (
+                <div style={{
+                  fontSize: '11.5px',
+                  color: 'var(--text-secondary)',
+                  lineHeight: 1.4
+                }}>
+                  {ad.subtitle}
+                </div>
+              )}
+              <a
+                href={targetUrl}
+                target={openNewTab ? "_blank" : "_self"}
+                rel="noopener noreferrer"
+                style={{
+                  background: '#b90014',
+                  color: '#ffffff',
+                  padding: '8px 14px',
+                  borderRadius: '4px',
+                  fontSize: '11px',
+                  fontWeight: 800,
+                  textDecoration: 'none',
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.5px',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '6px',
+                  marginTop: '4px',
+                  boxShadow: '0 2px 8px rgba(185, 0, 20, 0.25)',
+                  width: '100%',
+                  boxSizing: 'border-box'
+                }}
+              >
+                <span>{ad.ctaText || 'Explore'}</span>
+                <ExternalLink size={12} />
+              </a>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    // 4. SIDE-BY-SIDE SPLIT CARD LAYOUT (For In-Feed horizontal banners)
     return (
       <div style={{
         maxWidth: '100%',
@@ -542,17 +691,18 @@ export default function HomePage() {
           borderRadius: '8px',
           padding: '14px 18px',
           display: 'flex',
+          flexWrap: 'wrap',
           alignItems: 'center',
           justifyContent: 'space-between',
-          gap: '18px',
+          gap: '16px',
           boxShadow: 'var(--shadow-sm)',
           boxSizing: 'border-box'
         }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '16px', flex: 1, minWidth: 0 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '16px', flex: '1 1 260px', minWidth: 0 }}>
             {ad.mediaUrl && (
               <div style={{
-                width: mediaWidth,
-                maxWidth: '45%',
+                width: mediaWidth === '100%' ? '200px' : mediaWidth,
+                maxWidth: '40%',
                 height: mediaHeight,
                 aspectRatio: aspectRatio,
                 borderRadius: '6px',
