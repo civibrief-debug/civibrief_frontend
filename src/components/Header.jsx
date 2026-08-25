@@ -23,6 +23,7 @@ import { CrestLogo } from './CrestLogo';
 import { NavDrawer } from './NavDrawer';
 import AccountDrawer from './AccountDrawer';
 import { LanguageSelector } from './LanguageSelector';
+import { useTranslation } from '../context/TranslationContext';
 
 export function Header({ 
   onOpenSearch, 
@@ -39,6 +40,7 @@ export function Header({
   activeCategory: parentActiveCategory, 
   onSelectCategory 
 }) {
+  const { t } = useTranslation();
   const [theme, setTheme] = useState('light');
   const [localCategory, setLocalCategory] = useState('top-stories');
   const [formattedDate, setFormattedDate] = useState('August 3, 2026');
@@ -338,9 +340,9 @@ export function Header({
             <button onClick={handleToggleMenu} className="masthead-menu-btn" title={isMenuOpen ? "Close Navigation Menu" : "Open Navigation Menu"}>
               <Menu size={22} strokeWidth={1.5} />
             </button>
-            <button onClick={onOpenSearch} className="masthead-search-btn" title="Search Articles">
+            <button onClick={onOpenSearch} className="masthead-search-btn" title={t("Search Articles")}>
               <Search size={18} strokeWidth={1.75} />
-              <span>Search</span>
+              <span>{t("Search")}</span>
             </button>
           </div>
         </div>
@@ -394,7 +396,7 @@ export function Header({
                 title="User Login / Account" 
                 style={{ display: 'flex', alignItems: 'center', gap: '4px', cursor: 'pointer' }}
               >
-                <span className="link-text">LOGIN</span>
+                <span className="link-text">{t("LOGIN")}</span>
                 <User size={15} />
               </button>
             )}
@@ -408,7 +410,7 @@ export function Header({
           {/* Row 2: Red Subscribe Button */}
           <div className="masthead-right-bottom">
             <button onClick={handleSubscribeTrigger} className="subscribe-btn-red" title="Subscribe to Daily Brief Premium">
-              SUBSCRIBE
+              {t("SUBSCRIBE")}
             </button>
           </div>
         </div>
@@ -466,7 +468,7 @@ export function Header({
                       }}
                       className={`category-link ${isCatActive ? 'active' : ''} ${isHovered ? 'mega-active' : ''}`}
                     >
-                      <span>{cat.name}</span>
+                      <span>{t(cat.name)}</span>
                       {hasSections && (
                         isHovered ? <ChevronUp size={12} className="cat-chevron" /> : <ChevronDown size={12} className="cat-chevron" />
                       )}
@@ -499,10 +501,10 @@ export function Header({
                       <Lock size={22} color="#dc2626" />
                     </div>
                     <h3 style={{ fontFamily: 'Georgia, serif', fontSize: '20px', fontWeight: 800, color: 'var(--text-primary)' }}>
-                      Deep Dives 💎 Content Locked for Free Readers
+                      {t("Deep Dives 💎 Content Locked for Free Readers")}
                     </h3>
                     <p style={{ fontSize: '13px', color: 'var(--text-secondary)', maxWidth: '520px', margin: '0 auto', lineHeight: 1.4 }}>
-                      Special investigative series, interactive data charts, executive policy playbooks, and 5-year tech forecasts are restricted to logged-in members.
+                      {t("Special investigative series, interactive data charts, executive policy playbooks, and 5-year tech forecasts are restricted to logged-in members.")}
                     </p>
                     <div style={{ display: 'flex', gap: '12px', marginTop: '6px' }}>
                       <button
@@ -525,7 +527,7 @@ export function Header({
                         }}
                       >
                         <Lock size={14} />
-                        <span>Log In to Access Deep Dives 💎</span>
+                        <span>{t("Log In to Access Deep Dives 💎")}</span>
                       </button>
                     </div>
                   </div>
@@ -535,7 +537,7 @@ export function Header({
                 <div className="mega-menu-inner">
                   {/* Left Sub-Sections Column */}
                   <div className="mega-left-column">
-                    <div className="mega-section-label">SECTION</div>
+                    <div className="mega-section-label">{t("SECTION")}</div>
                     <div className="mega-subsections-grid">
                       {CATEGORY_SECTIONS[hoveredCategory].sections.map((sub, idx) => (
                         <button
@@ -546,7 +548,7 @@ export function Header({
                             setHoveredCategory(null);
                           }}
                         >
-                          <span className="sub-name">{sub.name}</span>
+                          <span className="sub-name">{t(sub.name)}</span>
                         </button>
                       ))}
                     </div>
@@ -558,7 +560,7 @@ export function Header({
                   {/* Right Newsletter Spotlight Card */}
                   <div className="mega-right-column">
                     <div className="mega-newsletter-label">
-                      {CATEGORY_SECTIONS[hoveredCategory].spotlight.tag}
+                      {t(CATEGORY_SECTIONS[hoveredCategory].spotlight.tag)}
                     </div>
                     <div className="mega-card">
                       <img 
@@ -568,10 +570,10 @@ export function Header({
                       />
                       <div className="mega-card-info">
                         <h4 className="mega-card-title">
-                          {CATEGORY_SECTIONS[hoveredCategory].spotlight.title}
+                          {t(CATEGORY_SECTIONS[hoveredCategory].spotlight.title)}
                         </h4>
                         <p className="mega-card-desc">
-                          {CATEGORY_SECTIONS[hoveredCategory].spotlight.desc}
+                          {t(CATEGORY_SECTIONS[hoveredCategory].spotlight.desc)}
                         </p>
                         <button 
                           className="mega-newsletter-btn"
@@ -580,7 +582,7 @@ export function Header({
                             setHoveredCategory(null);
                           }}
                         >
-                          {CATEGORY_SECTIONS[hoveredCategory].spotlight.cta}
+                          {t(CATEGORY_SECTIONS[hoveredCategory].spotlight.cta)}
                         </button>
                       </div>
                     </div>

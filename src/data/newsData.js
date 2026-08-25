@@ -374,7 +374,13 @@ export const DEEP_DIVES = [
     subtitle: "Four kilometers beneath the Pacific Ocean lies enough cobalt and nickel to power billions of EVs. Environmental scientists and mining syndicates are locked in a high-stakes standoff.",
     author: "Helena Zhao & Peter Krauss",
     readTime: "14 min read",
-    imageUrl: "https://images.unsplash.com/photo-1544551763-46a013bb70d5?auto=format&fit=crop&w=1200&q=80"
+    imageUrl: "https://images.unsplash.com/photo-1544551763-46a013bb70d5?auto=format&fit=crop&w=1200&q=80",
+    isDeepDive: true,
+    content: `Four thousand meters below the Pacific surface, between Hawaii and Mexico, rests the Clarion-Clipperton Zone—a 4.5 million square kilometer abyssal plain strewn with billions of polymetallic nodules. These potato-sized mineral aggregates contain more nickel, cobalt, copper, and manganese than all known terrestrial reserves combined.
+
+As the global transition to electric mobility and renewable energy accelerates, deep-sea mining syndicates backed by sovereign investment funds are preparing industrial robotic crawlers to harvest the seabed floor.
+
+However, marine biologists warn that these abyssal ecosystems, untouched for millions of years, harbor unique benthic life forms that may never recover from heavy sedimentation plumes and habitat destruction. International regulatory bodies in Kingston, Jamaica, are currently negotiating binding environmental exploitation codes that will define oceanic governance for the next century.`
   },
   {
     id: "deep-dive-water-scarcity-tech",
@@ -383,6 +389,12 @@ export const DEEP_DIVES = [
     subtitle: "Atomic-scale membranes could solve freshwater security for 2 billion people using 80% less energy than reverse osmosis.",
     author: "Tariq Al-Mansoor",
     readTime: "11 min read",
-    imageUrl: "https://images.unsplash.com/photo-1500382017468-9049fed747ef?auto=format&fit=crop&w=1200&q=80"
+    imageUrl: "https://images.unsplash.com/photo-1500382017468-9049fed747ef?auto=format&fit=crop&w=1200&q=80",
+    isDeepDive: true,
+    content: `Freshwater scarcity is emerging as the critical geopolitical bottleneck of the 21st century. While traditional reverse osmosis desalination facilities supply millions of cubic meters of potable water across arid coastlines, their extreme energy intensity and brine discharge create severe ecological and economic costs.
+
+A revolutionary breakthrough in single-layer nanoporous graphene membranes is overturning these constraints. By drilling sub-nanometer pores that allow water molecules to pass while rejecting sodium and chloride ions at atomic precision, new membranes achieve five times the hydraulic throughput of polyamide filters.
+
+Pilot installations in Ras Al-Khair and Southern California are demonstrating an 80% reduction in thermal and electrical energy consumption, promising to make municipal seawater desalination economically viable for landlocked agricultural hubs and developing coastal megacities.`
   }
 ];

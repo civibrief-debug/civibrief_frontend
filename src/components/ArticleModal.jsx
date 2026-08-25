@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import ShareModal from './ShareModal';
 import SafeArticleBody from './SafeArticleBody';
 import ArticleAdBanner from './ArticleAdBanner';
@@ -25,7 +25,7 @@ import {
 } from 'lucide-react';
 
 export const ArticleModal = ({ article, onClose, isLoggedIn, onOpenLogin, onLoginSuccess }) => {
-  const { language: globalLanguage, translateArticle } = useTranslation();
+  const { language: globalLanguage, getSynchronousArticle, translateArticle, t } = useTranslation();
   const [localLanguage, setLocalLanguage] = useState(globalLanguage);
   const [localIsTranslating, setLocalIsTranslating] = useState(false);
   const [translatedArticle, setTranslatedArticle] = useState(null);
@@ -72,9 +72,11 @@ export const ArticleModal = ({ article, onClose, isLoggedIn, onOpenLogin, onLogi
     if (progressTimerRef.current) clearInterval(progressTimerRef.current);
   }, [localLanguage]);
 
-
-
-  const activeArticle = translatedArticle || article;
+  const activeArticle = useMemo(() => {
+    if (!article || localLanguage === 'en') return article;
+    if (translatedArticle && translatedArticle._translatedLang === localLanguage) return translatedArticle;
+    return getSynchronousArticle(article, localLanguage);
+  }, [article, localLanguage, translatedArticle, getSynchronousArticle]);
 
   const [zoomLevel, setZoomLevel] = useState(1.0); // 0.7 to 1.8 document zoom scale
   const [isPlayingAudio, setIsPlayingAudio] = useState(false);
@@ -605,7 +607,7 @@ export const ArticleModal = ({ article, onClose, isLoggedIn, onOpenLogin, onLogi
             <div className="article-modal-header" dir="ltr">
               <div className="article-modal-category">
                 <span className="category-tag-badge">
-                  {activeArticle.category || "NEWS"} {isDeepDive && "💎 PREMIUM"}
+                  {t(activeArticle.category || "NEWS")} {isDeepDive && ("💎 " + t("MEMBER EXCLUSIVE"))}
                 </span>
               </div>
             </div>
@@ -1107,10 +1109,10 @@ export const ArticleModal = ({ article, onClose, isLoggedIn, onOpenLogin, onLogi
                   <Lock size={26} color="#dc2626" />
                 </div>
                 <h3 style={{ fontFamily: 'Georgia, serif', fontSize: '22px', fontWeight: 800, color: '#111', marginBottom: '6px' }}>
-                  Deep Dives 💎 Member Exclusive
+                  {t("Deep Dives 💎 Member Exclusive")}
                 </h3>
                 <p style={{ fontSize: '14px', color: '#555', maxWidth: '460px', marginBottom: '18px', lineHeight: 1.45 }}>
-                  This investigative report and raw dataset are restricted to registered Daily Brief members. Please log in or sign up to continue reading.
+                  {t("This investigative report and raw dataset are restricted to registered Daily Brief members. Please log in or sign up to continue reading.")}
                 </p>
                 <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', justifyContent: 'center' }}>
                   <button
@@ -1118,7 +1120,7 @@ export const ArticleModal = ({ article, onClose, isLoggedIn, onOpenLogin, onLogi
                     style={{ background: '#dc2626', color: '#fff', border: 'none', padding: '12px 24px', fontWeight: 800, fontSize: '14px', borderRadius: '6px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px' }}
                   >
                     <Lock size={16} />
-                    <span>Log In to Unlock Story</span>
+                    <span>{t("Log In to Unlock Story")}</span>
                   </button>
                   <button
                     onClick={() => {
@@ -1129,7 +1131,7 @@ export const ArticleModal = ({ article, onClose, isLoggedIn, onOpenLogin, onLogi
                     style={{ background: '#111', color: '#fff', border: 'none', padding: '12px 20px', fontWeight: 700, fontSize: '13px', borderRadius: '6px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}
                   >
                     <UserCheck size={16} />
-                    <span>1-Click Free Member Access</span>
+                    <span>{t("1-Click Free Member Access")}</span>
                   </button>
                 </div>
               </div>

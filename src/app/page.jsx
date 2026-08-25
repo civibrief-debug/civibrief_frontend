@@ -50,6 +50,23 @@ let globalMemoryArticles = null;
 let globalMemoryAds = null;
 let globalMemorySections = null;
 
+const EDITORIAL_OPINION_STATIC = {
+  title: "The Architecture of Sovereign Autonomy in an Era of Multipolar Fractures",
+  deck: "Why independent institutional capacity and domestic silicon manufacturing constitute the genuine pillars of national security."
+};
+
+const FAST_NEWS_WIRES_STATIC = [
+  { time: "14 MINS AGO", text: "Reserve Bank maintains repo rate policy stance amid food inflation monitoring." },
+  { time: "28 MINS AGO", text: "Cabinet Committee approves ₹76,000 Cr incentive outlay for semiconductor fab assembly." },
+  { time: "42 MINS AGO", text: "ISRO launches third ocean surveillance payload aboard upgraded GSLV rocket." },
+  { time: "1 HOUR AGO", text: "Bilateral energy agreements concluded for green hydrogen corridor to Europe." }
+];
+
+const SPONSORED_SHOWCASE_STATIC = {
+  title: "Apex Sovereign Asset Management: Q3 Global Macro Outlook Report",
+  subtitle: "Explore institutional research on infrastructure yields ↗"
+};
+
 const getInstantCache = (key, fallback = []) => {
   if (typeof window === 'undefined') return fallback;
   try {
@@ -65,10 +82,25 @@ const getInstantCache = (key, fallback = []) => {
 export default function HomePage() {
   const [dbArticles, setDbArticles] = useState([]);
   const [translatedArticles, setTranslatedArticles] = useState(null);
+  const [translatedDeepDives, setTranslatedDeepDives] = useState(null);
+  const [translatedBreakingNews, setTranslatedBreakingNews] = useState(null);
+  const [translatedWires, setTranslatedWires] = useState(null);
+  const [translatedOpinion, setTranslatedOpinion] = useState(null);
+  const [translatedSponsor, setTranslatedSponsor] = useState(null);
+
   const [selectedArticle, setSelectedArticle] = useState(null);
   const [isLoginOpen, setIsLoginOpen] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const { language, translateMultipleArticles, isTranslating } = useTranslation();
+  const { 
+    language, 
+    t, 
+    getSynchronousArticle, 
+    getSynchronousArticleList, 
+    translateMultipleArticles, 
+    translateDeepDives, 
+    translateBatch, 
+    isTranslating 
+  } = useTranslation();
 
   const [homepageAds, setHomepageAds] = useState([]);
   const [homepageArticleSections, setHomepageArticleSections] = useState([]);
@@ -196,22 +228,6 @@ export default function HomePage() {
     return () => clearInterval(timer);
   }, []);
 
-  // Handle translation when articles or language change
-  useEffect(() => {
-    let isMounted = true;
-    if (language === 'en') {
-      setTranslatedArticles(null);
-      return;
-    }
-    const baseArticles = dbArticles.length > 0 ? dbArticles : [FALLBACK_HERO_FEATURED, ...FALLBACK_HERO_SECONDARY, ...FALLBACK_MAIN_ARTICLES];
-    if (baseArticles.length > 0) {
-      translateMultipleArticles(baseArticles, language).then(translated => {
-        if (isMounted && translated) setTranslatedArticles(translated);
-      });
-    }
-    return () => { isMounted = false; };
-  }, [dbArticles, language, translateMultipleArticles]);
-
   const isDeepDiveArticle = (a) => {
     if (!a) return false;
     const cat = (a.category || '').toLowerCase();
@@ -236,8 +252,114 @@ export default function HomePage() {
     return merged;
   }, [dbArticles]);
 
-  const rawActiveArticles = translatedArticles || combinedArticlesPool;
-  const activeArticles = rawActiveArticles.filter(a => !isDeepDiveArticle(a));
+  // Handle translation when articles, deep dives, wires, breaking news, or language change
+  useEffect(() => {
+    let isMounted = true;
+    if (language === 'en') {
+      setTranslatedArticles(null);
+      setTranslatedDeepDives(null);
+      setTranslatedBreakingNews(null);
+      setTranslatedWires(null);
+      setTranslatedOpinion(null);
+      setTranslatedSponsor(null);
+      return;
+    }
+
+    if (combinedArticlesPool.length > 0) {
+      translateMultipleArticles(combinedArticlesPool, language).then(translated => {
+        if (isMounted && translated) setTranslatedArticles(translated);
+      });
+    }
+
+    if (FALLBACK_DEEP_DIVES && FALLBACK_DEEP_DIVES.length > 0) {
+      translateDeepDives(FALLBACK_DEEP_DIVES, language).then(translated => {
+        if (isMounted && translated) setTranslatedDeepDives(translated);
+      });
+    }
+
+    if (BREAKING_NEWS && BREAKING_NEWS.length > 0) {
+      translateBatch(BREAKING_NEWS, language).then(translated => {
+        if (isMounted && translated) setTranslatedBreakingNews(translated);
+      });
+    }
+
+    translateBatch(FAST_NEWS_WIRES_STATIC.map(w => w.text), language).then(translated => {
+      if (isMounted && translated) {
+        const mapped = FAST_NEWS_WIRES_STATIC.map((w, idx) => ({
+          time: t(w.time),
+          text: translated[idx] || w.text
+        }));
+        setTranslatedWires(mapped);
+      }
+    });
+
+    translateBatch([EDITORIAL_OPINION_STATIC.title, EDITORIAL_OPINION_STATIC.deck], language).then(translated => {
+      if (isMounted && translated) {
+        setTranslatedOpinion({
+          title: translated[0] || EDITORIAL_OPINION_STATIC.title,
+          deck: translated[1] || EDITORIAL_OPINION_STATIC.deck
+        });
+      }
+    });
+
+    translateBatch([SPONSORED_SHOWCASE_STATIC.title, SPONSORED_SHOWCASE_STATIC.subtitle], language).then(translated => {
+      if (isMounted && translated) {
+        setTranslatedSponsor({
+          title: translated[0] || SPONSORED_SHOWCASE_STATIC.title,
+          subtitle: translated[1] || SPONSORED_SHOWCASE_STATIC.subtitle
+        });
+      }
+    });
+
+    return () => { isMounted = false; };
+  }, [combinedArticlesPool, language, translateMultipleArticles, translateDeepDives, translateBatch, t]);
+
+  const activeArticles = useMemo(() => {
+    const rawPool = combinedArticlesPool.filter(a => !isDeepDiveArticle(a));
+    if (language === 'en') return rawPool;
+    if (translatedArticles && translatedArticles.length > 0) {
+      return translatedArticles.filter(a => !isDeepDiveArticle(a));
+    }
+    return getSynchronousArticleList(rawPool, language);
+  }, [combinedArticlesPool, language, translatedArticles, getSynchronousArticleList]);
+
+  const activeDeepDives = useMemo(() => {
+    if (language === 'en') return FALLBACK_DEEP_DIVES;
+    if (translatedDeepDives && translatedDeepDives.length > 0) return translatedDeepDives;
+    return getSynchronousArticleList(FALLBACK_DEEP_DIVES, language);
+  }, [language, translatedDeepDives, getSynchronousArticleList]);
+
+  const activeBreakingNews = useMemo(() => {
+    if (language === 'en') return BREAKING_NEWS;
+    if (translatedBreakingNews && translatedBreakingNews.length > 0) return translatedBreakingNews;
+    return BREAKING_NEWS.map(b => t(b));
+  }, [language, translatedBreakingNews, t]);
+
+  const activeOpinion = useMemo(() => {
+    if (language === 'en') return EDITORIAL_OPINION_STATIC;
+    if (translatedOpinion) return translatedOpinion;
+    return {
+      title: t(EDITORIAL_OPINION_STATIC.title),
+      deck: t(EDITORIAL_OPINION_STATIC.deck)
+    };
+  }, [language, translatedOpinion, t]);
+
+  const activeWires = useMemo(() => {
+    if (translatedWires && translatedWires.length > 0) return translatedWires;
+    return FAST_NEWS_WIRES_STATIC.map(w => ({
+      time: t(w.time),
+      text: t(w.text)
+    }));
+  }, [language, translatedWires, t]);
+
+  const activeSponsor = useMemo(() => {
+    if (language === 'en') return SPONSORED_SHOWCASE_STATIC;
+    if (translatedSponsor) return translatedSponsor;
+    return {
+      title: t(SPONSORED_SHOWCASE_STATIC.title),
+      subtitle: t(SPONSORED_SHOWCASE_STATIC.subtitle)
+    };
+  }, [language, translatedSponsor, t]);
 
   // Helper to get configuration for a homepage editorial zone
   const getZoneConfig = (zoneId) => {
@@ -852,12 +974,12 @@ export default function HomePage() {
       <div className="et-promo-strip">
         <div className="et-promo-inner">
           <div className="et-promo-text-group">
-            <span className="et-promo-badge">PRO EDITION</span>
+            <span className="et-promo-badge">{t("PRO EDITION")}</span>
             <span className="et-promo-headline">
-              Gift Yourself Financial & Geopolitical Clarity with Daily Brief Prime
+              {t("Gift Yourself Financial & Geopolitical Clarity with Daily Brief Prime")}
             </span>
             <span className="et-promo-timer">
-              ⏱ Free Trial Offer Extended For 04 : 12 : 38
+              ⏱ {t("Free Trial Offer Extended For")} 04 : 12 : 38
             </span>
           </div>
 
@@ -866,7 +988,7 @@ export default function HomePage() {
             onClick={() => setIsLoginOpen(true)}
             className="et-promo-btn"
           >
-            <span>Start Free Trial @ ₹0</span>
+            <span>{t("Start Free Trial @ ₹0")}</span>
             <ArrowUpRight size={13} />
           </button>
         </div>
@@ -877,13 +999,13 @@ export default function HomePage() {
         <div className="breaking-alert-inner">
           <div className="breaking-badge">
             <span className="breaking-pulse-dot" />
-            <span>BREAKING WIRE</span>
+            <span>{t("BREAKING WIRE")}</span>
           </div>
           <div className="breaking-headline-text">
-            {BREAKING_NEWS[breakingIndex] || BREAKING_NEWS[0]}
+            {activeBreakingNews[breakingIndex] || activeBreakingNews[0] || BREAKING_NEWS[0]}
           </div>
           <Link href="/edition" style={{ fontSize: '11px', fontWeight: 800, color: '#b90014', textTransform: 'uppercase', textDecoration: 'none', whiteSpace: 'nowrap' }}>
-            Today's e-Paper 📰
+            {t("Today's e-Paper 📰")}
           </Link>
         </div>
       </div>
@@ -948,14 +1070,14 @@ export default function HomePage() {
                         {story.hasAudio && (
                           <div style={{ position: 'absolute', top: '10px', right: '10px', background: 'rgba(185, 0, 20, 0.9)', color: '#ffffff', fontSize: '9.5px', fontWeight: 800, padding: '3px 8px', borderRadius: '3px', display: 'flex', alignItems: 'center', gap: '4px' }}>
                             <Volume2 size={12} />
-                            <span>AUDIO</span>
+                            <span>{t("AUDIO")}</span>
                           </div>
                         )}
                       </div>
 
                       <div>
                         <span className="news-kicker">
-                          {story.kicker ? story.kicker.toUpperCase() : (story.category || 'TOP STORY')}
+                          {story.kicker ? t(story.kicker.toUpperCase()) : t(story.category || 'TOP STORY')}
                         </span>
                         <h1 className="lead-story-title">
                           {story.title}
@@ -964,7 +1086,7 @@ export default function HomePage() {
                           {story.summary || story.subtitle || story.excerpt}
                         </p>
                         <div className="lead-story-byline">
-                          <span>By <strong>{story.author || 'Editorial Board'}</strong></span>
+                          <span>{t("By")} <strong>{story.author || 'Editorial Board'}</strong></span>
                           <span>•</span>
                           <span>{story.readTime || '4 min read'}</span>
                         </div>
@@ -1031,7 +1153,7 @@ export default function HomePage() {
                     />
                   )}
                   <span className="news-kicker" style={{ fontSize: '10px' }}>
-                    {subLead1.kicker ? subLead1.kicker.toUpperCase() : subLead1.category}
+                    {subLead1.kicker ? t(subLead1.kicker.toUpperCase()) : t(subLead1.category)}
                   </span>
                   <h3 className="sub-story-title">
                     {subLead1.title}
@@ -1067,7 +1189,7 @@ export default function HomePage() {
                     />
                   )}
                   <span className="news-kicker" style={{ fontSize: '10px' }}>
-                    {subLead2.kicker ? subLead2.kicker.toUpperCase() : subLead2.category}
+                    {subLead2.kicker ? t(subLead2.kicker.toUpperCase()) : t(subLead2.category)}
                   </span>
                   <h3 className="sub-story-title">
                     {subLead2.title}
@@ -1107,7 +1229,7 @@ export default function HomePage() {
                   />
                 )}
                 <span className="news-kicker">
-                  {secondLead.kicker ? secondLead.kicker.toUpperCase() : secondLead.category}
+                  {secondLead.kicker ? t(secondLead.kicker.toUpperCase()) : t(secondLead.category)}
                 </span>
                 <h2 className="second-lead-title">
                   {secondLead.title}
@@ -1131,7 +1253,7 @@ export default function HomePage() {
                 >
                   <div className="stacked-story-content">
                     <span className="news-kicker" style={{ fontSize: '9.5px', marginBottom: '2px' }}>
-                      {story.kicker ? story.kicker.toUpperCase() : story.category}
+                      {story.kicker ? t(story.kicker.toUpperCase()) : t(story.category)}
                     </span>
                     <h4 className="stacked-story-title">
                       {story.title}
@@ -1167,7 +1289,7 @@ export default function HomePage() {
             </div>
 
             <Link href="/section/global" style={{ fontSize: '11px', fontWeight: 800, color: '#b90014', textTransform: 'uppercase', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '4px', marginTop: '4px' }}>
-              <span>Read More Top Stories</span>
+              <span>{t("Read More Top Stories")}</span>
               <ArrowRight size={12} />
             </Link>
           </div>
@@ -1178,19 +1300,19 @@ export default function HomePage() {
             <div className="the-hindu-opinion-box">
               <div className="opinion-crest-header">
                 <CrestLogo style={{ width: '22px', height: '22px' }} />
-                <span className="opinion-crest-title">{getZoneConfig('zone-editorial-opinion')?.sectionTitle || 'EDITORIAL OPINION'}</span>
+                <span className="opinion-crest-title">{t(getZoneConfig('zone-editorial-opinion')?.sectionTitle || 'EDITORIAL OPINION')}</span>
               </div>
               <h3 
                 className="opinion-main-title"
                 onClick={() => setSelectedArticle(leadStory)}
               >
-                The Architecture of Sovereign Autonomy in an Era of Multipolar Fractures
+                {activeOpinion.title}
               </h3>
               <p className="opinion-deck">
-                Why independent institutional capacity and domestic silicon manufacturing constitute the genuine pillars of national security.
+                {activeOpinion.deck}
               </p>
               <Link href="/section/opinion" className="opinion-read-link">
-                <span>Read Our Editorials</span>
+                <span>{t("Read Our Editorials")}</span>
                 <ArrowRight size={11} />
               </Link>
             </div>
@@ -1198,16 +1320,11 @@ export default function HomePage() {
             {/* ET-Style Fast News Timeline */}
             <div className="et-fast-news-box">
               <div className="fast-news-header">
-                <span className="fast-news-title">LATEST INTELLIGENCE ⚡</span>
-                <span style={{ fontSize: '10px', color: 'var(--text-muted)', fontWeight: 700 }}>UPDATED 2M AGO</span>
+                <span className="fast-news-title">{t("LATEST INTELLIGENCE ⚡")}</span>
+                <span style={{ fontSize: '10px', color: 'var(--text-muted)', fontWeight: 700 }}>{t("UPDATED 2M AGO")}</span>
               </div>
 
-              {[
-                { time: "14 MINS AGO", text: "Reserve Bank maintains repo rate policy stance amid food inflation monitoring." },
-                { time: "28 MINS AGO", text: "Cabinet Committee approves ₹76,000 Cr incentive outlay for semiconductor fab assembly." },
-                { time: "42 MINS AGO", text: "ISRO launches third ocean surveillance payload aboard upgraded GSLV rocket." },
-                { time: "1 HOUR AGO", text: "Bilateral energy agreements concluded for green hydrogen corridor to Europe." }
-              ].map((wire, wIdx) => (
+              {activeWires.map((wire, wIdx) => (
                 <div key={`wire-${wIdx}`} className="fast-news-item" onClick={() => setSelectedArticle(activeArticles[wIdx % activeArticles.length] || leadStory)}>
                   <div className="fast-news-time">{wire.time}</div>
                   <div className="fast-news-text">{wire.text}</div>
@@ -1218,13 +1335,13 @@ export default function HomePage() {
             {/* Sponsored Partner Highlight */}
             <div style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-color)', borderRadius: '4px', padding: '10px 12px' }}>
               <div style={{ fontSize: '9px', fontWeight: 900, color: '#b90014', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '4px' }}>
-                SPONSORED SHOWCASE
+                {t("SPONSORED SHOWCASE")}
               </div>
               <div style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-primary)', lineHeight: 1.35 }}>
-                Apex Sovereign Asset Management: Q3 Global Macro Outlook Report
+                {activeSponsor.title}
               </div>
               <div style={{ fontSize: '10.5px', color: 'var(--text-muted)', marginTop: '4px' }}>
-                Explore institutional research on infrastructure yields ↗
+                {activeSponsor.subtitle}
               </div>
             </div>
           </div>
@@ -1246,10 +1363,10 @@ export default function HomePage() {
             <div className="section-ribbon-header" style={{ marginBottom: '8px' }}>
               <div className="section-ribbon-title">
                 <span className="bar" />
-                <span>{getZoneConfig('zone-band-1')?.sectionTitle || 'National & Global Affairs'}</span>
+                <span>{t(getZoneConfig('zone-band-1')?.sectionTitle || 'National & Global Affairs')}</span>
               </div>
               <Link href="/section/global" className="section-view-all-link">
-                <span>View Desk</span> <ArrowRight size={11} />
+                <span>{t("View Desk")}</span> <ArrowRight size={11} />
               </Link>
             </div>
 
@@ -1278,7 +1395,7 @@ export default function HomePage() {
                     referrerPolicy="no-referrer"
                   />
                 )}
-                <span className="news-kicker">{band1Stories[0].kicker || band1Stories[0].category || 'POLICY & INFRASTRUCTURE'}</span>
+                <span className="news-kicker">{band1Stories[0].kicker ? t(band1Stories[0].kicker) : t(band1Stories[0].category || 'POLICY & INFRASTRUCTURE')}</span>
                 <h3 style={{ fontFamily: 'var(--font-serif)', fontSize: '18px', fontWeight: 800, color: 'var(--text-primary)', margin: '2px 0' }}>
                   {band1Stories[0].title}
                 </h3>
@@ -1292,7 +1409,7 @@ export default function HomePage() {
             {band1Stories.slice(1, 5).map((art, aIdx) => (
               <article key={`nat-art-${aIdx}`} className="stacked-story-row" onClick={() => setSelectedArticle(art)}>
                 <div className="stacked-story-content">
-                  <span className="news-kicker" style={{ fontSize: '9.5px' }}>{art.category || 'GLOBAL'}</span>
+                  <span className="news-kicker" style={{ fontSize: '9.5px' }}>{t(art.category || 'GLOBAL')}</span>
                   <h4 className="stacked-story-title">{art.title}</h4>
                   <div style={{ fontSize: '10.5px', color: 'var(--text-muted)', marginTop: '2px' }}>{art.author || 'Desk'}</div>
                 </div>
@@ -1327,10 +1444,10 @@ export default function HomePage() {
             <div className="section-ribbon-header" style={{ marginBottom: '8px' }}>
               <div className="section-ribbon-title">
                 <span className="bar" />
-                <span>{getZoneConfig('zone-band-2')?.sectionTitle || 'World & Geopolitics'}</span>
+                <span>{t(getZoneConfig('zone-band-2')?.sectionTitle || 'World & Geopolitics')}</span>
               </div>
               <Link href="/section/global" className="section-view-all-link">
-                <span>More World</span> <ArrowRight size={11} />
+                <span>{t("More World")}</span> <ArrowRight size={11} />
               </Link>
             </div>
 
@@ -1340,7 +1457,7 @@ export default function HomePage() {
                 onClick={() => setSelectedArticle(art)}
                 style={{ cursor: 'pointer', paddingBottom: '12px', borderBottom: '1px solid var(--border-color)' }}
               >
-                <span className="news-kicker" style={{ fontSize: '9.5px' }}>{art.category || 'GLOBAL'}</span>
+                <span className="news-kicker" style={{ fontSize: '9.5px' }}>{t(art.category || 'GLOBAL')}</span>
                 <h4 style={{ fontFamily: 'var(--font-serif)', fontSize: '14.5px', fontWeight: 700, color: 'var(--text-primary)', lineHeight: 1.35, margin: '2px 0 4px' }}>
                   {art.title}
                 </h4>
@@ -1375,7 +1492,7 @@ export default function HomePage() {
                   />
                 )}
                 <div style={{ padding: '8px 12px' }}>
-                  <span className="news-kicker" style={{ fontSize: '9.5px' }}>{(band2Stories[4] || activeArticles[0])?.category?.toUpperCase() || 'GLOBAL SPOTLIGHT'}</span>
+                  <span className="news-kicker" style={{ fontSize: '9.5px' }}>{t((band2Stories[4] || activeArticles[0])?.category?.toUpperCase() || 'GLOBAL SPOTLIGHT')}</span>
                   <div style={{ fontSize: '12.5px', fontWeight: 800, color: 'var(--text-primary)' }}>
                     {(band2Stories[4] || activeArticles[0])?.title}
                   </div>
@@ -1389,7 +1506,7 @@ export default function HomePage() {
             <div className="most-read-newspaper-box">
               <div className="most-read-header">
                 <Flame size={16} color="#b90014" />
-                <span>MOST READ TODAY</span>
+                <span>{t("MOST READ TODAY")}</span>
               </div>
 
               {(activeArticles.length > 0 ? activeArticles.slice(0, 5) : FALLBACK_MOST_READ).map((item, idx) => (
@@ -1401,7 +1518,7 @@ export default function HomePage() {
                   <span className="rank-digit">0{idx + 1}</span>
                   <div className="rank-headline-content">
                     <span className="news-kicker" style={{ fontSize: '9px', marginBottom: '1px' }}>
-                      {item.category ? item.category.toUpperCase() : 'NEWS'}
+                      {item.category ? t(item.category.toUpperCase()) : t('NEWS')}
                     </span>
                     <div className="rank-headline-text">
                       {item.title}
@@ -1429,10 +1546,10 @@ export default function HomePage() {
           <div className="section-ribbon-header">
             <div className="section-ribbon-title">
               <span className="bar" />
-              <span>{getZoneConfig('zone-dept-1')?.sectionTitle || 'Business, Markets & Economy'}</span>
+              <span>{t(getZoneConfig('zone-dept-1')?.sectionTitle || 'Business, Markets & Economy')}</span>
             </div>
             <Link href="/section/markets" className="section-view-all-link">
-              <span>All Business News</span> <ArrowRight size={11} />
+              <span>{t("All Business News")}</span> <ArrowRight size={11} />
             </Link>
           </div>
 
@@ -1462,7 +1579,7 @@ export default function HomePage() {
                     referrerPolicy="no-referrer"
                   />
                 )}
-                <span className="news-kicker" style={{ fontSize: '9.5px' }}>{art.category || 'BUSINESS'}</span>
+                <span className="news-kicker" style={{ fontSize: '9.5px' }}>{t(art.category || 'BUSINESS')}</span>
                 <h3 className="dept-card-title">{art.title}</h3>
                 <div className="dept-card-byline">{art.author || 'Markets Desk'}</div>
               </article>
@@ -1480,10 +1597,10 @@ export default function HomePage() {
           <div className="section-ribbon-header">
             <div className="section-ribbon-title">
               <span className="bar" />
-              <span>{getZoneConfig('zone-dept-2')?.sectionTitle || 'Technology, AI & Space'}</span>
+              <span>{t(getZoneConfig('zone-dept-2')?.sectionTitle || 'Technology, AI & Space')}</span>
             </div>
             <Link href="/section/tech" className="section-view-all-link">
-              <span>Explore Tech</span> <ArrowRight size={11} />
+              <span>{t("Explore Tech")}</span> <ArrowRight size={11} />
             </Link>
           </div>
 
@@ -1513,7 +1630,7 @@ export default function HomePage() {
                     referrerPolicy="no-referrer"
                   />
                 )}
-                <span className="news-kicker" style={{ fontSize: '9.5px' }}>{art.category || 'TECH & AI'}</span>
+                <span className="news-kicker" style={{ fontSize: '9.5px' }}>{t(art.category || 'TECH & AI')}</span>
                 <h3 className="dept-card-title">{art.title}</h3>
                 <div className="dept-card-byline">{art.author || 'Tech Reporter'}</div>
               </article>
@@ -1532,13 +1649,13 @@ export default function HomePage() {
             <div className="section-ribbon-header">
               <div className="section-ribbon-title">
                 <span className="bar" />
-                <span>{customSec.sectionTitle || customSec.zoneName}</span>
+                <span>{t(customSec.sectionTitle || customSec.zoneName)}</span>
                 <span style={{ fontSize: '11px', background: 'rgba(185, 0, 20, 0.15)', color: '#b90014', padding: '2px 8px', borderRadius: '4px', marginLeft: '6px' }}>
-                  {customSec.zoneBadge || customSec.category}
+                  {t(customSec.zoneBadge || customSec.category)}
                 </span>
               </div>
               <span className="section-view-all-link">
-                <span>{customSec.category} Desk</span> <ArrowRight size={11} />
+                <span>{t(customSec.category)} {t("Desk")}</span> <ArrowRight size={11} />
               </span>
             </div>
 
@@ -1568,7 +1685,7 @@ export default function HomePage() {
                       referrerPolicy="no-referrer"
                     />
                   )}
-                  <span className="news-kicker" style={{ fontSize: '9.5px' }}>{art.category || customSec.category}</span>
+                  <span className="news-kicker" style={{ fontSize: '9.5px' }}>{t(art.category || customSec.category)}</span>
                   <h3 className="dept-card-title">{art.title}</h3>
                   <div className="dept-card-byline">{art.author || 'Desk Correspondent'}</div>
                 </article>
@@ -1588,10 +1705,10 @@ export default function HomePage() {
               <div>
                 <div className="category-tag" style={{ color: '#34d399' }}>
                   <Sparkles size={12} />
-                  <span>INVESTIGATIVE JOURNALISM</span>
+                  <span>{t("INVESTIGATIVE JOURNALISM")}</span>
                 </div>
                 <h2 style={{ fontFamily: 'var(--font-serif)', fontSize: '28px', fontWeight: 900, color: '#ffffff', margin: '4px 0' }}>
-                  Deep Dives 💎
+                  {t("Deep Dives 💎")}
                 </h2>
               </div>
 
@@ -1601,16 +1718,16 @@ export default function HomePage() {
                 }}
                 style={{ background: 'none', border: 'none', color: '#34d399', fontWeight: 800, fontSize: '13px', display: 'flex', alignItems: 'center', gap: '4px', cursor: 'pointer' }}
               >
-                Explore Archive {!isLoggedIn && <Lock size={13} />} <ArrowUpRight size={16} />
+                {t("Explore Archive")} {!isLoggedIn && <Lock size={13} />} <ArrowUpRight size={16} />
               </button>
             </div>
 
             <div className="deep-dives-grid">
-              {FALLBACK_DEEP_DIVES.map((dive) => (
+              {activeDeepDives.map((dive) => (
                 <article 
                   key={dive.id} 
                   className="deep-card"
-                  onClick={() => handleDeepDiveClick(dive)}
+                  onClick={() => setSelectedArticle(dive)}
                   style={{ cursor: 'pointer', position: 'relative' }}
                 >
                   <img 
@@ -1621,12 +1738,12 @@ export default function HomePage() {
                   {!isLoggedIn && (
                     <div style={{ position: 'absolute', top: '12px', right: '12px', background: 'rgba(185, 0, 20, 0.95)', color: '#fff', fontSize: '9.5px', fontWeight: 800, padding: '3px 8px', borderRadius: '3px', display: 'flex', alignItems: 'center', gap: '4px', zIndex: 10 }}>
                       <Lock size={11} />
-                      <span>MEMBER EXCLUSIVE</span>
+                      <span>{t("MEMBER EXCLUSIVE")}</span>
                     </div>
                   )}
                   <div className="deep-card-content">
                     <div className="category-tag" style={{ fontSize: '10px' }}>
-                      <span>{dive.category}</span>
+                      <span>{t(dive.category)}</span>
                     </div>
                     <h3 style={{ fontFamily: 'var(--font-serif)', fontSize: '20px', fontWeight: 800, color: '#ffffff', marginBottom: '6px' }}>
                       {dive.title}
@@ -1635,7 +1752,7 @@ export default function HomePage() {
                       {dive.subtitle}
                     </p>
                     <div style={{ fontSize: '11px', color: '#34d399', fontWeight: 700 }}>
-                      By {dive.author}
+                      {t("By")} {dive.author}
                     </div>
                   </div>
                 </article>
@@ -1654,12 +1771,12 @@ export default function HomePage() {
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', borderBottom: '1px solid var(--border-color)', paddingBottom: '8px', marginBottom: '12px' }}>
             <DollarSign size={18} color="#b90014" />
             <span style={{ fontFamily: 'var(--font-serif)', fontSize: '15px', fontWeight: 900, color: 'var(--text-primary)' }}>
-              CURRENCY CONVERTER
+              {t("CURRENCY CONVERTER")}
             </span>
           </div>
 
           <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '8px' }}>
-            Instant conversion at live institutional interbank rates:
+            {t("Instant conversion at live institutional interbank rates:")}
           </div>
 
           <div className="converter-row" suppressHydrationWarning>
@@ -1703,12 +1820,12 @@ export default function HomePage() {
               className="converter-convert-btn"
               suppressHydrationWarning
             >
-              CONVERT
+              {t("CONVERT")}
             </button>
           </div>
 
           <div style={{ background: 'var(--bg-secondary)', padding: '10px 14px', borderRadius: '4px', marginTop: '10px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }} suppressHydrationWarning>
-            <span style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-muted)' }}>Estimated Value:</span>
+            <span style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-muted)' }}>{t("Estimated Value:")}</span>
             <span style={{ fontFamily: 'var(--font-mono)', fontSize: '16px', fontWeight: 900, color: '#059669' }}>
               {convResult} {convTo}
             </span>
@@ -1719,10 +1836,10 @@ export default function HomePage() {
         <div className="utility-card-box" suppressHydrationWarning>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid var(--border-color)', paddingBottom: '8px', marginBottom: '10px' }}>
             <span style={{ fontFamily: 'var(--font-serif)', fontSize: '15px', fontWeight: 900, color: 'var(--text-primary)' }}>
-              TOP MUTUAL FUNDS PERFORMANCE
+              {t("TOP MUTUAL FUNDS PERFORMANCE")}
             </span>
             <span style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 700 }}>
-              Return Horizon: 3Y
+              {t("Return Horizon: 3Y")}
             </span>
           </div>
 
@@ -1735,7 +1852,7 @@ export default function HomePage() {
                 className={`mf-tab-btn ${activeMfTab === tab ? 'active' : ''}`}
                 suppressHydrationWarning
               >
-                {tab.toUpperCase()}
+                {t(tab.toUpperCase())}
               </button>
             ))}
           </div>
@@ -1760,7 +1877,7 @@ export default function HomePage() {
 
       {/* 6.3 Trending Terms Pill Cloud */}
       <div className="trending-terms-wrapper" dir={isRtl ? 'rtl' : 'ltr'}>
-        <span className="trending-terms-label">TOP TRENDING TOPICS:</span>
+        <span className="trending-terms-label">{t("TOP TRENDING TOPICS:")}</span>
         {[
           "Union Budget 2026",
           "Semiconductor Fab Mission",
@@ -1772,7 +1889,7 @@ export default function HomePage() {
           "Sovereign Gold Bonds"
         ].map((term, tIdx) => (
           <span key={`term-${tIdx}`} className="trending-term-pill">
-            #{term}
+            #{t(term)}
           </span>
         ))}
       </div>
@@ -1784,10 +1901,10 @@ export default function HomePage() {
         <div className="section-ribbon-header">
           <div className="section-ribbon-title">
             <span className="bar" />
-            <span>Curated For You</span>
+            <span>{t("Curated For You")}</span>
           </div>
           <span style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 700 }}>
-            RECOMMENDED READING
+            {t("RECOMMENDED READING")}
           </span>
         </div>
 

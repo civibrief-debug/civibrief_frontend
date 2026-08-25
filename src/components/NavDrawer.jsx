@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { CATEGORIES } from '../data/newsData';
+import { useTranslation } from '../context/TranslationContext';
 import { 
   X, 
   Search, 
@@ -26,6 +27,7 @@ import {
 
 export function NavDrawer({ onClose, onSelectCategory, onOpenSearch, isLoggedIn, onOpenLogin }) {
   const router = useRouter();
+  const { t } = useTranslation();
   const [searchQuery, setSearchQuery] = useState('');
   const [expandedCat, setExpandedCat] = useState(null);
 
@@ -160,7 +162,7 @@ export function NavDrawer({ onClose, onSelectCategory, onOpenSearch, isLoggedIn,
             <Search size={18} color="#555" />
             <input 
               type="text" 
-              placeholder="Search" 
+              placeholder={t("Search")} 
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="drawer-search-input"
@@ -187,7 +189,7 @@ export function NavDrawer({ onClose, onSelectCategory, onOpenSearch, isLoggedIn,
                           onClick={() => handleCategoryClick(item.name)}
                         >
                           {item.isLive && <span className="live-dot" />}
-                          <span className="cat-name">{item.name}</span>
+                          <span className="cat-name">{t(item.name)}</span>
                         </button>
                         {hasSub && (
                           <button
@@ -209,7 +211,7 @@ export function NavDrawer({ onClose, onSelectCategory, onOpenSearch, isLoggedIn,
                               className="drawer-sub-item-btn"
                               onClick={() => handleCategoryClick(item.name, sub)}
                             >
-                              <span>{sub}</span>
+                              <span>{t(sub)}</span>
                             </button>
                           ))}
                         </div>
@@ -235,7 +237,7 @@ export function NavDrawer({ onClose, onSelectCategory, onOpenSearch, isLoggedIn,
                   onClick={() => handleCategoryClick(item.label)}
                 >
                   <item.Icon size={18} className="media-icon" />
-                  <span>{item.label}</span>
+                  <span>{t(item.label)}</span>
                 </button>
               ))}
             </div>
@@ -249,7 +251,7 @@ export function NavDrawer({ onClose, onSelectCategory, onOpenSearch, isLoggedIn,
                   onClick={() => handleCategoryClick(item.label)}
                 >
                   <item.Icon size={18} className="media-icon" />
-                  <span>{item.label}</span>
+                  <span>{t(item.label)}</span>
                 </button>
               ))}
             </div>
@@ -259,7 +261,7 @@ export function NavDrawer({ onClose, onSelectCategory, onOpenSearch, isLoggedIn,
         {/* Bottom Social Bar inside Drawer */}
         <div className="nav-drawer-footer">
           <div className="social-connect-group">
-            <span className="connect-label">Connect with us</span>
+            <span className="connect-label">{t("Connect with us")}</span>
             <div className="social-icons-row">
               <span className="social-box" title="WhatsApp"><MessageCircle size={15} /></span>
               <span className="social-box" title="X / Twitter"><span style={{ fontWeight: 800, fontSize: '13px' }}>𝕏</span></span>

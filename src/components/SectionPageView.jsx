@@ -66,7 +66,7 @@ function SectionPageInner({ slug }) {
   const [selectedArticle, setSelectedArticle] = useState(null);
   const [isLoginOpen, setIsLoginOpen] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const { language, translateMultipleArticles } = useTranslation();
+  const { language, getSynchronousArticleList, translateMultipleArticles, t } = useTranslation();
 
   // Sync activeSubSection when URL param changes
   useEffect(() => {
@@ -121,7 +121,11 @@ function SectionPageInner({ slug }) {
     return () => { isMounted = false; };
   }, [categoryPool, language, translateMultipleArticles]);
 
-  const activePool = translatedArticles || categoryPool;
+  const activePool = useMemo(() => {
+    if (language === 'en') return categoryPool;
+    if (translatedArticles && translatedArticles.length > 0) return translatedArticles;
+    return getSynchronousArticleList(categoryPool, language);
+  }, [categoryPool, language, translatedArticles, getSynchronousArticleList]);
 
   // Filter by sub-section if selected
   const displayedArticles = useMemo(() => {
@@ -137,61 +141,81 @@ function SectionPageInner({ slug }) {
   const secondaryStories = displayedArticles.slice(1, 4);
   const remainingStories = displayedArticles.slice(4);
 
+  const [translatedMostRead, setTranslatedMostRead] = useState(null);
+
+  useEffect(() => {
+    let isMounted = true;
+    if (language === 'en') {
+      setTranslatedMostRead(null);
+      return;
+    }
+    translateMultipleArticles(FALLBACK_MOST_READ, language).then(translated => {
+      if (isMounted && translated) setTranslatedMostRead(translated);
+    });
+    return () => { isMounted = false; };
+  }, [language, translateMultipleArticles]);
+
+  const activeMostRead = useMemo(() => {
+    if (language === 'en') return FALLBACK_MOST_READ;
+    if (translatedMostRead && translatedMostRead.length > 0) return translatedMostRead;
+    return getSynchronousArticleList(FALLBACK_MOST_READ, language);
+  }, [language, translatedMostRead, getSynchronousArticleList]);
+
   return (
-    <div className="section-page-container" style={{ minHeight: '100vh', background: 'var(--bg-primary)', color: 'var(--text-primary)', paddingBottom: '80px' }}>
-      {/* Section Breadcrumbs & Header (The Hindu Style) */}
-      <header className="section-page-header" style={{ borderBottom: '1px solid var(--border-color)', padding: '24px 0 16px 0', background: 'var(--bg-secondary)' }}>
+    <div style={{ minHeight: '100vh', background: 'var(--bg-primary)', color: 'var(--text-primary)', paddingBottom: '80px' }}>
+      {/* Category Header Ribbon */}
+      <header style={{ borderBottom: '1px solid var(--border-color)', background: 'var(--bg-card)', paddingTop: '28px', paddingBottom: '16px' }}>
         <div style={{ maxWidth: '1280px', margin: '0 auto', padding: '0 24px' }}>
           {/* Breadcrumbs */}
           <nav aria-label="Breadcrumb" style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.6px', color: 'var(--text-muted)', marginBottom: '14px' }}>
             <Link href="/" style={{ color: 'var(--text-muted)', textDecoration: 'none', transition: 'color 0.2s' }} onMouseOver={e => e.currentTarget.style.color = 'var(--accent-crimson, #b90014)'} onMouseOut={e => e.currentTarget.style.color = 'var(--text-muted)'}>
-              HOME
+              {t("HOME")}
             </Link>
             <ChevronRight size={12} opacity={0.6} />
-            <span style={{ color: 'var(--text-muted)' }}>NEWS</span>
+            <span style={{ color: 'var(--text-muted)' }}>{t("NEWS")}</span>
             <ChevronRight size={12} opacity={0.6} />
-            <span style={{ color: 'var(--accent-crimson, #b90014)', fontWeight: 800 }}>{categoryMeta.name}</span>
+            <span style={{ color: 'var(--accent-crimson, #b90014)', fontWeight: 800 }}>{t(categoryMeta.name)}</span>
           </nav>
 
           {/* Section Main Title */}
           <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', flexWrap: 'wrap', gap: '16px', borderBottom: '2px solid var(--accent-crimson, #b90014)', paddingBottom: '12px' }}>
             <div>
               <h1 style={{ fontFamily: 'var(--font-serif)', fontSize: '38px', fontWeight: 900, letterSpacing: '-0.5px', margin: 0, color: 'var(--text-primary)' }}>
-                {categoryMeta.name}
+                {t(categoryMeta.name)}
               </h1>
               <p style={{ margin: '4px 0 0 0', fontSize: '13.5px', color: 'var(--text-secondary)', fontWeight: 500 }}>
-                Latest briefings, investigative reporting, deep analysis, and updates on {categoryMeta.name}.
+                {t("Latest briefings, investigative reporting, deep analysis, and updates on")} {t(categoryMeta.name)}.
               </p>
             </div>
             
             {displayedArticles.length > 0 && (
               <div style={{ fontSize: '12px', fontWeight: 800, color: 'var(--accent-crimson, #b90014)', background: 'var(--accent-crimson-light, rgba(220, 38, 38, 0.1))', padding: '4px 12px', borderRadius: '12px', border: '1px solid rgba(220, 38, 38, 0.2)' }}>
-                {displayedArticles.length} Stories Available
+                {displayedArticles.length} {t("Stories Available")}
               </div>
             )}
           </div>
 
-          {/* Sub-Section Filter Tabs (if available) */}
+          {/* Sub-sections Pills Bar */}
           {sectionsData && sectionsData.sections && sectionsData.sections.length > 0 && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', overflowX: 'auto', padding: '14px 0 4px 0', scrollbarWidth: 'none' }}>
+            <div className="subsection-filter-bar" style={{ display: 'flex', alignItems: 'center', gap: '8px', overflowX: 'auto', padding: '16px 0 4px 0', scrollbarWidth: 'none' }}>
               <button
                 type="button"
                 onClick={() => setActiveSubSection('All')}
                 style={{
-                  background: activeSubSection === 'All' ? 'var(--accent-crimson, #b90014)' : 'var(--bg-card)',
-                  color: activeSubSection === 'All' ? '#ffffff' : 'var(--text-secondary)',
-                  border: '1px solid ' + (activeSubSection === 'All' ? 'var(--accent-crimson, #b90014)' : 'var(--border-color)'),
                   padding: '6px 14px',
                   borderRadius: '20px',
                   fontSize: '12.5px',
-                  fontWeight: 700,
+                  fontWeight: activeSubSection === 'All' ? 800 : 600,
+                  border: activeSubSection === 'All' ? '1px solid var(--accent-crimson, #b90014)' : '1px solid var(--border-color)',
+                  background: activeSubSection === 'All' ? 'var(--accent-crimson, #b90014)' : 'var(--bg-card)',
+                  color: activeSubSection === 'All' ? '#ffffff' : 'var(--text-secondary)',
                   cursor: 'pointer',
                   whiteSpace: 'nowrap',
                   transition: 'all 0.2s',
                   boxShadow: activeSubSection === 'All' ? '0 2px 8px rgba(185, 0, 20, 0.25)' : 'none'
                 }}
               >
-                All {categoryMeta.name}
+                {t("All")} {t(categoryMeta.name)}
               </button>
 
               {sectionsData.sections.map((sub, idx) => (
@@ -200,20 +224,20 @@ function SectionPageInner({ slug }) {
                   type="button"
                   onClick={() => setActiveSubSection(sub.name)}
                   style={{
-                    background: activeSubSection === sub.name ? 'var(--accent-crimson, #b90014)' : 'var(--bg-card)',
-                    color: activeSubSection === sub.name ? '#ffffff' : 'var(--text-secondary)',
-                    border: '1px solid ' + (activeSubSection === sub.name ? 'var(--accent-crimson, #b90014)' : 'var(--border-color)'),
                     padding: '6px 14px',
                     borderRadius: '20px',
                     fontSize: '12.5px',
-                    fontWeight: 700,
+                    fontWeight: activeSubSection === sub.name ? 800 : 600,
+                    border: activeSubSection === sub.name ? '1px solid var(--accent-crimson, #b90014)' : '1px solid var(--border-color)',
+                    background: activeSubSection === sub.name ? 'var(--accent-crimson, #b90014)' : 'var(--bg-card)',
+                    color: activeSubSection === sub.name ? '#ffffff' : 'var(--text-secondary)',
                     cursor: 'pointer',
                     whiteSpace: 'nowrap',
                     transition: 'all 0.2s',
                     boxShadow: activeSubSection === sub.name ? '0 2px 8px rgba(185, 0, 20, 0.25)' : 'none'
                   }}
                 >
-                  {sub.name}
+                  {t(sub.name)}
                 </button>
               ))}
             </div>
@@ -225,10 +249,10 @@ function SectionPageInner({ slug }) {
       <main style={{ maxWidth: '1280px', margin: '32px auto 0 auto', padding: '0 24px' }}>
         {displayedArticles.length === 0 ? (
           <div style={{ padding: '80px 20px', textAlign: 'center', background: 'var(--bg-card)', borderRadius: '12px', border: '1px solid var(--border-color)' }}>
-            <h3 style={{ fontFamily: 'var(--font-serif)', fontSize: '24px', fontWeight: 700, marginBottom: '8px', color: 'var(--text-primary)' }}>No stories published under this sub-section yet.</h3>
-            <p style={{ color: 'var(--text-secondary)', fontSize: '14px', marginBottom: '20px' }}>Explore all stories in {categoryMeta.name} or return to home.</p>
+            <h3 style={{ fontFamily: 'var(--font-serif)', fontSize: '24px', fontWeight: 700, marginBottom: '8px', color: 'var(--text-primary)' }}>{t("No stories published under this sub-section yet.")}</h3>
+            <p style={{ color: 'var(--text-secondary)', fontSize: '14px', marginBottom: '20px' }}>{t("Explore all stories in")} {t(categoryMeta.name)} {t("or return to home.")}</p>
             <button onClick={() => setActiveSubSection('All')} style={{ background: 'var(--accent-crimson, #b90014)', color: '#ffffff', border: 'none', padding: '10px 24px', borderRadius: '6px', fontWeight: 800, cursor: 'pointer' }}>
-              View All {categoryMeta.name}
+              {t("View All")} {t(categoryMeta.name)}
             </button>
           </div>
         ) : (
@@ -273,14 +297,14 @@ function SectionPageInner({ slug }) {
                       />
                     )}
                     <span style={{ position: 'absolute', top: '14px', left: '14px', background: 'var(--accent-crimson, #b90014)', color: '#ffffff', fontSize: '11px', fontWeight: 800, textTransform: 'uppercase', padding: '4px 10px', borderRadius: '4px', letterSpacing: '0.5px' }}>
-                      FEATURED LEAD
+                      {t("FEATURED LEAD")}
                     </span>
                   </div>
 
                   {/* Kicker / Supertitle */}
                   {(leadStory.kicker || leadStory.supertitle) && (
                     <div style={{ color: 'var(--accent-crimson, #b90014)', fontSize: '12px', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: '6px' }}>
-                      {leadStory.kicker || leadStory.supertitle}
+                      {t(leadStory.kicker || leadStory.supertitle)}
                     </div>
                   )}
 
@@ -298,7 +322,7 @@ function SectionPageInner({ slug }) {
 
                   {/* Meta Byline */}
                   <div style={{ display: 'flex', alignItems: 'center', gap: '14px', fontSize: '13px', color: 'var(--text-muted)', fontWeight: 700 }}>
-                    <span>{leadStory.author || 'Staff Reporter'}</span>
+                    <span>{leadStory.author ? t(leadStory.author) : t('Staff Reporter')}</span>
                   </div>
                 </article>
               )}
@@ -324,7 +348,7 @@ function SectionPageInner({ slug }) {
                     <div>
                       {(art.kicker || art.supertitle) && (
                         <div style={{ color: 'var(--accent-crimson, #b90014)', fontSize: '11px', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.6px', marginBottom: '4px' }}>
-                          {art.kicker || art.supertitle}
+                          {t(art.kicker || art.supertitle)}
                         </div>
                       )}
                       <h3 style={{ fontFamily: 'var(--font-serif)', fontSize: '20px', fontWeight: 800, lineHeight: 1.35, margin: '0 0 8px 0', color: 'var(--text-primary)' }}>
@@ -336,7 +360,7 @@ function SectionPageInner({ slug }) {
                         </p>
                       )}
                       <div style={{ display: 'flex', alignItems: 'center', gap: '12px', fontSize: '12px', color: 'var(--text-muted)', fontWeight: 700 }}>
-                        <span>{art.author || 'Staff Reporter'}</span>
+                        <span>{art.author ? t(art.author) : t('Staff Reporter')}</span>
                       </div>
                     </div>
 
@@ -375,7 +399,7 @@ function SectionPageInner({ slug }) {
               {sectionsData?.spotlight && (
                 <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: '8px', padding: '20px', overflow: 'hidden', boxShadow: 'var(--shadow-sm)' }}>
                   <div style={{ fontSize: '11px', fontWeight: 800, color: 'var(--accent-crimson, #b90014)', textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: '8px' }}>
-                    {sectionsData.spotlight.tag || 'NEWSLETTER'}
+                    {t(sectionsData.spotlight.tag || 'NEWSLETTER')}
                   </div>
                   {sectionsData.spotlight.image && (
                     <div style={{ width: '100%', height: '140px', borderRadius: '6px', overflow: 'hidden', marginBottom: '14px' }}>
@@ -383,17 +407,17 @@ function SectionPageInner({ slug }) {
                     </div>
                   )}
                   <h4 style={{ fontFamily: 'var(--font-serif)', fontSize: '18px', fontWeight: 800, margin: '0 0 6px 0', color: 'var(--text-primary)' }}>
-                    {sectionsData.spotlight.title}
+                    {t(sectionsData.spotlight.title)}
                   </h4>
                   <p style={{ fontSize: '13px', color: 'var(--text-secondary)', lineHeight: 1.4, margin: '0 0 14px 0' }}>
-                    {sectionsData.spotlight.desc}
+                    {t(sectionsData.spotlight.desc)}
                   </p>
                   <button 
                     type="button"
                     onClick={() => setIsLoginOpen(true)}
                     style={{ width: '100%', background: 'var(--accent-crimson, #b90014)', color: '#ffffff', border: 'none', padding: '9px 14px', borderRadius: '6px', fontSize: '12px', fontWeight: 800, cursor: 'pointer', textTransform: 'uppercase', letterSpacing: '0.5px' }}
                   >
-                    {sectionsData.spotlight.cta || 'SUBSCRIBE NOW'}
+                    {t(sectionsData.spotlight.cta || 'SUBSCRIBE NOW')}
                   </button>
                 </div>
               )}
@@ -402,10 +426,10 @@ function SectionPageInner({ slug }) {
               <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: '8px', padding: '20px', boxShadow: 'var(--shadow-sm)' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', fontWeight: 900, textTransform: 'uppercase', color: '#0284c7', marginBottom: '16px', letterSpacing: '0.5px' }}>
                   <TrendingUp size={16} />
-                  Trending Briefings
+                  {t("Trending Briefings")}
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-                  {FALLBACK_MOST_READ.slice(0, 4).map((tr, idx) => (
+                  {activeMostRead.slice(0, 4).map((tr, idx) => (
                     <div 
                       key={idx}
                       onClick={() => setSelectedArticle(tr)}
@@ -419,7 +443,7 @@ function SectionPageInner({ slug }) {
                           {tr.title}
                         </h5>
                         <span style={{ fontSize: '10.5px', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 800 }}>
-                          {tr.category || categoryMeta.name}
+                          {t(tr.category || categoryMeta.name)}
                         </span>
                       </div>
                     </div>

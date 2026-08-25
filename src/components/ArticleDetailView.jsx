@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import ShareModal from './ShareModal';
 import SafeArticleBody from './SafeArticleBody';
@@ -25,7 +25,7 @@ export default function ArticleDetailView({ id }) {
   const [liked, setLiked] = useState(false);
   const [likesCount, setLikesCount] = useState(342);
   const [showShareModal, setShowShareModal] = useState(false);
-  const { language, translateArticle } = useTranslation();
+  const { language, getSynchronousArticle, translateArticle, t } = useTranslation();
   const [translatedArticle, setTranslatedArticle] = useState(null);
 
   // Fetch live article by ID from common D1 database
@@ -69,8 +69,11 @@ export default function ArticleDetailView({ id }) {
     return () => { isMounted = false; };
   }, [rawArticle, language, translateArticle]);
 
-  const article = translatedArticle || rawArticle;
-
+  const article = useMemo(() => {
+    if (!rawArticle || language === 'en') return rawArticle;
+    if (translatedArticle && translatedArticle._translatedLang === language) return translatedArticle;
+    return getSynchronousArticle(rawArticle, language);
+  }, [rawArticle, language, translatedArticle, getSynchronousArticle]);
 
   const toggleLike = () => {
     if (liked) {
@@ -95,9 +98,9 @@ export default function ArticleDetailView({ id }) {
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '24px' }}>
           <Link href="/" style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--text-muted)', fontSize: '14px', fontWeight: 600 }}>
             <ArrowLeft size={16} />
-            <span>Back to Briefings</span>
+            <span>{t("Back to Briefings")}</span>
           </Link>
-          <span className="category-badge">{article.category || 'NEWS'}</span>
+          <span className="category-badge">{t(article.category || 'NEWS')}</span>
         </div>
 
         {/* Title */}
@@ -200,7 +203,7 @@ export default function ArticleDetailView({ id }) {
           <div style={{ background: 'var(--accent-emerald-light)', borderLeft: '4px solid var(--accent-emerald)', padding: '24px', borderRadius: 'var(--radius-md)', marginBottom: '36px' }}>
             <div style={{ fontSize: '12px', fontWeight: 800, color: 'var(--accent-emerald)', textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: '10px', display: 'flex', alignItems: 'center', gap: '6px' }}>
               <Sparkles size={14} />
-              Executive Takeaways
+              {t("Executive Takeaways")}
             </div>
             <ul style={{ listStyle: 'none', display: 'flex', flexDirection: 'column', gap: '10px' }}>
               {article.takeaways.map((point, idx) => (
