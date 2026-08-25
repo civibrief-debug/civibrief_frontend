@@ -245,28 +245,50 @@ export default function HomePage() {
   };
 
   // Helper to dynamically resolve articles for a zone based on category assignments or pinned stories
-  const resolveZoneArticles = (zoneOrId, defaultCategory = 'all', defaultCount = 4) => {
+  const resolveZoneArticles = (zoneOrId, defaultCategory = 'all', defaultCount = 6) => {
     const config = typeof zoneOrId === 'string' ? getZoneConfig(zoneOrId) : zoneOrId;
     const count = config?.itemCount || defaultCount;
 
     // 1. Manually Pinned Story Mode
     if (config?.selectionMode === 'manual' && config?.pinnedArticleId) {
       const pinned = activeArticles.find(a => a.id === config.pinnedArticleId);
-      if (pinned) return [pinned];
+      if (pinned) {
+        const remaining = activeArticles.filter(a => a.id !== pinned.id);
+        return [pinned, ...remaining].slice(0, count);
+      }
     }
 
     // 2. Category Filter Mode
-    const targetCat = (config?.category || defaultCategory || 'all').toLowerCase();
+    const targetCat = (config?.category || defaultCategory || 'all').toLowerCase().trim();
     if (targetCat === 'all' || targetCat === 'top stories') {
       return activeArticles.slice(0, count);
     }
 
     const filtered = activeArticles.filter(a => {
-      const c = (a.category || '').toLowerCase();
-      return c.includes(targetCat) || targetCat.includes(c);
+      const c = (a.category || '').toLowerCase().trim();
+      return c === targetCat || c.includes(targetCat) || targetCat.includes(c) ||
+             (targetCat.includes('global') && (c.includes('global') || c.includes('world') || c.includes('nation') || c.includes('policy') || c.includes('diplomacy'))) ||
+             (targetCat.includes('nation') && (c.includes('nation') || c.includes('india') || c.includes('policy') || c.includes('affair') || c.includes('govern') || c.includes('credit'))) ||
+             (targetCat.includes('india') && (c.includes('india') || c.includes('nation') || c.includes('policy') || c.includes('govern'))) ||
+             (targetCat.includes('market') && (c.includes('market') || c.includes('econom') || c.includes('credit') || c.includes('business') || c.includes('finan'))) ||
+             (targetCat.includes('credit') && (c.includes('credit') || c.includes('bank') || c.includes('market') || c.includes('econom') || c.includes('finan'))) ||
+             (targetCat.includes('tech') && (c.includes('tech') || c.includes('ai') || c.includes('compute') || c.includes('silicon'))) ||
+             (targetCat.includes('science') && (c.includes('science') || c.includes('climate') || c.includes('space') || c.includes('energy')));
     });
 
     if (filtered.length > 0) {
+      // If matching stories are fewer than required count, gracefully backfill so there are never empty gaps
+      if (filtered.length < count) {
+        const seen = new Set(filtered.map(a => a.id));
+        const filled = [...filtered];
+        for (const a of activeArticles) {
+          if (!seen.has(a.id) && filled.length < count) {
+            filled.push(a);
+            seen.add(a.id);
+          }
+        }
+        return filled.slice(0, count);
+      }
       return filtered.slice(0, count);
     }
 
@@ -302,10 +324,10 @@ export default function HomePage() {
   const subLead5 = heroStackedStories[2] || activeArticles[6] || FALLBACK_MAIN_ARTICLES[1];
 
   // Dynamic Department pools based on Admin Homepage Article Placement
-  const band1Stories = resolveZoneArticles('zone-band-1', 'Global Affairs', 4);
-  const band2Stories = resolveZoneArticles('zone-band-2', 'Global Affairs', 4);
-  const businessStories = resolveZoneArticles('zone-dept-1', 'Markets & Economy', 4);
-  const techStories = resolveZoneArticles('zone-dept-2', 'Tech & AI', 4);
+  const band1Stories = resolveZoneArticles('zone-band-1', 'National Affairs', 6);
+  const band2Stories = resolveZoneArticles('zone-band-2', 'World & Geopolitics', 6);
+  const businessStories = resolveZoneArticles('zone-dept-1', 'Markets & Economy', 6);
+  const techStories = resolveZoneArticles('zone-dept-2', 'Tech & AI', 6);
   const forYouStories = (activeArticles.length >= 8 ? activeArticles.slice(4, 8) : FALLBACK_MAIN_ARTICLES.slice(0, 4));
 
   // Custom user-created dynamic blocks from admin
@@ -340,11 +362,39 @@ export default function HomePage() {
     }
   };
 
+  // Helper to check if an ad is assigned to a specific reader slot
+  const slotMatchesAd = (ad, targetSlot) => {
+    if (!ad || !ad.enabled) return false;
+    
+    // Priority 1: Check ad.dropZoneId if defined (Admin single source of truth)
+    if (ad.dropZoneId) {
+      const z = (ad.dropZoneId || '').toLowerCase().trim();
+      if (targetSlot === 'masthead-top') return z === 'dropzone-masthead-top' || z === 'dropzone-masthead' || z === 'masthead-top';
+      if (targetSlot === 'hero-above') return z === 'dropzone-hero-above' || z === 'hero-above';
+      if (targetSlot === 'hero-bottom') return z === 'dropzone-hero-bottom' || z === 'hero-bottom';
+      if (targetSlot === 'in-feed-mid') return z === 'dropzone-feed-row-1' || z === 'dropzone-in-feed-mid' || z === 'dropzone-feed-1' || z === 'in-feed-mid';
+      if (targetSlot === 'feed-row-2') return z === 'dropzone-feed-row-2' || z === 'dropzone-feed-2' || z === 'feed-row-2';
+      if (targetSlot === 'sidebar-top') return z === 'dropzone-sidebar-top' || z === 'sidebar-top';
+      if (targetSlot === 'sidebar-sticky') return z === 'dropzone-sidebar-bottom' || z === 'dropzone-sidebar-sticky' || z === 'sidebar-sticky' || z === 'sidebar-bottom';
+      if (targetSlot === 'deep-dives-top') return z === 'dropzone-deep-dives-top' || z === 'dropzone-deep-dives' || z === 'deep-dives-top';
+      if (targetSlot === 'footer-floating') return z === 'dropzone-footer-floating' || z === 'footer-floating';
+      return z === targetSlot.toLowerCase() || z === `dropzone-${targetSlot.toLowerCase()}`;
+    }
+
+    // Priority 2: Check ad.slotId only if dropZoneId is absent
+    if (ad.slotId) {
+      const s = (ad.slotId || '').toLowerCase().trim();
+      if (targetSlot === 'in-feed-mid') return s === 'in-feed-mid' || s === 'feed-row-1' || s === 'dropzone-feed-row-1';
+      if (targetSlot === 'sidebar-sticky') return s === 'sidebar-sticky' || s === 'sidebar-bottom' || s === 'dropzone-sidebar-bottom';
+      return s === targetSlot.toLowerCase();
+    }
+
+    return false;
+  };
+
   // Helper to render live ads assigned in admin portal with complete media visibility
   const renderLiveAd = (slotId) => {
-    const ad = homepageAds.find(a => 
-      (a.slotId === slotId || a.dropZoneId === slotId || a.dropZoneId === `dropzone-${slotId.replace('-top', '').replace('-bottom', '')}`) && a.enabled
-    );
+    const ad = homepageAds.find(a => slotMatchesAd(a, slotId));
     if (!ad) return null;
 
     if (ad.customHtml && ad.customHtml.trim()) {
@@ -1246,8 +1296,8 @@ export default function HomePage() {
               </article>
             )}
 
-            {/* 2 Stacked Horizontal Cards */}
-            {band1Stories.slice(1, 3).map((art, aIdx) => (
+            {/* Stacked Horizontal Cards */}
+            {band1Stories.slice(1, 5).map((art, aIdx) => (
               <article key={`nat-art-${aIdx}`} className="stacked-story-row" onClick={() => setSelectedArticle(art)}>
                 <div className="stacked-story-content">
                   <span className="news-kicker" style={{ fontSize: '9.5px' }}>{art.category || 'GLOBAL'}</span>
@@ -1291,7 +1341,7 @@ export default function HomePage() {
               </Link>
             </div>
 
-            {band2Stories.slice(0, 3).map((art, idx) => (
+            {band2Stories.slice(0, 4).map((art, idx) => (
               <div 
                 key={`world-${idx}`}
                 onClick={() => setSelectedArticle(art)}
@@ -1307,20 +1357,37 @@ export default function HomePage() {
               </div>
             ))}
 
-            {/* Visual Sports / Culture Feature */}
-            <div style={{ background: 'var(--bg-secondary)', borderRadius: '4px', overflow: 'hidden', border: '1px solid var(--border-color)', cursor: 'pointer' }} onClick={() => setSelectedArticle(band2Stories[3] || activeArticles[0])}>
-              <img 
-                src="https://images.unsplash.com/photo-1461896836934-ffe607ba8211?auto=format&fit=crop&w=600&q=80"
-                alt="Global Sports & Athletics"
-                style={{ width: '100%', height: '120px', objectFit: 'cover' }}
-              />
-              <div style={{ padding: '8px 12px' }}>
-                <span className="news-kicker" style={{ fontSize: '9.5px' }}>GLOBAL SPORTS & CULTURE</span>
-                <div style={{ fontSize: '12.5px', fontWeight: 800, color: 'var(--text-primary)' }}>
-                  {(band2Stories[3] || activeArticles[0])?.title || 'World Athletics & Tactical Playbooks'}
+            {/* Visual Feature Card */}
+            {(band2Stories[4] || activeArticles[0]) && (
+              <div style={{ background: 'var(--bg-secondary)', borderRadius: '4px', overflow: 'hidden', border: '1px solid var(--border-color)', cursor: 'pointer' }} onClick={() => setSelectedArticle(band2Stories[4] || activeArticles[0])}>
+                {isArticleCoverVideo(band2Stories[4] || activeArticles[0]) ? (
+                  <div style={{ width: '100%', height: '120px', background: '#000', overflow: 'hidden' }}>
+                    <ContinuousCoverVideo
+                      src={getArticleCoverVideoUrl(band2Stories[4] || activeArticles[0])}
+                      autoPlay={true}
+                      muted={true}
+                      loop={true}
+                      controls={false}
+                      playsInline={true}
+                      style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                    />
+                  </div>
+                ) : (
+                  <img 
+                    src={formatCoverImageUrl((band2Stories[4] || activeArticles[0])?.imageUrl, (band2Stories[4] || activeArticles[0])) || "https://images.unsplash.com/photo-1461896836934-ffe607ba8211?auto=format&fit=crop&w=600&q=80"}
+                    alt="Feature"
+                    style={{ width: '100%', height: '120px', objectFit: 'cover' }}
+                    referrerPolicy="no-referrer"
+                  />
+                )}
+                <div style={{ padding: '8px 12px' }}>
+                  <span className="news-kicker" style={{ fontSize: '9.5px' }}>{(band2Stories[4] || activeArticles[0])?.category?.toUpperCase() || 'GLOBAL SPOTLIGHT'}</span>
+                  <div style={{ fontSize: '12.5px', fontWeight: 800, color: 'var(--text-primary)' }}>
+                    {(band2Stories[4] || activeArticles[0])?.title}
+                  </div>
                 </div>
               </div>
-            </div>
+            )}
           </div>
 
           {/* Band Col 3 (28%): Most Read Today Numbered Ranking (The Hindu + ET Style) */}
