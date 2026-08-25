@@ -44,7 +44,7 @@ export async function GET(req) {
 
     return NextResponse.json(
       { success: true, data: formatted },
-      { headers: { 'Cache-Control': 'public, max-age=2, s-maxage=5, stale-while-revalidate=59' } }
+      { headers: { 'Cache-Control': 'public, max-age=60, s-maxage=300, stale-while-revalidate=86400' } }
     );
   } catch (err) {
     return NextResponse.json({ success: false, error: err.message }, { status: 500 });

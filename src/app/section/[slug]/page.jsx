@@ -1,17 +1,19 @@
 import React, { Suspense } from 'react';
 import SectionPageView from '../../../components/SectionPageView';
+import { CATEGORIES } from '../../../data/newsData';
 
-export const runtime = 'edge';
+export async function generateStaticParams() {
+  return CATEGORIES.map((cat) => ({
+    slug: cat.slug,
+  }));
+}
 
 export default async function SectionPage({ params }) {
   const resolvedParams = await params;
   const slug = resolvedParams?.slug || 'top-stories';
   return (
-    <Suspense fallback={<div style={{ minHeight: '100vh', background: 'var(--bg-primary, #090d16)' }} />}>
+    <Suspense fallback={<div style={{ minHeight: '100vh', background: 'var(--bg-primary, #faf8f5)' }} />}>
       <SectionPageView slug={slug} />
     </Suspense>
   );
 }
-
-
-
