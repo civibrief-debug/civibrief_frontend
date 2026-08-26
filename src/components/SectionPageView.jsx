@@ -28,6 +28,7 @@ import { ArticleModal } from './ArticleModal';
 import { LoginModal } from './LoginModal';
 import { formatCoverImageUrl, isArticleCoverVideo, getArticleCoverVideoUrl, getDefaultArticleImage } from '../lib/videoUtils';
 import ContinuousCoverVideo from './ContinuousCoverVideo';
+import ArticleMediaCover from './ArticleMediaCover';
 import { useTranslation } from '../context/TranslationContext';
 
 // Helper to normalize category slugs
@@ -275,28 +276,18 @@ function SectionPageInner({ slug }) {
                     style={{ position: 'relative', width: '100%', height: '420px', borderRadius: '8px', overflow: 'hidden', marginBottom: '20px', background: '#000', cursor: 'pointer' }}
                     onClick={() => setSelectedArticle(leadStory)}
                   >
-                    {isArticleCoverVideo(leadStory) ? (
-                      <ContinuousCoverVideo 
-                        src={getArticleCoverVideoUrl(leadStory)}
-                        poster={formatCoverImageUrl(leadStory.imageUrl, leadStory) || getDefaultArticleImage(leadStory)}
-                        cropStyle={leadStory.coverCropStyle || leadStory.coverVideoCrop}
-                        autoPlay={true}
-                        muted={true}
-                        loop={true}
-                        controls={false}
-                        onClick={() => setSelectedArticle(leadStory)}
-                        style={{ width: '100%', height: '100%', cursor: 'pointer' }}
-                      />
-                    ) : (
-                      <img 
-                        src={formatCoverImageUrl(leadStory.imageUrl, leadStory) || getDefaultArticleImage(leadStory)} 
-                        alt={leadStory.title} 
-                        referrerPolicy="no-referrer"
-                        onClick={() => setSelectedArticle(leadStory)}
-                        style={{ width: '100%', height: '100%', objectFit: 'cover', cursor: 'pointer' }}
-                      />
-                    )}
-                    <span style={{ position: 'absolute', top: '14px', left: '14px', background: 'var(--accent-crimson, #b90014)', color: '#ffffff', fontSize: '11px', fontWeight: 800, textTransform: 'uppercase', padding: '4px 10px', borderRadius: '4px', letterSpacing: '0.5px' }}>
+                    <ArticleMediaCover
+                      article={leadStory}
+                      style={{ width: '100%', height: '100%', cursor: 'pointer' }}
+                      autoPlay={true}
+                      muted={true}
+                      loop={true}
+                      controls={false}
+                      playsInline={true}
+                      priority={true}
+                      onClick={() => setSelectedArticle(leadStory)}
+                    />
+                    <span style={{ position: 'absolute', top: '14px', left: '14px', background: 'var(--accent-crimson, #b90014)', color: '#ffffff', fontSize: '11px', fontWeight: 800, textTransform: 'uppercase', padding: '4px 10px', borderRadius: '4px', letterSpacing: '0.5px', zIndex: 12 }}>
                       {t("FEATURED LEAD")}
                     </span>
                   </div>
@@ -364,30 +355,17 @@ function SectionPageInner({ slug }) {
                       </div>
                     </div>
 
-                    {(isArticleCoverVideo(art) || art.imageUrl) && (
-                      <div style={{ width: '200px', height: '130px', borderRadius: '6px', overflow: 'hidden', background: '#000' }}>
-                        {isArticleCoverVideo(art) ? (
-                          <ContinuousCoverVideo
-                            src={getArticleCoverVideoUrl(art)}
-                            poster={formatCoverImageUrl(art.imageUrl, art) || getDefaultArticleImage(art)}
-                            cropStyle={art.coverCropStyle || art.coverVideoCrop}
-                            autoPlay={true}
-                            muted={true}
-                            loop={true}
-                            controls={false}
-                            playsInline={true}
-                            style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                          />
-                        ) : (
-                          <img 
-                            src={formatCoverImageUrl(art.imageUrl, art) || getDefaultArticleImage(art)} 
-                            alt={art.title} 
-                            referrerPolicy="no-referrer"
-                            style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                          />
-                        )}
-                      </div>
-                    )}
+                    <div style={{ width: '200px', height: '130px', borderRadius: '6px', overflow: 'hidden', background: '#000' }}>
+                      <ArticleMediaCover
+                        article={art}
+                        style={{ width: '100%', height: '100%' }}
+                        autoPlay={true}
+                        muted={true}
+                        loop={true}
+                        controls={false}
+                        playsInline={true}
+                      />
+                    </div>
                   </article>
                 ))}
               </div>

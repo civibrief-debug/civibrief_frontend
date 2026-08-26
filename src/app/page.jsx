@@ -43,6 +43,7 @@ import { LoginModal } from '../components/LoginModal';
 import { CrestLogo } from '../components/CrestLogo';
 import { formatCoverMediaEmbedUrl, formatCoverImageUrl, parseGoogleDriveUrl, isArticleCoverVideo, getArticleCoverVideoUrl, getDefaultArticleImage } from '../lib/videoUtils';
 import ContinuousCoverVideo from '../components/ContinuousCoverVideo';
+import ArticleMediaCover from '../components/ArticleMediaCover';
 import { useTranslation } from '../context/TranslationContext';
 
 // Instant 0-1ms In-Memory & Local Storage Cache Singletons
@@ -77,6 +78,22 @@ const getInstantCache = (key, fallback = []) => {
     }
   } catch (e) {}
   return fallback;
+};
+
+export const getCategorySlug = (category) => {
+  if (!category) return 'top-stories';
+  const c = String(category).toLowerCase().replace(/[^a-z0-9]/g, '');
+  if (c.includes('tech') || c.includes('ai')) return 'tech';
+  if (c.includes('global') || c.includes('world') || c.includes('nation')) return 'global';
+  if (c.includes('market') || c.includes('econom') || c.includes('credit') || c.includes('business')) return 'markets';
+  if (c.includes('science') || c.includes('climate')) return 'science';
+  if (c.includes('movie') || c.includes('entertainment')) return 'movies';
+  if (c.includes('life') || c.includes('style') || c.includes('design')) return 'lifestyle';
+  if (c.includes('sport')) return 'sports';
+  if (c.includes('opinion') || c.includes('editorial') || c.includes('essay')) return 'opinion';
+  if (c.includes('culture')) return 'culture';
+  if (c.includes('deep') || c.includes('dive') || c.includes('investig')) return 'deep-dives';
+  return 'top-stories';
 };
 
 export default function HomePage() {
@@ -335,59 +352,166 @@ export default function HomePage() {
     return BREAKING_NEWS.map(b => t(b));
   }, [language, translatedBreakingNews, t]);
 
+  // Helper to find placed template instance by region or type
+  const getInstanceForRegion = (regionId, templateType = null) => {
+    if (!Array.isArray(homepageArticleSections)) return null;
+    return homepageArticleSections.find(s => {
+      if (!s || s.enabled === false) return false;
+      if (s.sectionRegion === regionId) return true;
+      if (templateType && s.templateType === templateType) return true;
+      if (regionId === 'hero_col1' && (s.column === 'left' || s.templateType === 'hero_lead')) return true;
+      if (regionId === 'hero_col2' && (s.column === 'center' || s.templateType === 'hero_second_lead' || s.templateType === 'hero_stacked')) return true;
+      if (regionId === 'hero_col3' && (s.column === 'right' || s.templateType === 'opinion')) return true;
+      return false;
+    });
+  };
+
   const activeOpinion = useMemo(() => {
+    const inst = getInstanceForRegion('hero_col3', 'opinion');
+    if (inst && inst.editorialOpinion) {
+      return {
+        title: inst.editorialOpinion.title,
+        deck: inst.editorialOpinion.deck || inst.editorialOpinion.content
+      };
+    }
     if (language === 'en') return EDITORIAL_OPINION_STATIC;
     if (translatedOpinion) return translatedOpinion;
     return {
       title: t(EDITORIAL_OPINION_STATIC.title),
       deck: t(EDITORIAL_OPINION_STATIC.deck)
     };
-  }, [language, translatedOpinion, t]);
+  }, [language, translatedOpinion, t, homepageArticleSections]);
 
   const activeWires = useMemo(() => {
+    const inst = getInstanceForRegion('hero_col3', 'opinion');
+    if (inst && inst.intelligenceStream && Array.isArray(inst.intelligenceStream.items) && inst.intelligenceStream.items.length > 0) {
+      return inst.intelligenceStream.items.map(w => ({
+        time: w.time,
+        text: w.text
+      }));
+    }
     if (translatedWires && translatedWires.length > 0) return translatedWires;
     return FAST_NEWS_WIRES_STATIC.map(w => ({
       time: t(w.time),
       text: t(w.text)
     }));
-  }, [language, translatedWires, t]);
+  }, [language, translatedWires, t, homepageArticleSections]);
 
   const activeSponsor = useMemo(() => {
+    const inst = getInstanceForRegion('hero_col3', 'opinion');
+    if (inst && inst.sponsoredShowcase) {
+      return {
+        title: inst.sponsoredShowcase.headline || inst.sponsoredShowcase.title,
+        subtitle: inst.sponsoredShowcase.subtext || inst.sponsoredShowcase.subtitle
+      };
+    }
     if (language === 'en') return SPONSORED_SHOWCASE_STATIC;
     if (translatedSponsor) return translatedSponsor;
     return {
       title: t(SPONSORED_SHOWCASE_STATIC.title),
       subtitle: t(SPONSORED_SHOWCASE_STATIC.subtitle)
     };
-  }, [language, translatedSponsor, t]);
+  }, [language, translatedSponsor, t, homepageArticleSections]);
 
   // Helper to get configuration for a homepage editorial zone
   const getZoneConfig = (zoneId) => {
-    return (homepageArticleSections || []).find(s => s.id === zoneId);
+    return (homepageArticleSections || []).find(s => s && (s.id === zoneId || s.instanceId === zoneId || s.sectionRegion === zoneId));
   };
 
-  // Helper to dynamically resolve articles for a zone based on category assignments or pinned stories
-  const resolveZoneArticles = (zoneOrId, defaultCategory = 'all', defaultCount = 6) => {
-    const config = typeof zoneOrId === 'string' ? getZoneConfig(zoneOrId) : zoneOrId;
-    const count = config?.itemCount || defaultCount;
+  // Safe helper to enrich article stub with full master database record
+  const enrichArticle = (art) => {
+    if (!art) return art;
+    const match = (activeArticles || []).find(a => a.id === art.id || (art.title && a.title === art.title)) ||
+                  (dbArticles || []).find(a => a.id === art.id || (art.title && a.title === art.title));
+    if (match) {
+      return { ...art, ...match };
+    }
+    return art;
+  };
 
-    // 1. Manually Pinned Story Mode
-    if (config?.selectionMode === 'manual' && config?.pinnedArticleId) {
-      const pinned = activeArticles.find(a => a.id === config.pinnedArticleId);
-      if (pinned) {
-        const remaining = activeArticles.filter(a => a.id !== pinned.id);
-        return [pinned, ...remaining].slice(0, count);
+  // Safe handler to open modal with full hydrated article
+  const handleOpenArticle = (story) => {
+    if (!story) return;
+    const full = enrichArticle(story);
+    setSelectedArticle(full);
+  };
+
+  // Helper to dynamically resolve articles for a zone or template instance
+  const resolveZoneArticles = (zoneOrId, defaultCategory = 'all', defaultCount = 6) => {
+    // Check if zoneOrId maps to a template instance with concrete stories
+    const inst = typeof zoneOrId === 'string' ? (getInstanceForRegion(zoneOrId) || getZoneConfig(zoneOrId)) : zoneOrId;
+
+    if (inst) {
+      if (Array.isArray(inst.slides) && inst.slides.length > 0) {
+        return inst.slides.map(enrichArticle);
+      }
+      if (Array.isArray(inst.slideStories) && inst.slideStories.length > 0) {
+        return inst.slideStories.map(enrichArticle);
+      }
+      if (Array.isArray(inst.stories) && inst.stories.length > 0) {
+        return inst.stories.map(enrichArticle);
+      }
+      if (inst.mainStory) {
+        const pool = [inst.mainStory, ...(Array.isArray(inst.subStories) ? inst.subStories : [])].map(enrichArticle);
+        if (pool.length >= defaultCount) return pool.slice(0, defaultCount);
+        
+        // Fill remaining with category-matched articles
+        const seen = new Set(pool.map(a => a.id || a.title));
+        const filled = [...pool];
+        for (const a of activeArticles) {
+          if (!seen.has(a.id) && !seen.has(a.title) && filled.length < defaultCount) {
+            filled.push(a);
+            seen.add(a.id);
+          }
+        }
+        return filled.slice(0, defaultCount);
       }
     }
 
-    // 2. Category Filter Mode
-    const targetCat = (config?.category || defaultCategory || 'all').toLowerCase().trim();
-    if (targetCat === 'all' || targetCat === 'top stories') {
-      return activeArticles.slice(0, count);
+    const config = inst;
+    const count = config?.itemCount || defaultCount;
+
+    // 1. Multi-Pinned or Single Pinned Story Mode
+    if (config?.selectionMode === 'manual') {
+      if (Array.isArray(config?.pinnedArticles) && config.pinnedArticles.length > 0) {
+        const pinnedList = [];
+        const pinnedIds = new Set();
+        config.pinnedArticles.forEach(pa => {
+          const found = activeArticles.find(a => a.id === (pa.id || pa));
+          if (found) {
+            pinnedList.push(found);
+            pinnedIds.add(found.id);
+          } else if (typeof pa === 'object' && pa.title) {
+            pinnedList.push(enrichArticle(pa));
+            if (pa.id) pinnedIds.add(pa.id);
+          }
+        });
+        if (pinnedList.length > 0) {
+          if (pinnedList.length >= count) return pinnedList.slice(0, count);
+          const remaining = activeArticles.filter(a => !pinnedIds.has(a.id));
+          return [...pinnedList, ...remaining].slice(0, count);
+        }
+      } else if (config?.pinnedArticleId) {
+        const pinned = activeArticles.find(a => a.id === config.pinnedArticleId);
+        if (pinned) {
+          const remaining = activeArticles.filter(a => a.id !== pinned.id);
+          return [pinned, ...remaining].slice(0, count);
+        }
+      }
     }
 
-    const filtered = activeArticles.filter(a => {
-      const c = (a.category || '').toLowerCase().trim();
+    // 2. Multi-Category or Single Category Filter Mode
+    const rawCategories = Array.isArray(config?.categories) && config.categories.length > 0
+      ? config.categories
+      : [config?.category || defaultCategory || 'all'];
+
+    const targetCategories = rawCategories.map(c => (c || 'all').toLowerCase().trim());
+    if (targetCategories.includes('all') || targetCategories.includes('top stories')) {
+      return activeArticles.slice(0, count).map(enrichArticle);
+    }
+
+    const matchesCategory = (artCat, targetCat) => {
+      const c = (artCat || '').toLowerCase().trim();
       return c === targetCat || c.includes(targetCat) || targetCat.includes(c) ||
              (targetCat.includes('global') && (c.includes('global') || c.includes('world') || c.includes('nation') || c.includes('policy') || c.includes('diplomacy'))) ||
              (targetCat.includes('nation') && (c.includes('nation') || c.includes('india') || c.includes('policy') || c.includes('affair') || c.includes('govern') || c.includes('credit'))) ||
@@ -396,10 +520,13 @@ export default function HomePage() {
              (targetCat.includes('credit') && (c.includes('credit') || c.includes('bank') || c.includes('market') || c.includes('econom') || c.includes('finan'))) ||
              (targetCat.includes('tech') && (c.includes('tech') || c.includes('ai') || c.includes('compute') || c.includes('silicon'))) ||
              (targetCat.includes('science') && (c.includes('science') || c.includes('climate') || c.includes('space') || c.includes('energy')));
+    };
+
+    const filtered = activeArticles.filter(a => {
+      return targetCategories.some(tc => matchesCategory(a.category, tc));
     });
 
     if (filtered.length > 0) {
-      // If matching stories are fewer than required count, gracefully backfill so there are never empty gaps
       if (filtered.length < count) {
         const seen = new Set(filtered.map(a => a.id));
         const filled = [...filtered];
@@ -409,53 +536,111 @@ export default function HomePage() {
             seen.add(a.id);
           }
         }
-        return filled.slice(0, count);
+        return filled.slice(0, count).map(enrichArticle);
       }
-      return filtered.slice(0, count);
+      return filtered.slice(0, count).map(enrichArticle);
     }
 
-    return activeArticles.slice(0, count);
+    return activeArticles.slice(0, count).map(enrichArticle);
   };
 
-  // Top Stories Auto-sliding Carousel Pool (resolves Top Stories / Zone Lead articles)
+  // Top Stories Auto-sliding Carousel Pool (resolves Top Stories from Template 1 / Hero Lead Stage)
   const topStoriesList = useMemo(() => {
+    // 1. Priority: Placed Template 1 (Hero Lead Stage) with multi-slide carousel
+    const heroInst = getInstanceForRegion('hero_col1', 'hero_lead');
+    if (heroInst) {
+      if (Array.isArray(heroInst.slides) && heroInst.slides.length > 0) {
+        return heroInst.slides.map(enrichArticle);
+      }
+      if (Array.isArray(heroInst.slideStories) && heroInst.slideStories.length > 0) {
+        return heroInst.slideStories.map(enrichArticle);
+      }
+      if (heroInst.mainStory) {
+        return [heroInst.mainStory, ...(Array.isArray(heroInst.subStories) ? heroInst.subStories : [])].map(enrichArticle);
+      }
+    }
+
+    // 2. Legacy zone configuration
     const leadConfig = getZoneConfig('zone-hero-lead');
     if (leadConfig?.selectionMode === 'manual' && leadConfig?.pinnedArticleId) {
       const pinned = activeArticles.find(a => a.id === leadConfig.pinnedArticleId);
       if (pinned) {
         const remaining = activeArticles.filter(a => a.id !== pinned.id).slice(0, 4);
-        return [pinned, ...remaining];
+        return [pinned, ...remaining].map(enrichArticle);
       }
     }
     const resolved = resolveZoneArticles('zone-hero-lead', 'All', 5);
-    if (Array.isArray(resolved) && resolved.length >= 2) return resolved;
-    if (activeArticles.length >= 2) return activeArticles.slice(0, 5);
+    if (Array.isArray(resolved) && resolved.length >= 2) return resolved.map(enrichArticle);
+    if (activeArticles.length >= 2) return activeArticles.slice(0, 5).map(enrichArticle);
     return [FALLBACK_HERO_FEATURED, ...FALLBACK_HERO_SECONDARY.slice(0, 4)];
   }, [activeArticles, homepageArticleSections]);
 
   const currentHeroIndex = topStoriesList.length > 0 ? (topStoriesSlideIndex % topStoriesList.length) : 0;
 
-  // Categorized story pools for structured newsroom departments dynamically resolved
+  // Sub-Stories below the Hero Lead Stage
+  const heroSubStories = useMemo(() => {
+    const heroInst = getInstanceForRegion('hero_col1', 'hero_lead');
+    if (heroInst && Array.isArray(heroInst.subStories) && heroInst.subStories.length >= 2) {
+      return heroInst.subStories.map(enrichArticle);
+    }
+    return [
+      resolveZoneArticles('zone-hero-sub-1', 'All', 1)[0] || activeArticles[2] || FALLBACK_HERO_SECONDARY[1],
+      resolveZoneArticles('zone-hero-sub-2', 'All', 1)[0] || activeArticles[3] || FALLBACK_HERO_SECONDARY[2]
+    ].map(enrichArticle);
+  }, [homepageArticleSections, activeArticles]);
+
   const leadStory = topStoriesList[currentHeroIndex] || topStoriesList[0] || activeArticles[0] || FALLBACK_HERO_FEATURED;
-  const secondLead = resolveZoneArticles('zone-hero-second-lead', 'All', 1)[0] || activeArticles[1] || FALLBACK_HERO_SECONDARY[0] || FALLBACK_HERO_FEATURED;
-  const subLead1 = resolveZoneArticles('zone-hero-sub-1', 'All', 1)[0] || activeArticles[2] || FALLBACK_HERO_SECONDARY[1];
-  const subLead2 = resolveZoneArticles('zone-hero-sub-2', 'All', 1)[0] || activeArticles[3] || FALLBACK_HERO_SECONDARY[2];
-  const heroStackedStories = resolveZoneArticles('zone-hero-stacked', 'All', 3);
+  
+  // Second Lead Story (Column 2 Top Feature)
+  const secondLead = useMemo(() => {
+    const secInst = getInstanceForRegion('hero_col2', 'hero_second_lead');
+    if (secInst && secInst.mainStory) {
+      return enrichArticle(secInst.mainStory);
+    }
+    return resolveZoneArticles('zone-hero-second-lead', 'All', 1)[0] || activeArticles[1] || FALLBACK_HERO_SECONDARY[0] || FALLBACK_HERO_FEATURED;
+  }, [homepageArticleSections, activeArticles]);
+
+  const subLead1 = heroSubStories[0] || activeArticles[2] || FALLBACK_HERO_SECONDARY[1];
+  const subLead2 = heroSubStories[1] || activeArticles[3] || FALLBACK_HERO_SECONDARY[2];
+
+  // Stacked News Feed (Column 2 Bottom Stack)
+  const heroStackedStories = useMemo(() => {
+    const stackInst = getInstanceForRegion('hero_col2', 'hero_stacked');
+    if (stackInst && Array.isArray(stackInst.stories) && stackInst.stories.length > 0) {
+      return stackInst.stories.map(enrichArticle);
+    }
+    return resolveZoneArticles('zone-hero-stacked', 'All', 3);
+  }, [homepageArticleSections, activeArticles]);
+
   const subLead3 = heroStackedStories[0] || activeArticles[4] || FALLBACK_HERO_SECONDARY[3];
   const subLead4 = heroStackedStories[1] || activeArticles[5] || FALLBACK_MAIN_ARTICLES[0];
   const subLead5 = heroStackedStories[2] || activeArticles[6] || FALLBACK_MAIN_ARTICLES[1];
 
   // Dynamic Department pools based on Admin Homepage Article Placement
-  const band1Stories = resolveZoneArticles('zone-band-1', 'National Affairs', 6);
-  const band2Stories = resolveZoneArticles('zone-band-2', 'World & Geopolitics', 6);
-  const businessStories = resolveZoneArticles('zone-dept-1', 'Markets & Economy', 6);
-  const techStories = resolveZoneArticles('zone-dept-2', 'Tech & AI', 6);
-  const forYouStories = (activeArticles.length >= 8 ? activeArticles.slice(4, 8) : FALLBACK_MAIN_ARTICLES.slice(0, 4));
+  const band1Stories = useMemo(() => {
+    return resolveZoneArticles('national_global', 'National Affairs', 6);
+  }, [homepageArticleSections, activeArticles]);
+
+  const band2Stories = useMemo(() => {
+    return resolveZoneArticles('world_geopolitics', 'World & Geopolitics', 6);
+  }, [homepageArticleSections, activeArticles]);
+
+  const businessStories = useMemo(() => {
+    return resolveZoneArticles('markets_economy', 'Markets & Economy', 6);
+  }, [homepageArticleSections, activeArticles]);
+
+  const techStories = useMemo(() => {
+    return resolveZoneArticles('tech_ai', 'Tech & AI', 6);
+  }, [homepageArticleSections, activeArticles]);
+
+  const forYouStories = useMemo(() => {
+    return (activeArticles.length >= 8 ? activeArticles.slice(4, 8) : FALLBACK_MAIN_ARTICLES.slice(0, 4)).map(enrichArticle);
+  }, [activeArticles]);
 
   // Custom user-created dynamic blocks from admin
   const customDynamicSections = useMemo(() => {
     if (!Array.isArray(homepageArticleSections)) return [];
-    return homepageArticleSections.filter(s => s.id.startsWith('zone-custom-') && s.enabled !== false);
+    return homepageArticleSections.filter(s => s && typeof s.id === 'string' && s.id.startsWith('zone-custom-') && s.enabled !== false);
   }, [homepageArticleSections]);
 
   const isRtl = ['ar', 'he', 'fa', 'ur'].includes(language);
@@ -958,7 +1143,7 @@ export default function HomePage() {
   };
 
   return (
-    <main style={{ minHeight: '100vh', background: 'var(--bg-primary)' }}>
+    <main suppressHydrationWarning style={{ minHeight: '100vh', background: 'var(--bg-primary)' }}>
       {/* =========================================================================
           CENTRAL NEWSPAPER EDITORIAL CONTENT COLUMN (CLEAN FULL-WIDTH LAYOUT)
           ========================================================================= */}
@@ -1040,35 +1225,22 @@ export default function HomePage() {
                   >
                     <article 
                       className="lead-story-hero-card"
-                      onClick={() => setSelectedArticle(story)}
+                      onClick={() => handleOpenArticle(story)}
                     >
                       <div className="lead-story-img-box">
-                        {isArticleCoverVideo(story) ? (
-                          <ContinuousCoverVideo
-                            key={`hero-vid-${story.id}`}
-                            src={getArticleCoverVideoUrl(story)}
-                            poster={formatCoverImageUrl(story.imageUrl, story) || getDefaultArticleImage(story)}
-                            cropStyle={story.coverCropStyle || story.coverVideoCrop}
-                            autoPlay={true}
-                            muted={true}
-                            loop={true}
-                            controls={false}
-                            playsInline={true}
-                            style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                          />
-                        ) : (
-                          <img
-                            src={formatCoverImageUrl(story.imageUrl, story) || getDefaultArticleImage(story)}
-                            alt={story.title}
-                            referrerPolicy="no-referrer"
-                            loading={sIdx === 0 ? "eager" : "lazy"}
-                            fetchPriority={sIdx === 0 ? "high" : "auto"}
-                            decoding="async"
-                            style={{ ...(story.coverCropStyle || {}) }}
-                          />
-                        )}
+                        <ArticleMediaCover
+                          article={story}
+                          className="lead-story-img"
+                          style={{ width: '100%', height: '100%' }}
+                          priority={sIdx === 0}
+                          autoPlay={true}
+                          muted={true}
+                          loop={true}
+                          controls={false}
+                          playsInline={true}
+                        />
                         {story.hasAudio && (
-                          <div style={{ position: 'absolute', top: '10px', right: '10px', background: 'rgba(185, 0, 20, 0.9)', color: '#ffffff', fontSize: '9.5px', fontWeight: 800, padding: '3px 8px', borderRadius: '3px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                          <div style={{ position: 'absolute', top: '10px', right: '10px', background: 'rgba(185, 0, 20, 0.9)', color: '#ffffff', fontSize: '9.5px', fontWeight: 800, padding: '3px 8px', borderRadius: '3px', display: 'flex', alignItems: 'center', gap: '4px', zIndex: 10 }}>
                             <Volume2 size={12} />
                             <span>{t("AUDIO")}</span>
                           </div>
@@ -1102,6 +1274,7 @@ export default function HomePage() {
               <div 
                 className="hero-carousel-dots"
                 aria-label="Top stories navigation dots"
+                suppressHydrationWarning={true}
               >
                 {topStoriesList.map((story, dotIdx) => {
                   const isActive = dotIdx === currentHeroIndex;
@@ -1117,6 +1290,7 @@ export default function HomePage() {
                       title={`Jump to story ${dotIdx + 1}: ${story.title || ''}`}
                       aria-label={`Jump to slide ${dotIdx + 1}`}
                       aria-current={isActive ? 'true' : undefined}
+                      suppressHydrationWarning={true}
                     />
                   );
                 })}
@@ -1126,32 +1300,19 @@ export default function HomePage() {
             {/* 2-Column Compact Sub-Grid below Main Lead */}
             <div className="hero-sub-grid-2col">
               {subLead1 && (
-                <article className="sub-story-card" onClick={() => setSelectedArticle(subLead1)}>
-                  {isArticleCoverVideo(subLead1) ? (
-                    <div style={{ width: '100%', height: '140px', overflow: 'hidden', borderRadius: '4px', background: '#000', marginBottom: '8px' }}>
-                      <ContinuousCoverVideo
-                        key={`sub1-vid-${subLead1.id}`}
-                        src={getArticleCoverVideoUrl(subLead1)}
-                        poster={formatCoverImageUrl(subLead1.imageUrl, subLead1) || getDefaultArticleImage(subLead1)}
-                        cropStyle={subLead1.coverCropStyle || subLead1.coverVideoCrop}
-                        autoPlay={true}
-                        muted={true}
-                        loop={true}
-                        controls={false}
-                        playsInline={true}
-                        style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                      />
-                    </div>
-                  ) : (
-                    <img
-                      src={formatCoverImageUrl(subLead1.imageUrl, subLead1) || getDefaultArticleImage(subLead1)}
-                      alt={subLead1.title}
-                      className="sub-story-img"
-                      loading="eager"
-                      fetchPriority="high"
-                      referrerPolicy="no-referrer"
+                <article className="sub-story-card" onClick={() => handleOpenArticle(subLead1)}>
+                  <div style={{ width: '100%', height: '140px', overflow: 'hidden', borderRadius: '4px', background: '#000', marginBottom: '8px' }}>
+                    <ArticleMediaCover
+                      article={subLead1}
+                      style={{ width: '100%', height: '100%' }}
+                      priority={true}
+                      autoPlay={true}
+                      muted={true}
+                      loop={true}
+                      controls={false}
+                      playsInline={true}
                     />
-                  )}
+                  </div>
                   <span className="news-kicker" style={{ fontSize: '10px' }}>
                     {subLead1.kicker ? t(subLead1.kicker.toUpperCase()) : t(subLead1.category)}
                   </span>
@@ -1162,32 +1323,19 @@ export default function HomePage() {
               )}
 
               {subLead2 && (
-                <article className="sub-story-card" onClick={() => setSelectedArticle(subLead2)}>
-                  {isArticleCoverVideo(subLead2) ? (
-                    <div style={{ width: '100%', height: '140px', overflow: 'hidden', borderRadius: '4px', background: '#000', marginBottom: '8px' }}>
-                      <ContinuousCoverVideo
-                        key={`sub2-vid-${subLead2.id}`}
-                        src={getArticleCoverVideoUrl(subLead2)}
-                        poster={formatCoverImageUrl(subLead2.imageUrl, subLead2) || getDefaultArticleImage(subLead2)}
-                        cropStyle={subLead2.coverCropStyle || subLead2.coverVideoCrop}
-                        autoPlay={true}
-                        muted={true}
-                        loop={true}
-                        controls={false}
-                        playsInline={true}
-                        style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                      />
-                    </div>
-                  ) : (
-                    <img
-                      src={formatCoverImageUrl(subLead2.imageUrl, subLead2) || getDefaultArticleImage(subLead2)}
-                      alt={subLead2.title}
-                      className="sub-story-img"
-                      loading="eager"
-                      fetchPriority="high"
-                      referrerPolicy="no-referrer"
+                <article className="sub-story-card" onClick={() => handleOpenArticle(subLead2)}>
+                  <div style={{ width: '100%', height: '140px', overflow: 'hidden', borderRadius: '4px', background: '#000', marginBottom: '8px' }}>
+                    <ArticleMediaCover
+                      article={subLead2}
+                      style={{ width: '100%', height: '100%' }}
+                      priority={true}
+                      autoPlay={true}
+                      muted={true}
+                      loop={true}
+                      controls={false}
+                      playsInline={true}
                     />
-                  )}
+                  </div>
                   <span className="news-kicker" style={{ fontSize: '10px' }}>
                     {subLead2.kicker ? t(subLead2.kicker.toUpperCase()) : t(subLead2.category)}
                   </span>
@@ -1202,32 +1350,19 @@ export default function HomePage() {
           {/* COLUMN 2 (31%): Second Major Lead & Stacked News Rows */}
           <div className="newspaper-hero-col col-divider-right">
             {secondLead && (
-              <article className="second-lead-card" onClick={() => setSelectedArticle(secondLead)}>
-                {isArticleCoverVideo(secondLead) ? (
-                  <div style={{ width: '100%', height: '220px', overflow: 'hidden', borderRadius: '4px', background: '#000', marginBottom: '8px' }}>
-                    <ContinuousCoverVideo
-                      key={`second-vid-${secondLead.id}`}
-                      src={getArticleCoverVideoUrl(secondLead)}
-                      poster={formatCoverImageUrl(secondLead.imageUrl, secondLead) || getDefaultArticleImage(secondLead)}
-                      cropStyle={secondLead.coverCropStyle || secondLead.coverVideoCrop}
-                      autoPlay={true}
-                      muted={true}
-                      loop={true}
-                      controls={false}
-                      playsInline={true}
-                      style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                    />
-                  </div>
-                ) : (
-                  <img
-                    src={formatCoverImageUrl(secondLead.imageUrl, secondLead) || getDefaultArticleImage(secondLead)}
-                    alt={secondLead.title}
-                    className="second-lead-img"
-                    loading="eager"
-                    fetchPriority="high"
-                    referrerPolicy="no-referrer"
+              <article className="second-lead-card" onClick={() => handleOpenArticle(secondLead)}>
+                <div style={{ width: '100%', height: '220px', overflow: 'hidden', borderRadius: '4px', background: '#000', marginBottom: '8px' }}>
+                  <ArticleMediaCover
+                    article={secondLead}
+                    style={{ width: '100%', height: '100%' }}
+                    priority={true}
+                    autoPlay={true}
+                    muted={true}
+                    loop={true}
+                    controls={false}
+                    playsInline={true}
                   />
-                )}
+                </div>
                 <span className="news-kicker">
                   {secondLead.kicker ? t(secondLead.kicker.toUpperCase()) : t(secondLead.category)}
                 </span>
@@ -1249,7 +1384,7 @@ export default function HomePage() {
                 <article 
                   key={`stacked-${story.id || sIdx}`}
                   className="stacked-story-row"
-                  onClick={() => setSelectedArticle(story)}
+                  onClick={() => handleOpenArticle(story)}
                 >
                   <div className="stacked-story-content">
                     <span className="news-kicker" style={{ fontSize: '9.5px', marginBottom: '2px' }}>
@@ -1262,33 +1397,22 @@ export default function HomePage() {
                       {story.author || 'News Desk'}
                     </div>
                   </div>
-                  {isArticleCoverVideo(story) ? (
-                    <div style={{ width: '80px', height: '60px', borderRadius: '4px', overflow: 'hidden', background: '#000', flexShrink: 0 }}>
-                      <ContinuousCoverVideo
-                        src={getArticleCoverVideoUrl(story)}
-                        poster={formatCoverImageUrl(story.imageUrl, story) || getDefaultArticleImage(story)}
-                        cropStyle={story.coverCropStyle || story.coverVideoCrop}
-                        autoPlay={true}
-                        muted={true}
-                        loop={true}
-                        controls={false}
-                        playsInline={true}
-                        style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                      />
-                    </div>
-                  ) : (
-                    <img
-                      src={formatCoverImageUrl(story.imageUrl, story) || getDefaultArticleImage(story)}
-                      alt={story.title}
-                      className="stacked-story-thumb"
-                      referrerPolicy="no-referrer"
+                  <div style={{ width: '80px', height: '60px', borderRadius: '4px', overflow: 'hidden', background: '#000', flexShrink: 0 }}>
+                    <ArticleMediaCover
+                      article={story}
+                      style={{ width: '100%', height: '100%' }}
+                      autoPlay={true}
+                      muted={true}
+                      loop={true}
+                      controls={false}
+                      playsInline={true}
                     />
-                  )}
+                  </div>
                 </article>
               ))}
             </div>
 
-            <Link href="/section/global" style={{ fontSize: '11px', fontWeight: 800, color: '#b90014', textTransform: 'uppercase', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '4px', marginTop: '4px' }}>
+            <Link href={`/section/${getCategorySlug(secondLead?.category || subLead3?.category || 'top-stories')}`} style={{ fontSize: '11px', fontWeight: 800, color: '#b90014', textTransform: 'uppercase', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '4px', marginTop: '4px' }}>
               <span>{t("Read More Top Stories")}</span>
               <ArrowRight size={12} />
             </Link>
@@ -1371,30 +1495,19 @@ export default function HomePage() {
             </div>
 
             {band1Stories[0] && (
-              <article className="lead-story-hero-card" onClick={() => setSelectedArticle(band1Stories[0])}>
-                {isArticleCoverVideo(band1Stories[0]) ? (
-                  <div style={{ width: '100%', height: '200px', borderRadius: '4px', overflow: 'hidden', background: '#000', marginBottom: '8px' }}>
-                    <ContinuousCoverVideo
-                      key={`band1-vid-${band1Stories[0].id}`}
-                      src={getArticleCoverVideoUrl(band1Stories[0])}
-                      poster={formatCoverImageUrl(band1Stories[0].imageUrl, band1Stories[0]) || getDefaultArticleImage(band1Stories[0])}
-                      cropStyle={band1Stories[0].coverCropStyle || band1Stories[0].coverVideoCrop}
-                      autoPlay={true}
-                      muted={true}
-                      loop={true}
-                      controls={false}
-                      playsInline={true}
-                      style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                    />
-                  </div>
-                ) : (
-                  <img
-                    src={formatCoverImageUrl(band1Stories[0].imageUrl, band1Stories[0]) || getDefaultArticleImage(band1Stories[0])}
-                    alt={band1Stories[0].title}
-                    style={{ width: '100%', height: '200px', objectFit: 'cover', borderRadius: '4px' }}
-                    referrerPolicy="no-referrer"
+              <article className="lead-story-hero-card" onClick={() => handleOpenArticle(band1Stories[0])}>
+                <div style={{ width: '100%', height: '200px', borderRadius: '4px', overflow: 'hidden', background: '#000', marginBottom: '8px' }}>
+                  <ArticleMediaCover
+                    article={band1Stories[0]}
+                    style={{ width: '100%', height: '100%' }}
+                    priority={true}
+                    autoPlay={true}
+                    muted={true}
+                    loop={true}
+                    controls={false}
+                    playsInline={true}
                   />
-                )}
+                </div>
                 <span className="news-kicker">{band1Stories[0].kicker ? t(band1Stories[0].kicker) : t(band1Stories[0].category || 'POLICY & INFRASTRUCTURE')}</span>
                 <h3 style={{ fontFamily: 'var(--font-serif)', fontSize: '18px', fontWeight: 800, color: 'var(--text-primary)', margin: '2px 0' }}>
                   {band1Stories[0].title}
@@ -1407,34 +1520,23 @@ export default function HomePage() {
 
             {/* Stacked Horizontal Cards */}
             {band1Stories.slice(1, 5).map((art, aIdx) => (
-              <article key={`nat-art-${aIdx}`} className="stacked-story-row" onClick={() => setSelectedArticle(art)}>
+              <article key={`nat-art-${aIdx}`} className="stacked-story-row" onClick={() => handleOpenArticle(art)}>
                 <div className="stacked-story-content">
                   <span className="news-kicker" style={{ fontSize: '9.5px' }}>{t(art.category || 'GLOBAL')}</span>
                   <h4 className="stacked-story-title">{art.title}</h4>
                   <div style={{ fontSize: '10.5px', color: 'var(--text-muted)', marginTop: '2px' }}>{art.author || 'Desk'}</div>
                 </div>
-                {isArticleCoverVideo(art) ? (
-                  <div style={{ width: '80px', height: '60px', borderRadius: '4px', overflow: 'hidden', background: '#000', flexShrink: 0 }}>
-                    <ContinuousCoverVideo
-                      src={getArticleCoverVideoUrl(art)}
-                      poster={formatCoverImageUrl(art.imageUrl, art) || getDefaultArticleImage(art)}
-                      cropStyle={art.coverCropStyle || art.coverVideoCrop}
-                      autoPlay={true}
-                      muted={true}
-                      loop={true}
-                      controls={false}
-                      playsInline={true}
-                      style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                    />
-                  </div>
-                ) : (
-                  <img
-                    src={formatCoverImageUrl(art.imageUrl, art) || getDefaultArticleImage(art)}
-                    alt={art.title}
-                    className="stacked-story-thumb"
-                    referrerPolicy="no-referrer"
+                <div style={{ width: '80px', height: '60px', borderRadius: '4px', overflow: 'hidden', background: '#000', flexShrink: 0 }}>
+                  <ArticleMediaCover
+                    article={art}
+                    style={{ width: '100%', height: '100%' }}
+                    autoPlay={true}
+                    muted={true}
+                    loop={true}
+                    controls={false}
+                    playsInline={true}
                   />
-                )}
+                </div>
               </article>
             ))}
           </div>
@@ -1454,7 +1556,7 @@ export default function HomePage() {
             {band2Stories.slice(0, 4).map((art, idx) => (
               <div 
                 key={`world-${idx}`}
-                onClick={() => setSelectedArticle(art)}
+                onClick={() => handleOpenArticle(art)}
                 style={{ cursor: 'pointer', paddingBottom: '12px', borderBottom: '1px solid var(--border-color)' }}
               >
                 <span className="news-kicker" style={{ fontSize: '9.5px' }}>{t(art.category || 'GLOBAL')}</span>
@@ -1469,28 +1571,18 @@ export default function HomePage() {
 
             {/* Visual Feature Card */}
             {(band2Stories[4] || activeArticles[0]) && (
-              <div style={{ background: 'var(--bg-secondary)', borderRadius: '4px', overflow: 'hidden', border: '1px solid var(--border-color)', cursor: 'pointer' }} onClick={() => setSelectedArticle(band2Stories[4] || activeArticles[0])}>
-                {isArticleCoverVideo(band2Stories[4] || activeArticles[0]) ? (
-                  <div style={{ width: '100%', height: '120px', background: '#000', overflow: 'hidden' }}>
-                    <ContinuousCoverVideo
-                      src={getArticleCoverVideoUrl(band2Stories[4] || activeArticles[0])}
-                      poster={formatCoverImageUrl((band2Stories[4] || activeArticles[0])?.imageUrl, (band2Stories[4] || activeArticles[0])) || getDefaultArticleImage(band2Stories[4] || activeArticles[0])}
-                      autoPlay={true}
-                      muted={true}
-                      loop={true}
-                      controls={false}
-                      playsInline={true}
-                      style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                    />
-                  </div>
-                ) : (
-                  <img 
-                    src={formatCoverImageUrl((band2Stories[4] || activeArticles[0])?.imageUrl, (band2Stories[4] || activeArticles[0])) || "https://images.unsplash.com/photo-1461896836934-ffe607ba8211?auto=format&fit=crop&w=600&q=80"}
-                    alt="Feature"
-                    style={{ width: '100%', height: '120px', objectFit: 'cover' }}
-                    referrerPolicy="no-referrer"
+              <div style={{ background: 'var(--bg-secondary)', borderRadius: '4px', overflow: 'hidden', border: '1px solid var(--border-color)', cursor: 'pointer' }} onClick={() => handleOpenArticle(band2Stories[4] || activeArticles[0])}>
+                <div style={{ width: '100%', height: '120px', background: '#000', overflow: 'hidden' }}>
+                  <ArticleMediaCover
+                    article={band2Stories[4] || activeArticles[0]}
+                    style={{ width: '100%', height: '100%' }}
+                    autoPlay={true}
+                    muted={true}
+                    loop={true}
+                    controls={false}
+                    playsInline={true}
                   />
-                )}
+                </div>
                 <div style={{ padding: '8px 12px' }}>
                   <span className="news-kicker" style={{ fontSize: '9.5px' }}>{t((band2Stories[4] || activeArticles[0])?.category?.toUpperCase() || 'GLOBAL SPOTLIGHT')}</span>
                   <div style={{ fontSize: '12.5px', fontWeight: 800, color: 'var(--text-primary)' }}>
@@ -1513,7 +1605,7 @@ export default function HomePage() {
                 <div 
                   key={`rank-${item.id || idx}`} 
                   className="most-read-rank-row"
-                  onClick={() => setSelectedArticle(item)}
+                  onClick={() => handleOpenArticle(item)}
                 >
                   <span className="rank-digit">0{idx + 1}</span>
                   <div className="rank-headline-content">
@@ -1555,30 +1647,18 @@ export default function HomePage() {
 
           <div className="department-grid-4col">
             {(businessStories.length > 0 ? businessStories : activeArticles.slice(0, 4)).map((art, idx) => (
-              <article key={`biz-${art.id || idx}`} className="dept-card" onClick={() => setSelectedArticle(art)}>
-                {isArticleCoverVideo(art) ? (
-                  <div style={{ width: '100%', height: '150px', borderRadius: '4px', overflow: 'hidden', background: '#000', marginBottom: '8px' }}>
-                    <ContinuousCoverVideo
-                      key={`biz-vid-${art.id || idx}`}
-                      src={getArticleCoverVideoUrl(art)}
-                      poster={formatCoverImageUrl(art.imageUrl, art) || getDefaultArticleImage(art)}
-                      cropStyle={art.coverCropStyle || art.coverVideoCrop}
-                      autoPlay={true}
-                      muted={true}
-                      loop={true}
-                      controls={false}
-                      playsInline={true}
-                      style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                    />
-                  </div>
-                ) : (
-                  <img
-                    src={formatCoverImageUrl(art.imageUrl, art) || getDefaultArticleImage(art)}
-                    alt={art.title}
-                    className="dept-card-img"
-                    referrerPolicy="no-referrer"
+              <article key={`biz-${art.id || idx}`} className="dept-card" onClick={() => handleOpenArticle(art)}>
+                <div style={{ width: '100%', height: '150px', borderRadius: '4px', overflow: 'hidden', background: '#000', marginBottom: '8px' }}>
+                  <ArticleMediaCover
+                    article={art}
+                    style={{ width: '100%', height: '100%' }}
+                    autoPlay={true}
+                    muted={true}
+                    loop={true}
+                    controls={false}
+                    playsInline={true}
                   />
-                )}
+                </div>
                 <span className="news-kicker" style={{ fontSize: '9.5px' }}>{t(art.category || 'BUSINESS')}</span>
                 <h3 className="dept-card-title">{art.title}</h3>
                 <div className="dept-card-byline">{art.author || 'Markets Desk'}</div>
@@ -1606,30 +1686,18 @@ export default function HomePage() {
 
           <div className="department-grid-4col">
             {(techStories.length > 0 ? techStories : activeArticles.slice(2, 6)).map((art, idx) => (
-              <article key={`tech-${art.id || idx}`} className="dept-card" onClick={() => setSelectedArticle(art)}>
-                {isArticleCoverVideo(art) ? (
-                  <div style={{ width: '100%', height: '150px', borderRadius: '4px', overflow: 'hidden', background: '#000', marginBottom: '8px' }}>
-                    <ContinuousCoverVideo
-                      key={`tech-vid-${art.id || idx}`}
-                      src={getArticleCoverVideoUrl(art)}
-                      poster={formatCoverImageUrl(art.imageUrl, art) || getDefaultArticleImage(art)}
-                      cropStyle={art.coverCropStyle || art.coverVideoCrop}
-                      autoPlay={true}
-                      muted={true}
-                      loop={true}
-                      controls={false}
-                      playsInline={true}
-                      style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                    />
-                  </div>
-                ) : (
-                  <img
-                    src={formatCoverImageUrl(art.imageUrl, art) || getDefaultArticleImage(art)}
-                    alt={art.title}
-                    className="dept-card-img"
-                    referrerPolicy="no-referrer"
+              <article key={`tech-${art.id || idx}`} className="dept-card" onClick={() => handleOpenArticle(art)}>
+                <div style={{ width: '100%', height: '150px', borderRadius: '4px', overflow: 'hidden', background: '#000', marginBottom: '8px' }}>
+                  <ArticleMediaCover
+                    article={art}
+                    style={{ width: '100%', height: '100%' }}
+                    autoPlay={true}
+                    muted={true}
+                    loop={true}
+                    controls={false}
+                    playsInline={true}
                   />
-                )}
+                </div>
                 <span className="news-kicker" style={{ fontSize: '9.5px' }}>{t(art.category || 'TECH & AI')}</span>
                 <h3 className="dept-card-title">{art.title}</h3>
                 <div className="dept-card-byline">{art.author || 'Tech Reporter'}</div>
@@ -1661,30 +1729,18 @@ export default function HomePage() {
 
             <div className="department-grid-4col">
               {customStories.map((art, idx) => (
-                <article key={`dyn-${customSec.id}-${art.id || idx}`} className="dept-card" onClick={() => setSelectedArticle(art)}>
-                  {isArticleCoverVideo(art) ? (
-                    <div style={{ width: '100%', height: '150px', borderRadius: '4px', overflow: 'hidden', background: '#000', marginBottom: '8px' }}>
-                      <ContinuousCoverVideo
-                        key={`dyn-vid-${art.id || idx}`}
-                        src={getArticleCoverVideoUrl(art)}
-                        poster={formatCoverImageUrl(art.imageUrl, art) || getDefaultArticleImage(art)}
-                        cropStyle={art.coverCropStyle || art.coverVideoCrop}
-                        autoPlay={true}
-                        muted={true}
-                        loop={true}
-                        controls={false}
-                        playsInline={true}
-                        style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                      />
-                    </div>
-                  ) : (
-                    <img
-                      src={formatCoverImageUrl(art.imageUrl, art) || getDefaultArticleImage(art)}
-                      alt={art.title}
-                      className="dept-card-img"
-                      referrerPolicy="no-referrer"
+                <article key={`dyn-${customSec.id}-${art.id || idx}`} className="dept-card" onClick={() => handleOpenArticle(art)}>
+                  <div style={{ width: '100%', height: '150px', borderRadius: '4px', overflow: 'hidden', background: '#000', marginBottom: '8px' }}>
+                    <ArticleMediaCover
+                      article={art}
+                      style={{ width: '100%', height: '100%' }}
+                      autoPlay={true}
+                      muted={true}
+                      loop={true}
+                      controls={false}
+                      playsInline={true}
                     />
-                  )}
+                  </div>
                   <span className="news-kicker" style={{ fontSize: '9.5px' }}>{t(art.category || customSec.category)}</span>
                   <h3 className="dept-card-title">{art.title}</h3>
                   <div className="dept-card-byline">{art.author || 'Desk Correspondent'}</div>
@@ -1713,6 +1769,8 @@ export default function HomePage() {
               </div>
 
               <button 
+                type="button"
+                suppressHydrationWarning
                 onClick={() => {
                   if (!isLoggedIn) setIsLoginOpen(true);
                 }}
@@ -1910,30 +1968,18 @@ export default function HomePage() {
 
         <div className="department-grid-4col">
           {forYouStories.map((art, idx) => (
-            <article key={`foryou-${art.id || idx}`} className="dept-card" onClick={() => setSelectedArticle(art)}>
-              {isArticleCoverVideo(art) ? (
-                <div style={{ width: '100%', height: '150px', borderRadius: '4px', overflow: 'hidden', background: '#000', marginBottom: '8px' }}>
-                  <ContinuousCoverVideo
-                    key={`foryou-vid-${art.id || idx}`}
-                    src={getArticleCoverVideoUrl(art)}
-                    poster={formatCoverImageUrl(art.imageUrl, art) || getDefaultArticleImage(art)}
-                    cropStyle={art.coverCropStyle || art.coverVideoCrop}
-                    autoPlay={true}
-                    muted={true}
-                    loop={true}
-                    controls={false}
-                    playsInline={true}
-                    style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                  />
-                </div>
-              ) : (
-                <img
-                  src={formatCoverImageUrl(art.imageUrl, art) || getDefaultArticleImage(art)}
-                  alt={art.title}
-                  className="dept-card-img"
-                  referrerPolicy="no-referrer"
+            <article key={`foryou-${art.id || idx}`} className="dept-card" onClick={() => handleOpenArticle(art)}>
+              <div style={{ width: '100%', height: '150px', borderRadius: '4px', overflow: 'hidden', background: '#000', marginBottom: '8px' }}>
+                <ArticleMediaCover
+                  article={art}
+                  style={{ width: '100%', height: '100%' }}
+                  autoPlay={true}
+                  muted={true}
+                  loop={true}
+                  controls={false}
+                  playsInline={true}
                 />
-              )}
+              </div>
               <span className="news-kicker" style={{ fontSize: '9.5px' }}>{art.category || 'FEATURE'}</span>
               <h3 className="dept-card-title">{art.title}</h3>
               <div className="dept-card-byline">{art.author || 'Desk Correspondent'}</div>

@@ -3,8 +3,9 @@ import ShareModal from './ShareModal';
 import SafeArticleBody from './SafeArticleBody';
 import ArticleAdBanner from './ArticleAdBanner';
 import { useTranslation } from '../context/TranslationContext';
-import { formatCoverMediaEmbedUrl, formatCoverImageUrl, parseGoogleDriveUrl, isArticleCoverVideo, getArticleCoverVideoUrl, getDefaultArticleImage } from '../lib/videoUtils';
+import { formatCoverMediaEmbedUrl, formatCoverImageUrl, parseGoogleDriveUrl, isArticleCoverVideo, getArticleCoverVideoUrl, getDefaultArticleImage, resolveArticleMedia } from '../lib/videoUtils';
 import ContinuousCoverVideo from './ContinuousCoverVideo';
+import ArticleMediaCover from './ArticleMediaCover';
 
 import { LanguageSelector } from './LanguageSelector';
 import { 
@@ -29,33 +30,59 @@ export const ArticleModal = ({ article, onClose, isLoggedIn, onOpenLogin, onLogi
   const [localLanguage, setLocalLanguage] = useState(globalLanguage);
   const [localIsTranslating, setLocalIsTranslating] = useState(false);
   const [translatedArticle, setTranslatedArticle] = useState(null);
+  const [dbHydratedArticle, setDbHydratedArticle] = useState(null);
 
   // Keep local language in sync with global language changes
   useEffect(() => {
     setLocalLanguage(globalLanguage);
   }, [globalLanguage]);
 
-  const articleId = article?.id;
-  const articleContent = article?.content;
+  // If article has incomplete body, fetch full article from database API
+  useEffect(() => {
+    let isMounted = true;
+    if (!article?.id) return;
+    if (!article.content || article.content.length < 250) {
+      fetch(`/api/db/articles/${encodeURIComponent(article.id)}`)
+        .then(res => res.json())
+        .then(json => {
+          if (isMounted && json && json.success && json.data) {
+            setDbHydratedArticle(json.data);
+          }
+        })
+        .catch(() => {});
+    }
+    return () => { isMounted = false; };
+  }, [article?.id, article?.content]);
+
+  const effectiveSourceArticle = useMemo(() => {
+    if (!article) return null;
+    if (dbHydratedArticle) {
+      return { ...article, ...dbHydratedArticle };
+    }
+    return article;
+  }, [article, dbHydratedArticle]);
+
+  const articleId = effectiveSourceArticle?.id;
+  const articleContent = effectiveSourceArticle?.content;
 
   // Handle translation when language or article ID changes
   useEffect(() => {
     let isMounted = true;
 
-    if (!article || localLanguage === 'en') {
+    if (!effectiveSourceArticle || localLanguage === 'en') {
       setTranslatedArticle(null);
       setLocalIsTranslating(false);
       return;
     }
     setLocalIsTranslating(true);
-    translateArticle(article, localLanguage).then(translated => {
+    translateArticle(effectiveSourceArticle, localLanguage).then(translated => {
       if (isMounted) {
         setTranslatedArticle(translated);
         setLocalIsTranslating(false);
       }
     });
     return () => { isMounted = false; };
-  }, [articleId, articleContent, localLanguage, translateArticle]);
+  }, [articleId, articleContent, localLanguage, translateArticle, effectiveSourceArticle]);
 
   // Cancel playing voiceover only when explicitly switching languages
   useEffect(() => {
@@ -73,10 +100,10 @@ export const ArticleModal = ({ article, onClose, isLoggedIn, onOpenLogin, onLogi
   }, [localLanguage]);
 
   const activeArticle = useMemo(() => {
-    if (!article || localLanguage === 'en') return article;
+    if (!effectiveSourceArticle || localLanguage === 'en') return effectiveSourceArticle || {};
     if (translatedArticle && translatedArticle._translatedLang === localLanguage) return translatedArticle;
-    return getSynchronousArticle(article, localLanguage);
-  }, [article, localLanguage, translatedArticle, getSynchronousArticle]);
+    return getSynchronousArticle(effectiveSourceArticle, localLanguage);
+  }, [effectiveSourceArticle, localLanguage, translatedArticle, getSynchronousArticle]);
 
   const [zoomLevel, setZoomLevel] = useState(1.0); // 0.7 to 1.8 document zoom scale
   const [isPlayingAudio, setIsPlayingAudio] = useState(false);
@@ -982,62 +1009,29 @@ export const ArticleModal = ({ article, onClose, isLoggedIn, onOpenLogin, onLogi
         )}
 
         {/* Optional Article Cover Media (Video, Document, or Image) */}
-        {isArticleCoverVideo(activeArticle) ? (
-          <div className="article-modal-hero-img-container" style={{ width: activeArticle.coverWidth || '100%', margin: '0 auto 24px auto' }}>
-            <div style={{ width: '100%', height: activeArticle.coverHeight === 'auto' ? '420px' : (activeArticle.coverHeight || '420px'), borderRadius: 'var(--radius-md)', overflow: 'hidden' }}>
-              <ContinuousCoverVideo
-                src={getArticleCoverVideoUrl(activeArticle)}
-                poster={formatCoverImageUrl(activeArticle.imageUrl, activeArticle) || getDefaultArticleImage(activeArticle)}
-                cropStyle={activeArticle.coverCropStyle || activeArticle.coverVideoCrop}
-                autoPlay={true}
-                muted={true}
-                loop={true}
-                controls={true}
-                playsInline={true}
-              />
-            </div>
-            {activeArticle.imageCaption && (
-              <div className="article-modal-img-caption" dir={isRtl ? 'rtl' : 'ltr'}>
-                {activeArticle.imageCaption}
-              </div>
-            )}
-          </div>
-        ) : (
-          <div className="article-modal-hero-img-container" style={{ width: activeArticle.coverWidth || '100%', margin: '0 auto 24px auto' }}>
-            <img 
-              src={formatCoverImageUrl(activeArticle.imageUrl, activeArticle) || getDefaultArticleImage(activeArticle)} 
-              alt={activeArticle.title || 'Article Cover'} 
-              referrerPolicy="no-referrer"
-              className="article-modal-hero-img"
-              loading="eager"
-              fetchPriority="high"
-              decoding="async"
-              style={{
-                width: '100%',
-                maxHeight: activeArticle.coverHeight === 'auto' ? 'none' : (activeArticle.coverHeight || '480px'),
-                objectFit: 'cover',
-                borderRadius: 'var(--radius-md)',
-                display: 'block',
-                ...(activeArticle.coverCropStyle || activeArticle.coverImageCrop || {})
-              }}
-              onError={(e) => {
-                const gdrive = parseGoogleDriveUrl(activeArticle.imageUrl);
-                if (gdrive && !e.currentTarget.dataset.retried) {
-                  e.currentTarget.dataset.retried = '1';
-                  e.currentTarget.src = gdrive.proxyImageUrl || `https://lh3.googleusercontent.com/d/${gdrive.fileId}`;
-                } else if (!e.currentTarget.dataset.retriedDefault) {
-                  e.currentTarget.dataset.retriedDefault = '1';
-                  e.currentTarget.src = getDefaultArticleImage(activeArticle);
-                }
-              }}
-            />
-            {activeArticle.imageCaption && (
-              <div className="article-modal-img-caption" dir={isRtl ? 'rtl' : 'ltr'}>
-                {activeArticle.imageCaption}
-              </div>
-            )}
-          </div>
-        )}
+        <div className="article-modal-hero-img-container" style={{ width: activeArticle.coverWidth || '100%', margin: '0 auto 24px auto' }}>
+          <ArticleMediaCover
+            article={activeArticle}
+            className="article-modal-hero-img"
+            style={{
+              width: '100%',
+              height: activeArticle.coverHeight === 'auto' ? 'auto' : (activeArticle.coverHeight || '440px'),
+              minHeight: activeArticle.coverHeight === 'auto' ? '300px' : undefined,
+              borderRadius: 'var(--radius-md)',
+              overflow: 'hidden'
+            }}
+            imageStyle={{
+              maxHeight: activeArticle.coverHeight === 'auto' ? 'none' : (activeArticle.coverHeight || '480px'),
+              borderRadius: 'var(--radius-md)'
+            }}
+            controls={true}
+            autoPlay={true}
+            muted={true}
+            loop={true}
+            priority={true}
+            showCaption={true}
+          />
+        </div>
 
         {/* Article Body Content */}
         <div 

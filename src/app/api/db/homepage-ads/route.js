@@ -1,123 +1,75 @@
 import { NextResponse } from 'next/server';
+import fs from 'fs';
+import path from 'path';
 import { queryD1 } from '../../../../lib/edgeDb';
 
-export const runtime = 'edge';
-
-const FALLBACK_HOMEPAGE_ADS = [
-  {
-    id: "ad-masthead-top",
-    slotId: "masthead-top",
-    slotName: "Masthead Top Banner",
-    slotLocation: "Top Header Zone (Below Navigation Bar)",
-    dimension: "970x90 Leaderboard / 728x90",
-    enabled: true,
-    sponsorName: "Binance VIP Institutional",
-    badgeText: "SPONSORED",
-    headline: "Institutional Crypto Liquidity & 0% Trading Fees",
-    subtitle: "Enterprise-grade custody, low-latency API execution and global OTC desks.",
-    ctaText: "Explore Platform",
-    targetUrl: "https://binance.com",
-    contentType: "image",
-    mediaUrl: "https://images.unsplash.com/photo-1621416894569-0f39ed31d247?auto=format&fit=crop&w=1200&q=80",
-    customHtml: "",
-    format: "leaderboard"
-  },
-  {
-    id: "ad-hero-bottom",
-    slotId: "hero-bottom",
-    slotName: "Hero Billboard Banner",
-    slotLocation: "Directly Below Top 4 News Stories",
-    dimension: "970x250 Premium Billboard",
-    enabled: true,
-    sponsorName: "Rolex Precision Chronometers",
-    badgeText: "OFFICIAL PARTNER",
-    headline: "The Oyster Perpetual Deepsea Challenge",
-    subtitle: "Guaranteed waterproof to 11,000 meters. The supreme instrument of deep oceanic exploration.",
-    ctaText: "Discover Model",
-    targetUrl: "https://rolex.com",
-    contentType: "image",
-    mediaUrl: "https://images.unsplash.com/photo-1522335789203-aabd1fc54bc9?auto=format&fit=crop&w=1200&q=80",
-    customHtml: "",
-    format: "billboard"
-  },
-  {
-    id: "ad-in-feed-mid",
-    slotId: "in-feed-mid",
-    slotName: "Latest Intelligence In-Feed Sponsor",
-    slotLocation: "Inside News Feed (Between Article Rows)",
-    dimension: "Native Sponsored Stream Card",
-    enabled: true,
-    sponsorName: "Google Cloud Platform",
-    badgeText: "CLOUD PARTNER",
-    headline: "Deploy Scalable AI Models Globally with Vertex AI",
-    subtitle: "Build with Gemini 1.5 Pro and enterprise security compliance at planet scale.",
-    ctaText: "Start Free Trial",
-    targetUrl: "https://cloud.google.com",
-    contentType: "image",
-    mediaUrl: "https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=1200&q=80",
-    customHtml: "",
-    format: "in_feed"
-  },
-  {
-    id: "ad-sidebar-sticky",
-    slotId: "sidebar-sticky",
-    slotName: "Trending Sidebar Medium Rectangle",
-    slotLocation: "Right Sidebar (Below Most Read Today)",
-    dimension: "300x250 Medium Rectangle",
-    enabled: true,
-    sponsorName: "Porsche Taycan Turbo GT",
-    badgeText: "AUTOMOTIVE",
-    headline: "Soul, Electrified: The All-New Porsche Taycan",
-    subtitle: "0-100 km/h in 2.2 seconds. Peak performance meets timeless design.",
-    ctaText: "Configure Yours",
-    targetUrl: "https://porsche.com",
-    contentType: "image",
-    mediaUrl: "https://images.unsplash.com/photo-1614162692292-7ac56d7f7f1e?auto=format&fit=crop&w=600&q=80",
-    customHtml: "",
-    format: "rectangle"
-  },
-  {
-    id: "ad-deep-dives-top",
-    slotId: "deep-dives-top",
-    slotName: "Deep Dives Premium Sponsor",
-    slotLocation: "Header of Deep Dives 💎 Investigations",
-    dimension: "Full Width Premium Sponsor Banner",
-    enabled: true,
-    sponsorName: "Financial Times Intelligence",
-    badgeText: "EDITORIAL PARTNER",
-    headline: "Global Geopolitical Risk Index 2026: Executive Briefing",
-    subtitle: "Exclusive macro analysis covering global supply chains, central banking, and semiconductors.",
-    ctaText: "Download Report",
-    targetUrl: "https://ft.com",
-    contentType: "image",
-    mediaUrl: "https://images.unsplash.com/photo-1451187580459-43490279c0fa?auto=format&fit=crop&w=1200&q=80",
-    customHtml: "",
-    format: "deep_dives"
+function getSharedDbPath() {
+  const candidates = [
+    path.join(process.cwd(), '..', 'shared_database.json'),
+    path.join(process.cwd(), 'shared_database.json'),
+    'd:/Daily News/shared_database.json'
+  ];
+  for (const p of candidates) {
+    try {
+      if (fs.existsSync(p)) return p;
+    } catch (e) {}
   }
-];
+  return candidates[0];
+}
+
+function readSharedDb() {
+  const p = getSharedDbPath();
+  try {
+    if (fs.existsSync(p)) {
+      const raw = fs.readFileSync(p, 'utf8');
+      return JSON.parse(raw);
+    }
+  } catch (e) {}
+  return null;
+}
+
+function writeSharedDb(key, data) {
+  const p = getSharedDbPath();
+  try {
+    let db = readSharedDb() || {};
+    db[key] = data;
+    fs.writeFileSync(p, JSON.stringify(db, null, 2), 'utf8');
+    return true;
+  } catch (e) {
+    console.error('Error writing shared_database.json:', e);
+    return false;
+  }
+}
 
 export async function GET() {
   try {
-    await queryD1(`CREATE TABLE IF NOT EXISTS homepage_ads (id TEXT PRIMARY KEY, data TEXT, updated_at TEXT);`);
-    const rows = await queryD1('SELECT data FROM homepage_ads WHERE id = "current_homepage_ads" LIMIT 1;');
-    if (rows && rows.length > 0 && rows[0].data) {
-      const parsed = JSON.parse(rows[0].data);
-      if (Array.isArray(parsed) && parsed.length > 0) {
-        return NextResponse.json(
-          { success: true, data: parsed },
-          { headers: { 'Cache-Control': 'public, max-age=2, s-maxage=5, stale-while-revalidate=59' } }
-        );
+    // 1. Try D1
+    try {
+      await queryD1(`CREATE TABLE IF NOT EXISTS homepage_ads (id TEXT PRIMARY KEY, data TEXT, updated_at TEXT);`);
+      const rows = await queryD1('SELECT data FROM homepage_ads WHERE id = "current_homepage_ads" LIMIT 1;');
+      if (rows && rows.length > 0 && rows[0].data) {
+        const parsed = JSON.parse(rows[0].data);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          return NextResponse.json(
+            { success: true, data: parsed },
+            { headers: { 'Cache-Control': 'public, max-age=1, s-maxage=2, stale-while-revalidate=10' } }
+          );
+        }
       }
+    } catch (e) {}
+
+    // 2. Try shared_database.json
+    const db = readSharedDb();
+    if (db && Array.isArray(db.homepageAds) && db.homepageAds.length > 0) {
+      return NextResponse.json(
+        { success: true, data: db.homepageAds },
+        { headers: { 'Cache-Control': 'public, max-age=1, s-maxage=2, stale-while-revalidate=10' } }
+      );
     }
-    return NextResponse.json(
-      { success: true, data: FALLBACK_HOMEPAGE_ADS },
-      { headers: { 'Cache-Control': 'public, max-age=2, s-maxage=5, stale-while-revalidate=59' } }
-    );
+
+    return NextResponse.json({ success: true, data: [] });
   } catch (err) {
-    return NextResponse.json(
-      { success: true, data: FALLBACK_HOMEPAGE_ADS },
-      { headers: { 'Cache-Control': 'public, max-age=2, s-maxage=5, stale-while-revalidate=59' } }
-    );
+    return NextResponse.json({ success: true, data: [] });
   }
 }
 
@@ -125,12 +77,20 @@ export async function POST(req) {
   try {
     const body = await req.json();
     const ads = body.ads || [];
-    await queryD1(`CREATE TABLE IF NOT EXISTS homepage_ads (id TEXT PRIMARY KEY, data TEXT, updated_at TEXT);`);
-    await queryD1(
-      `INSERT INTO homepage_ads (id, data, updated_at) VALUES ("current_homepage_ads", ?, CURRENT_TIMESTAMP)
-       ON CONFLICT(id) DO UPDATE SET data = excluded.data, updated_at = CURRENT_TIMESTAMP;`,
-      [JSON.stringify(ads)]
-    );
+
+    // 1. Write to shared_database.json
+    writeSharedDb('homepageAds', ads);
+
+    // 2. Sync to D1
+    try {
+      await queryD1(`CREATE TABLE IF NOT EXISTS homepage_ads (id TEXT PRIMARY KEY, data TEXT, updated_at TEXT);`);
+      await queryD1(
+        `INSERT INTO homepage_ads (id, data, updated_at) VALUES ("current_homepage_ads", ?, CURRENT_TIMESTAMP)
+         ON CONFLICT(id) DO UPDATE SET data = excluded.data, updated_at = CURRENT_TIMESTAMP;`,
+        [JSON.stringify(ads)]
+      );
+    } catch (e) {}
+
     return NextResponse.json({ success: true, data: ads });
   } catch (err) {
     return NextResponse.json({ success: false, error: err.message }, { status: 500 });

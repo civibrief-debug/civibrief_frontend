@@ -334,7 +334,7 @@ export function Header({
         {/* Left Column: Date (Row 1) & Menu + Search (Row 2) */}
         <div className="masthead-left">
           <div className="masthead-date-row">
-            <span className="masthead-date">{formattedDate}</span>
+            <span className="masthead-date" suppressHydrationWarning>{formattedDate}</span>
           </div>
           <div className="masthead-search-row">
             <button onClick={handleToggleMenu} className="masthead-menu-btn" title={isMenuOpen ? "Close Navigation Menu" : "Open Navigation Menu"}>

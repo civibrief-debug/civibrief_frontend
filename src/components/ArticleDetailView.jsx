@@ -7,6 +7,7 @@ import SafeArticleBody from './SafeArticleBody';
 import ArticleAdBanner from './ArticleAdBanner';
 import { formatCoverImageUrl, parseGoogleDriveUrl, isArticleCoverVideo, getArticleCoverVideoUrl, getDefaultArticleImage } from '../lib/videoUtils';
 import ContinuousCoverVideo from './ContinuousCoverVideo';
+import ArticleMediaCover from './ArticleMediaCover';
 import { 
   Clock, 
   Bookmark, 
@@ -142,61 +143,28 @@ export default function ArticleDetailView({ id }) {
         </div>
 
         {/* Featured Cover Media (Video, Document, or Image) */}
-        {isArticleCoverVideo(article) ? (
-          <div style={{ marginBottom: '32px', width: article.coverWidth || '100%', margin: '0 auto 32px auto' }}>
-            <div style={{ width: '100%', height: article.coverHeight === 'auto' ? '450px' : (article.coverHeight || '450px'), borderRadius: 'var(--radius-lg)', overflow: 'hidden' }}>
-              <ContinuousCoverVideo
-                src={getArticleCoverVideoUrl(article)}
-                poster={formatCoverImageUrl(article.imageUrl, article) || getDefaultArticleImage(article)}
-                cropStyle={article.coverCropStyle || article.coverVideoCrop}
-                autoPlay={true}
-                muted={true}
-                loop={true}
-                controls={true}
-                playsInline={true}
-              />
-            </div>
-            {article.imageCaption && (
-              <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginTop: '8px', textAlign: 'center', fontStyle: 'italic' }}>
-                {article.imageCaption}
-              </p>
-            )}
-          </div>
-        ) : (
-          <div style={{ marginBottom: '32px', width: article.coverWidth || '100%', margin: '0 auto 32px auto' }}>
-            <img 
-              src={formatCoverImageUrl(article.imageUrl, article) || getDefaultArticleImage(article)} 
-              alt={article.title || 'Article Cover'} 
-              referrerPolicy="no-referrer" 
-              loading="eager"
-              fetchPriority="high"
-              decoding="async"
-              style={{
-                width: '100%',
-                borderRadius: 'var(--radius-lg)',
-                maxHeight: article.coverHeight === 'auto' ? 'none' : (article.coverHeight || '480px'),
-                objectFit: 'cover',
-                display: 'block',
-                ...(article.coverCropStyle || article.coverImageCrop || {})
-              }}
-              onError={(e) => {
-                const gdrive = parseGoogleDriveUrl(article.imageUrl);
-                if (gdrive && !e.currentTarget.dataset.retried) {
-                  e.currentTarget.dataset.retried = '1';
-                  e.currentTarget.src = gdrive.proxyImageUrl || `https://lh3.googleusercontent.com/d/${gdrive.fileId}`;
-                } else if (!e.currentTarget.dataset.retriedDefault) {
-                  e.currentTarget.dataset.retriedDefault = '1';
-                  e.currentTarget.src = getDefaultArticleImage(article);
-                }
-              }}
-            />
-            {article.imageCaption && (
-              <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginTop: '8px', textAlign: 'center', fontStyle: 'italic' }}>
-                {article.imageCaption}
-              </p>
-            )}
-          </div>
-        )}
+        <div style={{ marginBottom: '32px', width: article.coverWidth || '100%', margin: '0 auto 32px auto' }}>
+          <ArticleMediaCover
+            article={article}
+            style={{
+              width: '100%',
+              height: article.coverHeight === 'auto' ? 'auto' : (article.coverHeight || '450px'),
+              minHeight: article.coverHeight === 'auto' ? '300px' : undefined,
+              borderRadius: 'var(--radius-lg)',
+              overflow: 'hidden'
+            }}
+            imageStyle={{
+              borderRadius: 'var(--radius-lg)',
+              maxHeight: article.coverHeight === 'auto' ? 'none' : (article.coverHeight || '480px')
+            }}
+            controls={true}
+            autoPlay={true}
+            muted={true}
+            loop={true}
+            priority={true}
+            showCaption={true}
+          />
+        </div>
 
         {/* Key Takeaways Box */}
         {article.takeaways && article.takeaways.length > 0 && (

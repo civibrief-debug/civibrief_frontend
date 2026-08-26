@@ -78,13 +78,11 @@ export function parseMediaUrl(inputUrl, caption = '', align = 'center') {
       };
     }
 
-    const isVideo = gdriveInfo.fileType === 'video';
-
     return {
       type: 'gdrive',
       mediaType: 'embed',
       url: gdriveInfo.previewUrl,
-      streamUrl: `https://drive.usercontent.google.com/download?id=${gdriveInfo.fileId}&export=download`,
+      streamUrl: gdriveInfo.previewUrl,
       thumbnailUrl: gdriveInfo.thumbnailUrl,
       fileId: gdriveInfo.fileId,
       provider: gdriveInfo.label,
@@ -102,27 +100,14 @@ export function parseMediaUrl(inputUrl, caption = '', align = 'center') {
                 Open in Google Drive ↗
               </a>
             </div>
-            ${isVideo ? `
-              <video 
-                src="https://drive.usercontent.google.com/download?id=${gdriveInfo.fileId}&export=download" 
-                controls 
-                autoplay 
-                muted 
-                loop 
-                playsinline 
-                style="width: 100%; height: 480px; object-fit: cover; display: block; background: #000000;"
-                onended="this.currentTime=0;this.play();"
-              ></video>
-            ` : `
-              <iframe 
-                src="${gdriveInfo.previewUrl}" 
-                title="${gdriveInfo.label}" 
-                frameborder="0" 
-                allow="autoplay; encrypted-media; fullscreen" 
-                allowfullscreen 
-                style="width: 100%; height: 480px; border: none; display: block; background: #000000;"
-              ></iframe>
-            `}
+            <iframe 
+              src="${gdriveInfo.previewUrl}" 
+              title="${gdriveInfo.label}" 
+              frameborder="0" 
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen" 
+              allowfullscreen 
+              style="width: 100%; height: 480px; border: none; display: block; background: #000000;"
+            ></iframe>
           </div>
           ${captionHtml}
         </figure>
@@ -625,11 +610,11 @@ export function formatCoverMediaEmbedUrl(url) {
  * Returns a high-res contextual default cover image if an article has no image URL
  */
 export function getDefaultArticleImage(article) {
-  const cat = (article?.category || article?.section || '').toLowerCase();
+  const cat = (typeof article === 'string' ? article : (article?.category || article?.section || '')).toLowerCase();
   if (cat.includes('tech') || cat.includes('ai') || cat.includes('compute') || cat.includes('quantum') || cat.includes('space') || cat.includes('cyber')) {
     return "https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=1200&q=80";
   }
-  if (cat.includes('market') || cat.includes('econom') || cat.includes('business') || cat.includes('finan') || cat.includes('stock') || cat.includes('bank')) {
+  if (cat.includes('credit') || cat.includes('market') || cat.includes('econom') || cat.includes('business') || cat.includes('finan') || cat.includes('stock') || cat.includes('bank')) {
     return "https://images.unsplash.com/photo-1611974789855-9c2a0a7236a3?auto=format&fit=crop&w=1200&q=80";
   }
   if (cat.includes('science') || cat.includes('climate') || cat.includes('energy') || cat.includes('green') || cat.includes('health') || cat.includes('enviro')) {
@@ -647,60 +632,424 @@ export function getDefaultArticleImage(article) {
   return "https://images.unsplash.com/photo-1585829365295-ab7cd400c167?auto=format&fit=crop&w=1200&q=80";
 }
 
+
+
 /**
- * Determines if an article has a cover video (supporting coverMediaType, videoUrl, or video media formats)
+ * Validates any media URL (image, video, embed) and returns diagnostic information
  */
-export function isArticleCoverVideo(article) {
-  if (!article) return false;
-  // If explicitly designated as image, it is an image
-  if (article.coverMediaType === 'image') return false;
-  // If explicitly designated as video, check for video source
-  if (article.coverMediaType === 'video') {
-    return Boolean((article.videoUrl && article.videoUrl.trim()) || (article.imageUrl && article.imageUrl.trim()));
+export function validateMediaUrl(url, expectedType = 'any') {
+  if (!url || typeof url !== 'string' || !url.trim()) {
+    return { valid: false, error: 'URL is required and cannot be empty.' };
   }
-  // If videoUrl is provided and distinct from standard image files
-  if (article.videoUrl && typeof article.videoUrl === 'string' && article.videoUrl.trim().length > 0) {
-    const vUrl = article.videoUrl.trim();
-    if (!/\.(jpg|jpeg|png|webp|gif|svg|avif)(\?.*)?$/i.test(vUrl)) {
-      return true;
+  const cleanUrl = url.trim();
+
+  // Extract src if raw iframe or img tag was pasted
+  let rawUrl = cleanUrl;
+  if (rawUrl.includes('<iframe') && rawUrl.includes('src=')) {
+    const m = rawUrl.match(/src=["']([^"']+)["']/i);
+    if (m && m[1]) rawUrl = m[1].trim();
+  } else if (rawUrl.includes('<img') && rawUrl.includes('src=')) {
+    const m = rawUrl.match(/src=["']([^"']+)["']/i);
+    if (m && m[1]) rawUrl = m[1].trim();
+  }
+
+  const hasProtocol = rawUrl.startsWith('http://') || rawUrl.startsWith('https://') || rawUrl.startsWith('data:') || rawUrl.startsWith('blob:');
+  if (!hasProtocol) {
+    if (!rawUrl.includes('.') || rawUrl.includes(' ') || rawUrl.length < 4) {
+      return { valid: false, error: 'Invalid URL format. Please enter a valid HTTP/HTTPS link.' };
     }
   }
-  // Check if imageUrl is an explicit video file or video host
-  const url = (typeof article.imageUrl === 'string' ? article.imageUrl.trim() : '');
-  if (url) {
-    if (/\.(mp4|webm|ogg|mov|m4v)(\?.*)?$/i.test(url)) return true;
-    if (/youtube\.com|youtu\.be|vimeo\.com|dailymotion\.com|loom\.com|player\.vimeo\.com/i.test(url)) return true;
-    const gdrive = parseGoogleDriveUrl(url);
-    if (gdrive && gdrive.fileType === 'video') return true;
+
+  const isDataOrBlob = rawUrl.startsWith('data:') || rawUrl.startsWith('blob:');
+  if (!isDataOrBlob && !rawUrl.startsWith('http://') && !rawUrl.startsWith('https://')) {
+    rawUrl = `https://${rawUrl}`;
   }
-  return false;
+
+  try {
+    if (!isDataOrBlob) {
+      const parsed = new URL(rawUrl);
+      if (!parsed.hostname || !parsed.hostname.includes('.')) {
+        return { valid: false, error: 'Invalid URL format. Please enter a valid HTTP/HTTPS link with a valid domain.' };
+      }
+    }
+  } catch (e) {
+    return { valid: false, error: 'Invalid URL format. Please enter a valid HTTP/HTTPS link.' };
+  }
+
+  // Check Google Drive
+  const gdrive = parseGoogleDriveUrl(rawUrl);
+  if (gdrive) {
+    const isGdriveVideo = gdrive.fileType === 'video' || (!gdrive.isDoc && !gdrive.isPresentation && !gdrive.isSpreadsheet && gdrive.fileType !== 'image');
+    const actualType = isGdriveVideo ? 'video' : 'image';
+    if (expectedType === 'video' && !isGdriveVideo) {
+      return { valid: false, type: 'image', provider: 'Google Drive', error: 'Provided Google Drive URL is not a video.', cleanUrl: rawUrl };
+    }
+    if (expectedType === 'image' && isGdriveVideo) {
+      return { valid: false, type: 'video', provider: 'Google Drive', error: 'Provided Google Drive URL is a video, but an image was expected.', cleanUrl: rawUrl };
+    }
+    return {
+      valid: true,
+      type: actualType,
+      provider: 'Google Drive',
+      embedUrl: gdrive.previewUrl,
+      thumbnailUrl: gdrive.thumbnailUrl,
+      cleanUrl: rawUrl
+    };
+  }
+
+  // Check Video providers
+  const isYoutube = /(?:youtube(?:-nocookie)?\.com|youtu\.be)/i.test(rawUrl);
+  const isVimeo = /vimeo\.com/i.test(rawUrl);
+  const isDailymotion = /(?:dailymotion\.com|dai\.ly)/i.test(rawUrl);
+  const isLoom = /loom\.com/i.test(rawUrl);
+  const isStreamable = /streamable\.com/i.test(rawUrl);
+  const isPexelsVideo = /pexels\.com/i.test(rawUrl);
+  const isDirectVideo = /\.(mp4|webm|ogg|mov|m4v)(\?.*)?$/i.test(rawUrl) || rawUrl.startsWith('data:video/');
+
+  if (isYoutube || isVimeo || isDailymotion || isLoom || isStreamable || isPexelsVideo || isDirectVideo) {
+    let provider = 'Direct Video';
+    if (isYoutube) provider = 'YouTube';
+    else if (isVimeo) provider = 'Vimeo';
+    else if (isDailymotion) provider = 'Dailymotion';
+    else if (isLoom) provider = 'Loom';
+    else if (isStreamable) provider = 'Streamable';
+    else if (isPexelsVideo) provider = 'Pexels Video';
+
+    if (expectedType === 'image') {
+      return {
+        valid: false,
+        type: 'video',
+        provider,
+        error: `Provided URL is a ${provider} video, but an image was expected.`,
+        cleanUrl: rawUrl
+      };
+    }
+
+    return {
+      valid: true,
+      type: 'video',
+      provider,
+      cleanUrl: rawUrl
+    };
+  }
+
+  // Check if image
+  const isImage = /\.(jpg|jpeg|png|webp|gif|svg|avif)(\?.*)?$/i.test(rawUrl) ||
+                  rawUrl.startsWith('data:image/') ||
+                  rawUrl.startsWith('blob:') ||
+                  /pbs\.twimg\.com|fbcdn\.net|cdninstagram\.com|i\.redd\.it|images\.unsplash\.com|i\.imgur\.com|images\.pexels\.com/i.test(rawUrl);
+
+  if (isImage) {
+    if (expectedType === 'video') {
+      return {
+        valid: false,
+        type: 'image',
+        provider: 'Image',
+        error: 'Provided URL is an image, but a video was expected.',
+        cleanUrl: rawUrl
+      };
+    }
+    return {
+      valid: true,
+      type: 'image',
+      provider: 'Image',
+      cleanUrl: rawUrl
+    };
+  }
+
+  // General web URL
+  if (expectedType === 'video') {
+    return {
+      valid: false,
+      type: 'unknown',
+      error: 'Unrecognized video provider. Please enter a valid YouTube, Vimeo, Google Drive, Loom, Streamable, or direct MP4/WebM video link.',
+      cleanUrl: rawUrl
+    };
+  }
+
+  if (expectedType === 'image') {
+    return {
+      valid: false,
+      type: 'unknown',
+      error: 'Unrecognized image URL. Please enter a valid image link (.jpg, .png, .webp, Unsplash, etc.).',
+      cleanUrl: rawUrl
+    };
+  }
+
+  return {
+    valid: true,
+    type: 'web_card',
+    provider: 'External Source',
+    cleanUrl: rawUrl
+  };
 }
 
 /**
- * Returns the effective cover video URL for an article
+ * Universal Single Source of Truth for Article Media Resolution
+ *
+ * Deterministic Rules:
+ * 1. Explicit coverMediaType takes top priority:
+ *    - 'video' or 'embed_video': Resolves as video. Looks at videoUrl / coverVideoUrl / embedUrl / mediaUrl.
+ *      If video source exists, returns { type: 'video', isVideo: true, ... }.
+ *      If video source is empty, falls back gracefully to image (imageUrl) or category default.
+ *    - 'image': Resolves as image. Looks at imageUrl / coverImageUrl.
+ *      If image source exists, returns { type: 'image', isVideo: false, ... }.
+ *      If image source is empty, falls back to category default image.
+ *    - 'none': Resolves as { type: 'none', isVideo: false, isImage: false }.
+ * 2. If coverMediaType is unassigned or undefined:
+ *    - If a valid video URL is present in videoUrl / coverVideoUrl / embedUrl -> resolves as 'video'.
+ *    - Else if an image URL is present in imageUrl -> resolves as 'image'.
+ *    - Else -> resolves to default category image.
+ * 3. NO hardcoded title or category overrides.
+ * 4. NO body HTML regex inspection for cover media.
+ */
+export function resolveArticleMedia(article, fallbackCategory = '') {
+  if (!article) {
+    const defaultImg = getDefaultArticleImage(fallbackCategory);
+    return {
+      type: 'image',
+      isVideo: false,
+      isImage: true,
+      mediaType: 'image',
+      videoUrl: '',
+      streamUrl: '',
+      embedUrl: '',
+      imageUrl: defaultImg,
+      formattedImageUrl: defaultImg,
+      posterUrl: defaultImg,
+      source: 'default',
+      isDefault: true
+    };
+  }
+
+  // Extract raw fields
+  const mediaTypeField = String(article.coverMediaType || article.media_type || article.mediaType || '').toLowerCase().trim();
+  const rawVideoUrl = (article.videoUrl || article.coverVideoUrl || article.originalCoverVideoUrl || article.video_url || article.embed_url || article.embedUrl || article.media_url || article.mediaUrl || '').trim();
+  const rawImageUrl = (article.imageUrl || article.coverImageUrl || article.originalCoverImageUrl || article.image_url || article.thumbnail_url || article.thumbnailUrl || article.featured_image || '').trim();
+
+  // Helper to extract clean video string
+  const cleanVideo = (() => {
+    if (!rawVideoUrl) return '';
+    let v = rawVideoUrl;
+    if (v.includes('<iframe') && v.includes('src=')) {
+      const match = v.match(/src=["']([^"']+)["']/i);
+      if (match && match[1]) v = match[1].trim();
+    }
+    return v;
+  })();
+
+  // Helper to extract clean image string
+  const cleanImage = (() => {
+    if (!rawImageUrl) return '';
+    let img = rawImageUrl;
+    if (img.includes('<img') && img.includes('src=')) {
+      const match = img.match(/src=["']([^"']+)["']/i);
+      if (match && match[1]) img = match[1].trim();
+    }
+    return img;
+  })();
+
+  const defaultImg = getDefaultArticleImage(article.category || fallbackCategory);
+  const formattedCoverImage = formatCoverImageUrl(cleanImage, article) || defaultImg;
+
+  // 1. Explicitly requested 'none'
+  if (mediaTypeField === 'none') {
+    return {
+      type: 'none',
+      isVideo: false,
+      isImage: false,
+      mediaType: 'none',
+      videoUrl: '',
+      streamUrl: '',
+      embedUrl: '',
+      imageUrl: '',
+      formattedImageUrl: '',
+      posterUrl: defaultImg,
+      source: 'none'
+    };
+  }
+
+  // 2. Explicitly requested 'video' or 'embed_video'
+  if (mediaTypeField === 'video' || mediaTypeField === 'embed_video' || mediaTypeField === 'embed') {
+    if (cleanVideo) {
+      const videoMeta = getContinuousVideoUrls(cleanVideo);
+      return {
+        type: 'video',
+        isVideo: true,
+        isImage: false,
+        mediaType: 'video',
+        videoUrl: cleanVideo,
+        streamUrl: videoMeta.streamUrl || cleanVideo,
+        embedUrl: videoMeta.embedUrl || '',
+        imageUrl: cleanImage || formattedCoverImage,
+        formattedImageUrl: formattedCoverImage,
+        posterUrl: formattedCoverImage,
+        videoMeta,
+        source: 'explicit_video'
+      };
+    }
+    // Video field was empty: fallback gracefully to imageUrl if present, else default
+    if (cleanImage) {
+      return {
+        type: 'image',
+        isVideo: false,
+        isImage: true,
+        mediaType: 'image',
+        videoUrl: '',
+        streamUrl: '',
+        embedUrl: '',
+        imageUrl: cleanImage,
+        formattedImageUrl: formattedCoverImage,
+        posterUrl: formattedCoverImage,
+        source: 'fallback_image_from_missing_video'
+      };
+    }
+    return {
+      type: 'image',
+      isVideo: false,
+      isImage: true,
+      mediaType: 'image',
+      videoUrl: '',
+      streamUrl: '',
+      embedUrl: '',
+      imageUrl: defaultImg,
+      formattedImageUrl: defaultImg,
+      posterUrl: defaultImg,
+      source: 'fallback_default_from_missing_video',
+      isDefault: true
+    };
+  }
+
+  // 3. Explicitly requested 'image'
+  if (mediaTypeField === 'image') {
+    if (cleanImage) {
+      return {
+        type: 'image',
+        isVideo: false,
+        isImage: true,
+        mediaType: 'image',
+        videoUrl: '',
+        streamUrl: '',
+        embedUrl: '',
+        imageUrl: cleanImage,
+        formattedImageUrl: formattedCoverImage,
+        posterUrl: formattedCoverImage,
+        source: 'explicit_image'
+      };
+    }
+    // Image was empty: check if video exists to use as thumbnail, else default
+    if (cleanVideo) {
+      const gdrive = parseGoogleDriveUrl(cleanVideo);
+      const thumb = gdrive ? gdrive.thumbnailUrl : defaultImg;
+      return {
+        type: 'image',
+        isVideo: false,
+        isImage: true,
+        mediaType: 'image',
+        videoUrl: '',
+        streamUrl: '',
+        embedUrl: '',
+        imageUrl: thumb,
+        formattedImageUrl: thumb,
+        posterUrl: thumb,
+        source: 'fallback_video_thumbnail_for_image'
+      };
+    }
+    return {
+      type: 'image',
+      isVideo: false,
+      isImage: true,
+      mediaType: 'image',
+      videoUrl: '',
+      streamUrl: '',
+      embedUrl: '',
+      imageUrl: defaultImg,
+      formattedImageUrl: defaultImg,
+      posterUrl: defaultImg,
+      source: 'fallback_default_image',
+      isDefault: true
+    };
+  }
+
+  // 4. mediaTypeField is unassigned: evaluate based on presence of videoUrl vs imageUrl
+  if (cleanVideo && cleanVideo !== cleanImage) {
+    const videoMeta = getContinuousVideoUrls(cleanVideo);
+    return {
+      type: 'video',
+      isVideo: true,
+      isImage: false,
+      mediaType: 'video',
+      videoUrl: cleanVideo,
+      streamUrl: videoMeta.streamUrl || cleanVideo,
+      embedUrl: videoMeta.embedUrl || '',
+      imageUrl: cleanImage || formattedCoverImage,
+      formattedImageUrl: formattedCoverImage,
+      posterUrl: formattedCoverImage,
+      videoMeta,
+      source: 'inferred_video'
+    };
+  }
+
+  if (cleanImage) {
+    return {
+      type: 'image',
+      isVideo: false,
+      isImage: true,
+      mediaType: 'image',
+      videoUrl: '',
+      streamUrl: '',
+      embedUrl: '',
+      imageUrl: cleanImage,
+      formattedImageUrl: formattedCoverImage,
+      posterUrl: formattedCoverImage,
+      source: 'inferred_image'
+    };
+  }
+
+  // Default fallback
+  return {
+    type: 'image',
+    isVideo: false,
+    isImage: true,
+    mediaType: 'image',
+    videoUrl: '',
+    streamUrl: '',
+    embedUrl: '',
+    imageUrl: defaultImg,
+    formattedImageUrl: defaultImg,
+    posterUrl: defaultImg,
+    source: 'default',
+    isDefault: true
+  };
+}
+
+/**
+ * Diagnostic logger for media resolution
+ */
+export function getArticleMediaResolution(article, context = '') {
+  const resolved = resolveArticleMedia(article);
+  if (typeof console !== 'undefined' && console.debug) {
+    console.debug(`[MediaResolver${context ? `:${context}` : ''}] Post "${article?.title || article?.id || 'Unknown'}" -> resolved type: ${resolved.type} (source: ${resolved.source})`, {
+      coverMediaType: article?.coverMediaType,
+      videoUrl: resolved.videoUrl,
+      imageUrl: resolved.imageUrl
+    });
+  }
+  return resolved;
+}
+
+/**
+ * Determines if an article has a cover video (backward compatible wrapper around resolveArticleMedia)
+ */
+export function isArticleCoverVideo(article) {
+  return resolveArticleMedia(article).isVideo;
+}
+
+/**
+ * Returns the effective cover video URL for an article (backward compatible wrapper)
  */
 export function getArticleCoverVideoUrl(article) {
-  if (!article) return '';
-  if (article.coverMediaType === 'video' && article.videoUrl && article.videoUrl.trim()) {
-    return article.videoUrl.trim();
-  }
-  if (article.videoUrl && typeof article.videoUrl === 'string' && article.videoUrl.trim().length > 0) {
-    const vUrl = article.videoUrl.trim();
-    if (!/\.(jpg|jpeg|png|webp|gif|svg|avif)(\?.*)?$/i.test(vUrl)) {
-      return vUrl;
-    }
-  }
-  if (article.imageUrl && typeof article.imageUrl === 'string') {
-    const imgUrl = article.imageUrl.trim();
-    if (article.coverMediaType === 'video' || /\.(mp4|webm|ogg|mov|m4v)(\?.*)?$/i.test(imgUrl) || /youtube\.com|youtu\.be|vimeo\.com|dailymotion\.com|loom\.com/i.test(imgUrl)) {
-      return imgUrl;
-    }
-    const gdrive = parseGoogleDriveUrl(imgUrl);
-    if (gdrive && gdrive.fileType === 'video') {
-      return imgUrl;
-    }
-  }
-  return '';
+  return resolveArticleMedia(article).videoUrl;
 }
 
 /**
@@ -724,9 +1073,14 @@ export function formatCoverImageUrl(url, article = null) {
  */
 export function getContinuousVideoUrls(url) {
   if (!url || typeof url !== 'string') {
-    return { streamUrl: '', embedUrl: '', isGDrive: false, isYouTube: false, isVimeo: false };
+    return { streamUrl: '', embedUrl: '', isGDrive: false, isYouTube: false, isVimeo: false, isEmbed: false };
   }
-  const cleanUrl = url.trim();
+  let cleanUrl = url.trim();
+
+  if (cleanUrl.includes('<iframe') && cleanUrl.includes('src=')) {
+    const match = cleanUrl.match(/src=["']([^"']+)["']/i);
+    if (match && match[1]) cleanUrl = match[1].trim();
+  }
 
   const gdrive = parseGoogleDriveUrl(cleanUrl);
   if (gdrive) {
@@ -738,6 +1092,7 @@ export function getContinuousVideoUrls(url) {
       embedUrl: `https://drive.google.com/file/d/${gdrive.fileId}/preview`,
       isGDrive: true,
       isVideo: !isDoc,
+      isEmbed: true,
       fileId: gdrive.fileId,
       fileType: gdrive.fileType,
       isDoc
@@ -751,7 +1106,8 @@ export function getContinuousVideoUrls(url) {
       streamUrl: '',
       embedUrl: `https://www.youtube-nocookie.com/embed/${videoId}?autoplay=1&loop=1&playlist=${videoId}&mute=1&controls=0&modestbranding=1&rel=0`,
       isGDrive: false,
-      isYouTube: true
+      isYouTube: true,
+      isEmbed: true
     };
   }
 
@@ -762,7 +1118,8 @@ export function getContinuousVideoUrls(url) {
       streamUrl: '',
       embedUrl: `https://player.vimeo.com/video/${vimeoId}?autoplay=1&muted=1&loop=1&background=1&controls=0&autopause=0`,
       isGDrive: false,
-      isVimeo: true
+      isVimeo: true,
+      isEmbed: true
     };
   }
 
@@ -781,6 +1138,16 @@ export function getContinuousVideoUrls(url) {
     return {
       streamUrl: '',
       embedUrl: `https://www.loom.com/embed/${loomMatch[1]}?autoplay=1&hide_owner=true&hide_share=true`,
+      isGDrive: false,
+      isEmbed: true
+    };
+  }
+
+  const streamableMatch = cleanUrl.match(/streamable\.com\/(?:e\/)?([a-zA-Z0-9]+)/i);
+  if (streamableMatch && streamableMatch[1]) {
+    return {
+      streamUrl: '',
+      embedUrl: `https://streamable.com/e/${streamableMatch[1]}?autoplay=1&muted=1`,
       isGDrive: false,
       isEmbed: true
     };
@@ -807,6 +1174,8 @@ export function getContinuousVideoUrls(url) {
     embedUrl: '',
     isGDrive: false,
     isYouTube: false,
-    isVimeo: false
+    isVimeo: false,
+    isEmbed: false
   };
 }
+
