@@ -1,11 +1,14 @@
 /**
  * Edge Database Helper for Cloudflare D1
+ * Queries Cloudflare D1 directly via HTTP fetch in Edge / Worker runtime.
  */
 
+export const runtime = 'edge';
+
 export async function queryD1(sql, params = []) {
-  const accountId = process.env.CLOUDFLARE_ACCOUNT_ID;
-  const databaseId = process.env.CLOUDFLARE_D1_DATABASE_ID;
-  const apiToken = process.env.CLOUDFLARE_D1_API_TOKEN;
+  const accountId = (typeof process !== 'undefined' && process.env?.CLOUDFLARE_ACCOUNT_ID) || '';
+  const databaseId = (typeof process !== 'undefined' && process.env?.CLOUDFLARE_D1_DATABASE_ID) || '';
+  const apiToken = (typeof process !== 'undefined' && process.env?.CLOUDFLARE_D1_API_TOKEN) || '';
 
   if (!accountId || !databaseId || !apiToken) {
     return [];
@@ -30,7 +33,7 @@ export async function queryD1(sql, params = []) {
     const data = await res.json();
     return data.result?.[0]?.results || [];
   } catch (err) {
-    console.error('D1 Edge Query Error:', err.message);
+    console.error('D1 Edge Query Error:', err?.message || err);
     return [];
   }
 }

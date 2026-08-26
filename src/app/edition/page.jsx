@@ -1,5 +1,7 @@
 'use client';
 
+export const runtime = 'edge';
+
 import React, { useState } from 'react';
 import Link from 'next/link';
 import { Download, ChevronLeft, ChevronRight, ArrowLeft, Lock, CheckCircle2 } from 'lucide-react';
