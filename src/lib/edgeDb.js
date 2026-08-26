@@ -3,8 +3,6 @@
  * Queries Cloudflare D1 directly via HTTP fetch in Edge / Worker runtime.
  */
 
-export const runtime = 'edge';
-
 export async function queryD1(sql, params = []) {
   const accountId = (typeof process !== 'undefined' && process.env?.CLOUDFLARE_ACCOUNT_ID) || '';
   const databaseId = (typeof process !== 'undefined' && process.env?.CLOUDFLARE_D1_DATABASE_ID) || '';
