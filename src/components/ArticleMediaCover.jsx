@@ -5,34 +5,6 @@ import { resolveArticleMedia, getDefaultArticleImage, parseGoogleDriveUrl } from
 import ContinuousCoverVideo from './ContinuousCoverVideo';
 
 /**
- * Helper to safely resolve crop positioning without letting numeric crop dimensions
- * override the 100% full-width cover image display.
- */
-function getResolvedCropStyle(crop) {
-  if (!crop || typeof crop !== 'object') return {};
-
-  // If already explicit CSS positioning styles
-  if (crop.objectPosition || crop.transform || crop.clipPath) {
-    return {
-      objectPosition: crop.objectPosition,
-      transform: crop.transform,
-      clipPath: crop.clipPath
-    };
-  }
-
-  // If react-image-crop percentage or pixel coordinates
-  if (typeof crop.x === 'number' && typeof crop.y === 'number') {
-    // If it's the full default 0,0 crop, return neutral
-    if (crop.x === 0 && crop.y === 0 && (crop.width === 100 || !crop.width)) {
-      return { objectPosition: 'center center' };
-    }
-    return { objectPosition: `${crop.x}% ${crop.y}%` };
-  }
-
-  return {};
-}
-
-/**
  * Universal Article Media Cover Component
  * Standardized across Homepage cards, Hero sections, Stacked feed, Article Modal, and Detail View.
  */
@@ -63,8 +35,18 @@ export default function ArticleMediaCover({
     return null;
   }
 
-  const rawCrop = cropStyle || article?.coverCropStyle || (media.isVideo ? article?.coverVideoCrop : article?.coverImageCrop) || null;
-  const effectiveCropStyle = getResolvedCropStyle(rawCrop);
+  // Extract and sanitize crop styles so numeric dimensions (e.g. { width: 100, height: 100 }) NEVER shrink the image to 100px
+  const rawCrop = cropStyle || article?.coverCropStyle || (media.isVideo ? article?.coverVideoCrop : article?.coverImageCrop) || {};
+  const effectiveCrop = {};
+  if (rawCrop && typeof rawCrop === 'object') {
+    if (rawCrop.objectPosition) {
+      effectiveCrop.objectPosition = rawCrop.objectPosition;
+    } else if (rawCrop.x !== undefined && rawCrop.y !== undefined && (rawCrop.x !== 0 || rawCrop.y !== 0)) {
+      effectiveCrop.objectPosition = `${rawCrop.x}% ${rawCrop.y}%`;
+    }
+    if (rawCrop.transform) effectiveCrop.transform = rawCrop.transform;
+  }
+
   const effectiveAlt = alt || article?.title || 'Article Cover';
   const defaultPoster = getDefaultArticleImage(article?.category || fallbackCategory);
 
@@ -86,8 +68,8 @@ export default function ArticleMediaCover({
         <ContinuousCoverVideo
           src={media.videoUrl}
           poster={media.posterUrl || defaultPoster}
-          style={{ width: '100%', height: '100%', ...videoStyle }}
-          cropStyle={effectiveCropStyle}
+          style={{ width: '100%', height: '100%', objectFit: 'cover', ...videoStyle }}
+          cropStyle={effectiveCrop}
           autoPlay={autoPlay}
           muted={muted}
           loop={loop}
@@ -104,7 +86,7 @@ export default function ArticleMediaCover({
     );
   }
 
-  // 2. Static Image Cover (with resilient error recovery and guaranteed full-cover width)
+  // 2. Static Image Cover (with resilient error recovery & full cover sizing)
   const imageSrc = imageError ? defaultPoster : (media.formattedImageUrl || media.imageUrl || defaultPoster);
 
   return (
@@ -114,7 +96,6 @@ export default function ArticleMediaCover({
         position: 'relative',
         width: '100%',
         height: '100%',
-        minHeight: '260px',
         overflow: 'hidden',
         cursor: onClick ? 'pointer' : 'default',
         ...style
@@ -134,7 +115,7 @@ export default function ArticleMediaCover({
           height: '100%',
           objectFit: 'cover',
           display: 'block',
-          ...effectiveCropStyle,
+          ...effectiveCrop,
           ...imageStyle
         }}
         onError={(e) => {
