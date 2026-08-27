@@ -122,6 +122,7 @@ export default function HomePage() {
   const [homepageAds, setHomepageAds] = useState([]);
   const [homepageArticleSections, setHomepageArticleSections] = useState([]);
   const [activeSlide, setActiveSlide] = useState(0);
+  const [slideIndices, setSlideIndices] = useState({});
 
   // Financial & Currency Converter State
   const [convAmount, setConvAmount] = useState('1000');
@@ -237,13 +238,30 @@ export default function HomePage() {
     return () => clearInterval(timer);
   }, []);
 
-  // Top Stories continuous auto-sliding carousel (2-second hold time per story, infinite loop)
+  // Top Stories continuous auto-sliding carousel & template 1 slide rotations
   useEffect(() => {
     const timer = setInterval(() => {
       setTopStoriesSlideIndex(prev => prev + 1);
-    }, 2000);
+      setSlideIndices(prev => {
+        const next = { ...prev };
+        if (Array.isArray(homepageArticleSections)) {
+          homepageArticleSections.forEach(inst => {
+            if (inst && inst.templateType === 'hero_lead') {
+              const slideCount = Array.isArray(inst.slides) && inst.slides.length > 0 
+                ? inst.slides.length 
+                : (Array.isArray(inst.slideStories) && inst.slideStories.length > 0 ? inst.slideStories.length : 1);
+              if (slideCount > 1) {
+                const current = next[inst.instanceId] || 0;
+                next[inst.instanceId] = (current + 1) % slideCount;
+              }
+            }
+          });
+        }
+        return next;
+      });
+    }, 2500);
     return () => clearInterval(timer);
-  }, []);
+  }, [homepageArticleSections]);
 
   const isDeepDiveArticle = (a) => {
     if (!a) return false;
@@ -364,6 +382,41 @@ export default function HomePage() {
       if (regionId === 'hero_col3' && (s.column === 'right' || s.templateType === 'opinion')) return true;
       return false;
     });
+  };
+
+  // Helper to find all placed template instances in a specific hero column
+  const getInstancesForColumn = (regionId) => {
+    if (!Array.isArray(homepageArticleSections) || homepageArticleSections.length === 0) {
+      if (regionId === 'hero_col1') return [{ instanceId: 'default-hero-lead', templateType: 'hero_lead', sectionRegion: 'hero_col1' }];
+      if (regionId === 'hero_col2') return [
+        { instanceId: 'default-second-lead', templateType: 'hero_second_lead', sectionRegion: 'hero_col2' },
+        { instanceId: 'default-stacked', templateType: 'hero_stacked', sectionRegion: 'hero_col2' }
+      ];
+      if (regionId === 'hero_col3') return [{ instanceId: 'default-opinion', templateType: 'opinion', sectionRegion: 'hero_col3' }];
+      return [];
+    }
+
+    const matched = homepageArticleSections.filter(i => {
+      if (!i || i.enabled === false) return false;
+      if (i.sectionRegion === regionId) return true;
+      if (!i.sectionRegion) {
+        if (regionId === 'hero_col1' && (i.column === 'left' || i.templateType === 'hero_lead')) return true;
+        if (regionId === 'hero_col2' && (i.column === 'center' || i.templateType === 'hero_second_lead' || i.templateType === 'hero_stacked')) return true;
+        if (regionId === 'hero_col3' && (i.column === 'right' || i.templateType === 'opinion')) return true;
+      }
+      return false;
+    });
+
+    if (matched.length > 0) return matched;
+
+    // Fallback if that specific column is empty
+    if (regionId === 'hero_col1') return [{ instanceId: 'default-hero-lead', templateType: 'hero_lead', sectionRegion: 'hero_col1' }];
+    if (regionId === 'hero_col2') return [
+      { instanceId: 'default-second-lead', templateType: 'hero_second_lead', sectionRegion: 'hero_col2' },
+      { instanceId: 'default-stacked', templateType: 'hero_stacked', sectionRegion: 'hero_col2' }
+    ];
+    if (regionId === 'hero_col3') return [{ instanceId: 'default-opinion', templateType: 'opinion', sectionRegion: 'hero_col3' }];
+    return [];
   };
 
   const activeOpinion = useMemo(() => {
@@ -667,6 +720,335 @@ export default function HomePage() {
     } else {
       setSelectedArticle(dive);
     }
+  };
+
+  // Dynamic Template Renderer for all 4 Core Templates + Duplicated Copies placed in Hero Columns
+  const renderFrontendHeroTemplate = (inst, idx) => {
+    if (!inst) return null;
+    const type = inst.templateType || 'hero_second_lead';
+
+    // 1. Template 1: Dominant Hero Lead Stage with Sliding Carousel + 2 Sub-stories
+    if (type === 'hero_lead') {
+      const rawSlides = Array.isArray(inst.slides) && inst.slides.length > 0
+        ? inst.slides
+        : (Array.isArray(inst.slideStories) && inst.slideStories.length > 0 ? inst.slideStories : [inst.mainStory || leadStory]);
+      const slidesList = rawSlides.map(enrichArticle);
+      const activeIdx = (slideIndices[inst.instanceId] !== undefined ? slideIndices[inst.instanceId] : currentHeroIndex) % (slidesList.length || 1);
+      const currentSlide = slidesList[activeIdx] || slidesList[0];
+
+      const rawSubs = Array.isArray(inst.subStories) && inst.subStories.length > 0
+        ? inst.subStories
+        : (heroSubStories && heroSubStories.length > 0 ? heroSubStories : [subLead1, subLead2].filter(Boolean));
+      const subStoriesList = rawSubs.map(enrichArticle);
+
+      return (
+        <div key={inst.instanceId || `hero-lead-${idx}`} style={{ display: 'flex', flexDirection: 'column', width: '100%', marginBottom: '20px' }}>
+          {/* Top Stories Smooth Auto-Sliding Carousel */}
+          <div className="hero-lead-carousel-wrapper" style={{ width: '100%', overflow: 'hidden', position: 'relative' }}>
+            <div 
+              className="hero-lead-carousel-track"
+              style={{
+                display: 'flex',
+                width: '100%',
+                transform: `translateX(-${activeIdx * 100}%)`,
+                transition: 'transform 0.5s cubic-bezier(0.25, 1, 0.5, 1)',
+                willChange: 'transform'
+              }}
+            >
+              {slidesList.map((story, sIdx) => (
+                <div 
+                  key={`top-story-slide-${story.id || sIdx}`}
+                  style={{
+                    width: '100%',
+                    flexShrink: 0,
+                    boxSizing: 'border-box'
+                  }}
+                >
+                  <article 
+                    className="lead-story-hero-card"
+                    onClick={() => handleOpenArticle(story)}
+                  >
+                    <div className="lead-story-img-box">
+                      <ArticleMediaCover
+                        article={story}
+                        className="lead-story-img"
+                        style={{ width: '100%', height: '100%' }}
+                        priority={sIdx === 0}
+                        autoPlay={true}
+                        muted={true}
+                        loop={true}
+                        controls={false}
+                        playsInline={true}
+                      />
+                      {story.hasAudio && (
+                        <div style={{ position: 'absolute', top: '10px', right: '10px', background: 'rgba(185, 0, 20, 0.9)', color: '#ffffff', fontSize: '9.5px', fontWeight: 800, padding: '3px 8px', borderRadius: '3px', display: 'flex', alignItems: 'center', gap: '4px', zIndex: 10 }}>
+                          <Volume2 size={12} />
+                          <span>{t("AUDIO")}</span>
+                        </div>
+                      )}
+                    </div>
+
+                    <div>
+                      <span className="news-kicker">
+                        {story.kicker ? t(story.kicker.toUpperCase()) : t(story.category || 'TOP STORY')}
+                      </span>
+                      <h1 className="lead-story-title">
+                        {story.title}
+                      </h1>
+                      <p className="lead-story-deck">
+                        {story.summary || story.subtitle || story.excerpt}
+                      </p>
+                      <div className="lead-story-byline">
+                        <span>{t("By")} <strong>{story.author || 'Editorial Board'}</strong></span>
+                        <span>•</span>
+                        <span>{story.readTime || '4 min read'}</span>
+                      </div>
+                    </div>
+                  </article>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Small Dotted Navigation Buttons Below Carousel */}
+          {slidesList.length > 1 && (
+            <div 
+              className="hero-carousel-dots"
+              aria-label="Top stories navigation dots"
+              suppressHydrationWarning={true}
+            >
+              {slidesList.map((story, dotIdx) => {
+                const isActive = dotIdx === activeIdx;
+                return (
+                  <button
+                    key={`top-dot-${story.id || dotIdx}`}
+                    type="button"
+                    className={`hero-carousel-dot ${isActive ? 'active' : ''}`}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setSlideIndices(prev => ({ ...prev, [inst.instanceId]: dotIdx }));
+                    }}
+                    title={`Jump to story ${dotIdx + 1}: ${story.title || ''}`}
+                    aria-label={`Jump to slide ${dotIdx + 1}`}
+                    aria-current={isActive ? 'true' : undefined}
+                    suppressHydrationWarning={true}
+                  />
+                );
+              })}
+            </div>
+          )}
+
+          {/* 2-Column Compact Sub-Grid below Main Lead */}
+          {subStoriesList.length >= 2 && (
+            <div className="hero-sub-grid-2col" style={{ marginTop: '14px' }}>
+              {subStoriesList.slice(0, 2).map((sub, sIdx) => (
+                <article key={sub.id || sIdx} className="sub-story-card" onClick={() => handleOpenArticle(sub)}>
+                  <div style={{ width: '100%', height: '140px', overflow: 'hidden', borderRadius: '4px', background: '#000', marginBottom: '8px' }}>
+                    <ArticleMediaCover
+                      article={sub}
+                      style={{ width: '100%', height: '100%' }}
+                      priority={true}
+                      autoPlay={true}
+                      muted={true}
+                      loop={true}
+                      controls={false}
+                      playsInline={true}
+                    />
+                  </div>
+                  <span className="news-kicker" style={{ fontSize: '10px' }}>
+                    {sub.kicker ? t(sub.kicker.toUpperCase()) : t(sub.category)}
+                  </span>
+                  <h3 className="sub-story-title">
+                    {sub.title}
+                  </h3>
+                </article>
+              ))}
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    // 2. Template 2: Medium Featured Story Block (e.g. Make money in one Day!)
+    if (type === 'hero_second_lead') {
+      const story = enrichArticle(inst.mainStory || inst.slides?.[0] || inst.stories?.[0] || secondLead);
+
+      return (
+        <article key={inst.instanceId || `sec-lead-${idx}`} className="second-lead-card" onClick={() => handleOpenArticle(story)} style={{ marginBottom: '20px' }}>
+          <div style={{ width: '100%', height: '220px', overflow: 'hidden', borderRadius: '4px', background: '#000', marginBottom: '8px' }}>
+            <ArticleMediaCover
+              article={story}
+              style={{ width: '100%', height: '100%' }}
+              priority={true}
+              autoPlay={true}
+              muted={true}
+              loop={true}
+              controls={false}
+              playsInline={true}
+            />
+          </div>
+          <span className="news-kicker">
+            {story.kicker ? t(story.kicker.toUpperCase()) : t(story.category || 'FEATURED')}
+          </span>
+          <h2 className="second-lead-title">
+            {story.title}
+          </h2>
+          <p className="second-lead-deck">
+            {story.summary || story.subtitle || story.excerpt}
+          </p>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '6px' }}>
+            <div style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 700 }}>
+              {story.author || 'Senior Correspondent'}
+            </div>
+            <span style={{ fontSize: '11px', fontWeight: 800, color: 'var(--accent-crimson, #b90014)' }}>
+              {t("Read Article")} →
+            </span>
+          </div>
+        </article>
+      );
+    }
+
+    // 3. Template 3: Compact Story List Block (Stacked Feed)
+    if (type === 'hero_stacked') {
+      const rawList = Array.isArray(inst.stories) && inst.stories.length > 0
+        ? inst.stories
+        : (Array.isArray(inst.subStories) && inst.subStories.length > 0 ? inst.subStories : [subLead3, subLead4, subLead5]);
+      const storiesList = rawList.map(enrichArticle);
+
+      return (
+        <div key={inst.instanceId || `stacked-${idx}`} style={{ display: 'flex', flexDirection: 'column', marginBottom: '20px' }}>
+          {inst.sectionTitle && (
+            <div style={{ fontSize: '12px', fontWeight: 800, color: 'var(--accent-crimson, #b90014)', textTransform: 'uppercase', letterSpacing: '0.6px', marginBottom: '8px', borderBottom: '1px solid var(--border-color)', paddingBottom: '4px' }}>
+              {t(inst.sectionTitle)}
+            </div>
+          )}
+          <div style={{ display: 'flex', flexDirection: 'column' }}>
+            {storiesList.filter(Boolean).map((story, sIdx) => (
+              <article 
+                key={`stacked-item-${story.id || sIdx}`}
+                className="stacked-story-row"
+                onClick={() => handleOpenArticle(story)}
+              >
+                <div className="stacked-story-content">
+                  <span className="news-kicker" style={{ fontSize: '9.5px', marginBottom: '2px' }}>
+                    {story.kicker ? t(story.kicker.toUpperCase()) : t(story.category)}
+                  </span>
+                  <h4 className="stacked-story-title">
+                    {story.title}
+                  </h4>
+                  <div style={{ fontSize: '10.5px', color: 'var(--text-muted)', marginTop: '3px' }}>
+                    {story.author || 'News Desk'}
+                  </div>
+                </div>
+                <div style={{ width: '80px', height: '60px', borderRadius: '4px', overflow: 'hidden', background: '#000', flexShrink: 0 }}>
+                  <ArticleMediaCover
+                    article={story}
+                    style={{ width: '100%', height: '100%' }}
+                    autoPlay={true}
+                    muted={true}
+                    loop={true}
+                    controls={false}
+                    playsInline={true}
+                  />
+                </div>
+              </article>
+            ))}
+          </div>
+
+          <Link href={`/section/${getCategorySlug(inst.categories?.[0] || 'top-stories')}`} style={{ fontSize: '11px', fontWeight: 800, color: '#b90014', textTransform: 'uppercase', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '4px', marginTop: '6px' }}>
+            <span>{t("Read More Top Stories")}</span>
+            <ArrowRight size={12} />
+          </Link>
+        </div>
+      );
+    }
+
+    // 4. Template 4: Editorial Opinion & Intelligence Rail
+    if (type === 'opinion') {
+      const opTitle = inst.editorialOpinion?.title || activeOpinion.title;
+      const opDeck = inst.editorialOpinion?.deck || inst.editorialOpinion?.content || activeOpinion.deck;
+      const opCta = inst.editorialOpinion?.ctaText || "Read Our Editorials";
+      const wireList = Array.isArray(inst.intelligenceStream?.items) && inst.intelligenceStream.items.length > 0
+        ? inst.intelligenceStream.items
+        : activeWires;
+      const sponsorTitle = inst.sponsoredShowcase?.headline || inst.sponsoredShowcase?.title || activeSponsor.title;
+      const sponsorSub = inst.sponsoredShowcase?.subtext || inst.sponsoredShowcase?.subtitle || activeSponsor.subtitle;
+
+      return (
+        <div key={inst.instanceId || `opinion-${idx}`} style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginBottom: '20px' }}>
+          {/* The Hindu-Style Editorial Opinion Box */}
+          <div className="the-hindu-opinion-box">
+            <div className="opinion-crest-header">
+              <CrestLogo style={{ width: '22px', height: '22px' }} />
+              <span className="opinion-crest-title">{t(inst.sectionTitle || 'EDITORIAL OPINION')}</span>
+            </div>
+            <h3 
+              className="opinion-main-title"
+              onClick={() => setSelectedArticle(leadStory)}
+            >
+              {opTitle}
+            </h3>
+            <p className="opinion-deck">
+              {opDeck}
+            </p>
+            <Link href="/section/opinion" className="opinion-read-link">
+              <span>{t(opCta)}</span>
+              <ArrowRight size={11} />
+            </Link>
+          </div>
+
+          {/* ET-Style Fast News Timeline */}
+          <div className="et-fast-news-box">
+            <div className="fast-news-header">
+              <span className="fast-news-title">{t(inst.intelligenceStream?.badge || "LATEST INTELLIGENCE ⚡")}</span>
+              <span style={{ fontSize: '10px', color: 'var(--text-muted)', fontWeight: 700 }}>{t(inst.intelligenceStream?.updatedLabel || "UPDATED 2M AGO")}</span>
+            </div>
+
+            {wireList.map((wire, wIdx) => (
+              <div key={`wire-${wIdx}`} className="fast-news-item" onClick={() => setSelectedArticle(activeArticles[wIdx % activeArticles.length] || leadStory)}>
+                <div className="fast-news-time">{wire.time}</div>
+                <div className="fast-news-text">{wire.text}</div>
+              </div>
+            ))}
+          </div>
+
+          {/* Sponsored Partner Highlight */}
+          <div style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-color)', borderRadius: '4px', padding: '10px 12px' }}>
+            <div style={{ fontSize: '9px', fontWeight: 900, color: '#b90014', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '4px' }}>
+              {t(inst.sponsoredShowcase?.badge || "SPONSORED SHOWCASE")}
+            </div>
+            <div style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-primary)', lineHeight: 1.35 }}>
+              {sponsorTitle}
+            </div>
+            <div style={{ fontSize: '10.5px', color: 'var(--text-muted)', marginTop: '4px' }}>
+              {sponsorSub}
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    // 5. Custom / Dynamic section fallback
+    const customStory = enrichArticle(inst.mainStory || inst.slides?.[0] || activeArticles[0]);
+    return (
+      <article key={inst.instanceId || `custom-${idx}`} className="second-lead-card" onClick={() => handleOpenArticle(customStory)} style={{ marginBottom: '20px' }}>
+        <div style={{ width: '100%', height: '180px', overflow: 'hidden', borderRadius: '4px', background: '#000', marginBottom: '8px' }}>
+          <ArticleMediaCover
+            article={customStory}
+            style={{ width: '100%', height: '100%' }}
+            priority={true}
+            autoPlay={true}
+            muted={true}
+            loop={true}
+            controls={false}
+            playsInline={true}
+          />
+        </div>
+        <span className="news-kicker">{customStory.kicker ? t(customStory.kicker.toUpperCase()) : t(customStory.category || 'NEWS')}</span>
+        <h3 className="second-lead-title">{customStory.title}</h3>
+        <p className="second-lead-deck">{customStory.summary || customStory.subtitle}</p>
+      </article>
+    );
   };
 
   // Helper to check if an ad is assigned to a specific reader slot
@@ -1200,274 +1582,31 @@ export default function HomePage() {
           ========================================================================= */}
       {getZoneConfig('zone-hero-lead')?.enabled !== false && (
         <section className="newspaper-hero-cluster" dir={isRtl ? 'rtl' : 'ltr'}>
-          {/* COLUMN 1 (42%): Dominant Lead Story Carousel + 2-Column Sub Grid */}
-          <div className="newspaper-hero-col col-divider-right">
-            {/* Top Stories Smooth Auto-Sliding Carousel */}
-            <div className="hero-lead-carousel-wrapper" style={{ width: '100%', overflow: 'hidden', position: 'relative' }}>
-              <div 
-                className="hero-lead-carousel-track"
-                style={{
-                  display: 'flex',
-                  width: '100%',
-                  transform: `translateX(-${currentHeroIndex * 100}%)`,
-                  transition: 'transform 0.5s cubic-bezier(0.25, 1, 0.5, 1)',
-                  willChange: 'transform'
-                }}
-              >
-                {topStoriesList.map((story, sIdx) => (
-                  <div 
-                    key={`top-story-slide-${story.id || sIdx}`}
-                    style={{
-                      width: '100%',
-                      flexShrink: 0,
-                      boxSizing: 'border-box'
-                    }}
-                  >
-                    <article 
-                      className="lead-story-hero-card"
-                      onClick={() => handleOpenArticle(story)}
-                    >
-                      <div className="lead-story-img-box">
-                        <ArticleMediaCover
-                          article={story}
-                          className="lead-story-img"
-                          style={{ width: '100%', height: '100%' }}
-                          priority={sIdx === 0}
-                          autoPlay={true}
-                          muted={true}
-                          loop={true}
-                          controls={false}
-                          playsInline={true}
-                        />
-                        {story.hasAudio && (
-                          <div style={{ position: 'absolute', top: '10px', right: '10px', background: 'rgba(185, 0, 20, 0.9)', color: '#ffffff', fontSize: '9.5px', fontWeight: 800, padding: '3px 8px', borderRadius: '3px', display: 'flex', alignItems: 'center', gap: '4px', zIndex: 10 }}>
-                            <Volume2 size={12} />
-                            <span>{t("AUDIO")}</span>
-                          </div>
-                        )}
-                      </div>
-
-                      <div>
-                        <span className="news-kicker">
-                          {story.kicker ? t(story.kicker.toUpperCase()) : t(story.category || 'TOP STORY')}
-                        </span>
-                        <h1 className="lead-story-title">
-                          {story.title}
-                        </h1>
-                        <p className="lead-story-deck">
-                          {story.summary || story.subtitle || story.excerpt}
-                        </p>
-                        <div className="lead-story-byline">
-                          <span>{t("By")} <strong>{story.author || 'Editorial Board'}</strong></span>
-                          <span>•</span>
-                          <span>{story.readTime || '4 min read'}</span>
-                        </div>
-                      </div>
-                    </article>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Small Dotted Navigation Buttons Below Top Stories Article Area */}
-            {topStoriesList.length > 1 && (
-              <div 
-                className="hero-carousel-dots"
-                aria-label="Top stories navigation dots"
-                suppressHydrationWarning={true}
-              >
-                {topStoriesList.map((story, dotIdx) => {
-                  const isActive = dotIdx === currentHeroIndex;
-                  return (
-                    <button
-                      key={`top-dot-${story.id || dotIdx}`}
-                      type="button"
-                      className={`hero-carousel-dot ${isActive ? 'active' : ''}`}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setTopStoriesSlideIndex(dotIdx);
-                      }}
-                      title={`Jump to story ${dotIdx + 1}: ${story.title || ''}`}
-                      aria-label={`Jump to slide ${dotIdx + 1}`}
-                      aria-current={isActive ? 'true' : undefined}
-                      suppressHydrationWarning={true}
-                    />
-                  );
-                })}
-              </div>
-            )}
-
-            {/* 2-Column Compact Sub-Grid below Main Lead */}
-            <div className="hero-sub-grid-2col">
-              {subLead1 && (
-                <article className="sub-story-card" onClick={() => handleOpenArticle(subLead1)}>
-                  <div style={{ width: '100%', height: '140px', overflow: 'hidden', borderRadius: '4px', background: '#000', marginBottom: '8px' }}>
-                    <ArticleMediaCover
-                      article={subLead1}
-                      style={{ width: '100%', height: '100%' }}
-                      priority={true}
-                      autoPlay={true}
-                      muted={true}
-                      loop={true}
-                      controls={false}
-                      playsInline={true}
-                    />
-                  </div>
-                  <span className="news-kicker" style={{ fontSize: '10px' }}>
-                    {subLead1.kicker ? t(subLead1.kicker.toUpperCase()) : t(subLead1.category)}
-                  </span>
-                  <h3 className="sub-story-title">
-                    {subLead1.title}
-                  </h3>
-                </article>
-              )}
-
-              {subLead2 && (
-                <article className="sub-story-card" onClick={() => handleOpenArticle(subLead2)}>
-                  <div style={{ width: '100%', height: '140px', overflow: 'hidden', borderRadius: '4px', background: '#000', marginBottom: '8px' }}>
-                    <ArticleMediaCover
-                      article={subLead2}
-                      style={{ width: '100%', height: '100%' }}
-                      priority={true}
-                      autoPlay={true}
-                      muted={true}
-                      loop={true}
-                      controls={false}
-                      playsInline={true}
-                    />
-                  </div>
-                  <span className="news-kicker" style={{ fontSize: '10px' }}>
-                    {subLead2.kicker ? t(subLead2.kicker.toUpperCase()) : t(subLead2.category)}
-                  </span>
-                  <h3 className="sub-story-title">
-                    {subLead2.title}
-                  </h3>
-                </article>
-              )}
-            </div>
+          {/* COLUMN 1 (42%): Placed Templates for Col 1 (Left Dominant Stage) */}
+          <div className="newspaper-hero-col col-divider-right hero-dominant-col" style={{ display: 'flex', flexDirection: 'column' }}>
+            {getInstancesForColumn('hero_col1').map((inst, idx) => (
+              <React.Fragment key={inst.instanceId || `col1-inst-${idx}`}>
+                {renderFrontendHeroTemplate(inst, idx)}
+              </React.Fragment>
+            ))}
           </div>
 
-          {/* COLUMN 2 (31%): Second Major Lead & Stacked News Rows */}
-          <div className="newspaper-hero-col col-divider-right">
-            {secondLead && (
-              <article className="second-lead-card" onClick={() => handleOpenArticle(secondLead)}>
-                <div style={{ width: '100%', height: '220px', overflow: 'hidden', borderRadius: '4px', background: '#000', marginBottom: '8px' }}>
-                  <ArticleMediaCover
-                    article={secondLead}
-                    style={{ width: '100%', height: '100%' }}
-                    priority={true}
-                    autoPlay={true}
-                    muted={true}
-                    loop={true}
-                    controls={false}
-                    playsInline={true}
-                  />
-                </div>
-                <span className="news-kicker">
-                  {secondLead.kicker ? t(secondLead.kicker.toUpperCase()) : t(secondLead.category)}
-                </span>
-                <h2 className="second-lead-title">
-                  {secondLead.title}
-                </h2>
-                <p className="second-lead-deck">
-                  {secondLead.summary || secondLead.subtitle || secondLead.excerpt}
-                </p>
-                <div style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 700 }}>
-                  {secondLead.author || 'Senior Correspondent'}
-                </div>
-              </article>
-            )}
-
-            {/* Stacked Compact News Rows */}
-            <div style={{ display: 'flex', flexDirection: 'column' }}>
-              {[subLead3, subLead4, subLead5].filter(Boolean).map((story, sIdx) => (
-                <article 
-                  key={`stacked-${story.id || sIdx}`}
-                  className="stacked-story-row"
-                  onClick={() => handleOpenArticle(story)}
-                >
-                  <div className="stacked-story-content">
-                    <span className="news-kicker" style={{ fontSize: '9.5px', marginBottom: '2px' }}>
-                      {story.kicker ? t(story.kicker.toUpperCase()) : t(story.category)}
-                    </span>
-                    <h4 className="stacked-story-title">
-                      {story.title}
-                    </h4>
-                    <div style={{ fontSize: '10.5px', color: 'var(--text-muted)', marginTop: '3px' }}>
-                      {story.author || 'News Desk'}
-                    </div>
-                  </div>
-                  <div style={{ width: '80px', height: '60px', borderRadius: '4px', overflow: 'hidden', background: '#000', flexShrink: 0 }}>
-                    <ArticleMediaCover
-                      article={story}
-                      style={{ width: '100%', height: '100%' }}
-                      autoPlay={true}
-                      muted={true}
-                      loop={true}
-                      controls={false}
-                      playsInline={true}
-                    />
-                  </div>
-                </article>
-              ))}
-            </div>
-
-            <Link href={`/section/${getCategorySlug(secondLead?.category || subLead3?.category || 'top-stories')}`} style={{ fontSize: '11px', fontWeight: 800, color: '#b90014', textTransform: 'uppercase', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '4px', marginTop: '4px' }}>
-              <span>{t("Read More Top Stories")}</span>
-              <ArrowRight size={12} />
-            </Link>
+          {/* COLUMN 2 (31%): Placed Templates for Col 2 (Center Features & Stacks) */}
+          <div className="newspaper-hero-col col-divider-right" style={{ display: 'flex', flexDirection: 'column' }}>
+            {getInstancesForColumn('hero_col2').map((inst, idx) => (
+              <React.Fragment key={inst.instanceId || `col2-inst-${idx}`}>
+                {renderFrontendHeroTemplate(inst, idx)}
+              </React.Fragment>
+            ))}
           </div>
 
-          {/* COLUMN 3 (27%): The Hindu Opinion Box + ET Fast News Timeline + Sponsor */}
-          <div className="newspaper-hero-col">
-            {/* The Hindu-Style Editorial Opinion Box */}
-            <div className="the-hindu-opinion-box">
-              <div className="opinion-crest-header">
-                <CrestLogo style={{ width: '22px', height: '22px' }} />
-                <span className="opinion-crest-title">{t(getZoneConfig('zone-editorial-opinion')?.sectionTitle || 'EDITORIAL OPINION')}</span>
-              </div>
-              <h3 
-                className="opinion-main-title"
-                onClick={() => setSelectedArticle(leadStory)}
-              >
-                {activeOpinion.title}
-              </h3>
-              <p className="opinion-deck">
-                {activeOpinion.deck}
-              </p>
-              <Link href="/section/opinion" className="opinion-read-link">
-                <span>{t("Read Our Editorials")}</span>
-                <ArrowRight size={11} />
-              </Link>
-            </div>
-
-            {/* ET-Style Fast News Timeline */}
-            <div className="et-fast-news-box">
-              <div className="fast-news-header">
-                <span className="fast-news-title">{t("LATEST INTELLIGENCE ⚡")}</span>
-                <span style={{ fontSize: '10px', color: 'var(--text-muted)', fontWeight: 700 }}>{t("UPDATED 2M AGO")}</span>
-              </div>
-
-              {activeWires.map((wire, wIdx) => (
-                <div key={`wire-${wIdx}`} className="fast-news-item" onClick={() => setSelectedArticle(activeArticles[wIdx % activeArticles.length] || leadStory)}>
-                  <div className="fast-news-time">{wire.time}</div>
-                  <div className="fast-news-text">{wire.text}</div>
-                </div>
-              ))}
-            </div>
-
-            {/* Sponsored Partner Highlight */}
-            <div style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-color)', borderRadius: '4px', padding: '10px 12px' }}>
-              <div style={{ fontSize: '9px', fontWeight: 900, color: '#b90014', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '4px' }}>
-                {t("SPONSORED SHOWCASE")}
-              </div>
-              <div style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-primary)', lineHeight: 1.35 }}>
-                {activeSponsor.title}
-              </div>
-              <div style={{ fontSize: '10.5px', color: 'var(--text-muted)', marginTop: '4px' }}>
-                {activeSponsor.subtitle}
-              </div>
-            </div>
+          {/* COLUMN 3 (27%): Placed Templates for Col 3 (Right Editorial & Intelligence Rail) */}
+          <div className="newspaper-hero-col" style={{ display: 'flex', flexDirection: 'column' }}>
+            {getInstancesForColumn('hero_col3').map((inst, idx) => (
+              <React.Fragment key={inst.instanceId || `col3-inst-${idx}`}>
+                {renderFrontendHeroTemplate(inst, idx)}
+              </React.Fragment>
+            ))}
           </div>
         </section>
       )}
