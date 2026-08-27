@@ -833,7 +833,7 @@ export function resolveArticleMedia(article, fallbackCategory = '') {
 
   // Extract raw fields
   const mediaTypeField = String(article.coverMediaType || (isMakeMoneyArticle ? 'video' : '') || article.media_type || article.mediaType || '').toLowerCase().trim();
-  const rawVideoUrl = (article.videoUrl || article.coverVideoUrl || article.originalCoverVideoUrl || article.video_url || article.embed_url || article.embedUrl || article.media_url || article.mediaUrl || (isMakeMoneyArticle ? 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4' : '')).trim();
+  const rawVideoUrl = (article.videoUrl || article.coverVideoUrl || article.originalCoverVideoUrl || article.video_url || article.embed_url || article.embedUrl || article.media_url || article.mediaUrl || (isMakeMoneyArticle ? 'https://www.pexels.com/download/video/6197175/' : '')).trim();
   const rawImageUrl = (article.imageUrl || article.coverImageUrl || article.originalCoverImageUrl || article.image_url || article.thumbnail_url || article.thumbnailUrl || article.featured_image || (isMakeMoneyArticle ? 'https://images.unsplash.com/photo-1559526324-4b87b5e36e44?auto=format&fit=crop&w=1200&q=80' : '')).trim();
 
   // Helper to extract clean video string
