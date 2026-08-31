@@ -29,6 +29,7 @@ import { LoginModal } from './LoginModal';
 import { formatCoverImageUrl, isArticleCoverVideo, getArticleCoverVideoUrl, getDefaultArticleImage } from '../lib/videoUtils';
 import ContinuousCoverVideo from './ContinuousCoverVideo';
 import ArticleMediaCover from './ArticleMediaCover';
+import LiveAdSlot from './LiveAdSlot';
 import { useTranslation } from '../context/TranslationContext';
 
 // Helper to normalize category slugs
@@ -246,8 +247,13 @@ function SectionPageInner({ slug }) {
         </div>
       </header>
 
+      {/* Section Masthead Leaderboard Ad Slot */}
+      <div style={{ maxWidth: '1280px', margin: '14px auto 0 auto', padding: '0 24px' }}>
+        <LiveAdSlot slotId="masthead-top" />
+      </div>
+
       {/* Main Section Content Feed */}
-      <main style={{ maxWidth: '1280px', margin: '32px auto 0 auto', padding: '0 24px' }}>
+      <main style={{ maxWidth: '1280px', margin: '24px auto 0 auto', padding: '0 24px' }}>
         {displayedArticles.length === 0 ? (
           <div style={{ padding: '80px 20px', textAlign: 'center', background: 'var(--bg-card)', borderRadius: '12px', border: '1px solid var(--border-color)' }}>
             <h3 style={{ fontFamily: 'var(--font-serif)', fontSize: '24px', fontWeight: 700, marginBottom: '8px', color: 'var(--text-primary)' }}>{t("No stories published under this sub-section yet.")}</h3>
@@ -318,61 +324,77 @@ function SectionPageInner({ slug }) {
                 </article>
               )}
 
-              {/* Remaining Stories Feed */}
+              {/* Remaining Stories Feed with Interleaved In-Feed Ads */}
               <div className="section-articles-stream" style={{ display: 'flex', flexDirection: 'column', gap: '28px' }}>
                 {secondaryStories.concat(remainingStories).map((art, idx) => (
-                  <article 
-                    key={art.id || idx}
-                    onClick={() => setSelectedArticle(art)}
-                    style={{
-                      display: 'grid',
-                      gridTemplateColumns: 'minmax(0, 1fr) 200px',
-                      gap: '20px',
-                      paddingBottom: '24px',
-                      borderBottom: '1px solid var(--border-color)',
-                      cursor: 'pointer',
-                      transition: 'transform 0.15s'
-                    }}
-                    onMouseEnter={e => e.currentTarget.style.transform = 'translateX(4px)'}
-                    onMouseLeave={e => e.currentTarget.style.transform = 'none'}
-                  >
-                    <div>
-                      {(art.kicker || art.supertitle) && (
-                        <div style={{ color: 'var(--accent-crimson, #b90014)', fontSize: '11px', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.6px', marginBottom: '4px' }}>
-                          {t(art.kicker || art.supertitle)}
+                  <React.Fragment key={art.id || idx}>
+                    <article 
+                      onClick={() => setSelectedArticle(art)}
+                      style={{
+                        display: 'grid',
+                        gridTemplateColumns: 'minmax(0, 1fr) 200px',
+                        gap: '20px',
+                        paddingBottom: '24px',
+                        borderBottom: '1px solid var(--border-color)',
+                        cursor: 'pointer',
+                        transition: 'transform 0.15s'
+                      }}
+                      onMouseEnter={e => e.currentTarget.style.transform = 'translateX(4px)'}
+                      onMouseLeave={e => e.currentTarget.style.transform = 'none'}
+                    >
+                      <div>
+                        {(art.kicker || art.supertitle) && (
+                          <div style={{ color: 'var(--accent-crimson, #b90014)', fontSize: '11px', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.6px', marginBottom: '4px' }}>
+                            {t(art.kicker || art.supertitle)}
+                          </div>
+                        )}
+                        <h3 style={{ fontFamily: 'var(--font-serif)', fontSize: '20px', fontWeight: 800, lineHeight: 1.35, margin: '0 0 8px 0', color: 'var(--text-primary)' }}>
+                          {art.title}
+                        </h3>
+                        {art.summary && (
+                          <p style={{ fontSize: '14px', lineHeight: 1.5, color: 'var(--text-secondary)', margin: '0 0 10px 0', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+                            {art.summary}
+                          </p>
+                        )}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', fontSize: '12px', color: 'var(--text-muted)', fontWeight: 700 }}>
+                          <span>{art.author ? t(art.author) : t('Staff Reporter')}</span>
                         </div>
-                      )}
-                      <h3 style={{ fontFamily: 'var(--font-serif)', fontSize: '20px', fontWeight: 800, lineHeight: 1.35, margin: '0 0 8px 0', color: 'var(--text-primary)' }}>
-                        {art.title}
-                      </h3>
-                      {art.summary && (
-                        <p style={{ fontSize: '14px', lineHeight: 1.5, color: 'var(--text-secondary)', margin: '0 0 10px 0', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
-                          {art.summary}
-                        </p>
-                      )}
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '12px', fontSize: '12px', color: 'var(--text-muted)', fontWeight: 700 }}>
-                        <span>{art.author ? t(art.author) : t('Staff Reporter')}</span>
                       </div>
-                    </div>
 
-                    <div style={{ width: '200px', height: '130px', borderRadius: '6px', overflow: 'hidden', background: '#000' }}>
-                      <ArticleMediaCover
-                        article={art}
-                        style={{ width: '100%', height: '100%' }}
-                        autoPlay={true}
-                        muted={true}
-                        loop={true}
-                        controls={false}
-                        playsInline={true}
-                      />
-                    </div>
-                  </article>
+                      <div style={{ width: '200px', height: '130px', borderRadius: '6px', overflow: 'hidden', background: '#000' }}>
+                        <ArticleMediaCover
+                          article={art}
+                          style={{ width: '100%', height: '100%' }}
+                          autoPlay={true}
+                          muted={true}
+                          loop={true}
+                          controls={false}
+                          playsInline={true}
+                        />
+                      </div>
+                    </article>
+
+                    {/* In-Feed Native Ad Slots between stories */}
+                    {idx === 1 && (
+                      <div style={{ margin: '8px 0', width: '100%' }}>
+                        <LiveAdSlot slotId="in-feed-mid" />
+                      </div>
+                    )}
+                    {idx === 3 && (
+                      <div style={{ margin: '8px 0', width: '100%' }}>
+                        <LiveAdSlot slotId="feed-row-2" />
+                      </div>
+                    )}
+                  </React.Fragment>
                 ))}
               </div>
             </div>
 
-            {/* Right Sidebar: Spotlight Newsletter + Trending Topics */}
-            <aside className="section-sidebar" style={{ display: 'flex', flexDirection: 'column', gap: '32px' }}>
+            {/* Right Sidebar: Live Sidebar Ads + Spotlight Newsletter + Trending Topics */}
+            <aside className="section-sidebar" style={{ display: 'flex', flexDirection: 'column', gap: '28px' }}>
+              {/* Right Sidebar Top Ad (Rolex Precision Chronometers & Placed Ads) */}
+              <LiveAdSlot slotId="sidebar-top" />
+
               {/* Spotlight Box if configured */}
               {sectionsData?.spotlight && (
                 <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: '8px', padding: '20px', overflow: 'hidden', boxShadow: 'var(--shadow-sm)' }}>
@@ -428,10 +450,21 @@ function SectionPageInner({ slug }) {
                   ))}
                 </div>
               </div>
+
+              {/* Right Sidebar Sticky / Bottom Ad */}
+              <LiveAdSlot slotId="sidebar-sticky" />
             </aside>
           </div>
         )}
       </main>
+
+      {/* Section Bottom Banner Break */}
+      <div style={{ maxWidth: '1280px', margin: '32px auto 0 auto', padding: '0 24px' }}>
+        <LiveAdSlot slotId="hero-bottom" />
+      </div>
+
+      {/* Floating Bottom Footer Anchor Ad */}
+      <LiveAdSlot slotId="footer-floating" />
 
       {/* Article Detail Reading Modal */}
       {selectedArticle && (

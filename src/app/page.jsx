@@ -222,12 +222,52 @@ export default function HomePage() {
     fetchLiveArticles().catch(() => {});
     fetchHomepageAds().catch(() => {});
     fetchHomepageArticlePlacements().catch(() => {});
+
+    // Fast 6s background polling
     const interval = setInterval(() => {
       fetchLiveArticles().catch(() => {});
       fetchHomepageAds().catch(() => {});
       fetchHomepageArticlePlacements().catch(() => {});
-    }, 20000);
-    return () => clearInterval(interval);
+    }, 6000);
+
+    // Instant sync on tab focus or visibility return
+    const handleFocus = () => {
+      fetchLiveArticles().catch(() => {});
+      fetchHomepageAds().catch(() => {});
+      fetchHomepageArticlePlacements().catch(() => {});
+    };
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible') {
+        fetchLiveArticles().catch(() => {});
+        fetchHomepageAds().catch(() => {});
+        fetchHomepageArticlePlacements().catch(() => {});
+      }
+    };
+    const handleStorage = (e) => {
+      if (e.key === 'daily_brief_cached_ads_v3' && e.newValue) {
+        try {
+          const parsed = JSON.parse(e.newValue);
+          if (Array.isArray(parsed)) setHomepageAds(parsed);
+        } catch (err) {}
+      }
+      if (e.key === 'daily_brief_cached_sections_v3' && e.newValue) {
+        try {
+          const parsed = JSON.parse(e.newValue);
+          if (Array.isArray(parsed)) setHomepageArticleSections(parsed);
+        } catch (err) {}
+      }
+    };
+
+    window.addEventListener('focus', handleFocus);
+    document.addEventListener('visibilitychange', handleVisibility);
+    window.addEventListener('storage', handleStorage);
+
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('focus', handleFocus);
+      document.removeEventListener('visibilitychange', handleVisibility);
+      window.removeEventListener('storage', handleStorage);
+    };
   }, []);
 
   // Breaking News ticker rotator
