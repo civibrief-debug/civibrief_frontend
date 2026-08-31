@@ -8,6 +8,8 @@ import ContinuousCoverVideo from './ContinuousCoverVideo';
 // Global singletons for instant 0ms memory cache across all page navigations
 let globalLiveAdsMemory = null;
 let globalLiveAdsListeners = new Set();
+let syncManagerStarted = false;
+let globalSyncInterval = null;
 
 export const getCachedLiveAds = () => {
   if (globalLiveAdsMemory && globalLiveAdsMemory.length > 0) return globalLiveAdsMemory;
@@ -38,7 +40,9 @@ export const fetchLiveHomepageAds = async () => {
           localStorage.setItem('daily_brief_cached_ads_v3', JSON.stringify(json.data));
         } catch (e) {}
       }
-      globalLiveAdsListeners.forEach(listener => listener(json.data));
+      globalLiveAdsListeners.forEach(listener => {
+        try { listener(json.data); } catch (e) {}
+      });
       return json.data;
     }
   } catch (err) {
@@ -47,12 +51,47 @@ export const fetchLiveHomepageAds = async () => {
   return null;
 };
 
-// Hook for components needing reactive ads list
+// Singleton background manager to prevent duplicate timers & memory pressure
+function initGlobalSyncManager() {
+  if (syncManagerStarted || typeof window === 'undefined') return;
+  syncManagerStarted = true;
+
+  fetchLiveHomepageAds();
+
+  globalSyncInterval = setInterval(() => {
+    fetchLiveHomepageAds();
+  }, 10000);
+
+  const handleFocus = () => fetchLiveHomepageAds();
+  const handleVisibility = () => {
+    if (document.visibilityState === 'visible') fetchLiveHomepageAds();
+  };
+  const handleStorage = (e) => {
+    if (e.key === 'daily_brief_cached_ads_v3' && e.newValue) {
+      try {
+        const parsed = JSON.parse(e.newValue);
+        if (Array.isArray(parsed)) {
+          globalLiveAdsMemory = parsed;
+          globalLiveAdsListeners.forEach(fn => {
+            try { fn(parsed); } catch (err) {}
+          });
+        }
+      } catch (err) {}
+    }
+  };
+
+  window.addEventListener('focus', handleFocus);
+  document.addEventListener('visibilitychange', handleVisibility);
+  window.addEventListener('storage', handleStorage);
+}
+
+// Reactive hook for components needing live ads
 export function useLiveAds() {
   const [ads, setAds] = useState(() => getCachedLiveAds());
 
   useEffect(() => {
-    // 1. Subscribe to updates
+    initGlobalSyncManager();
+
     const handleUpdate = (updatedAds) => {
       if (Array.isArray(updatedAds)) {
         setAds(updatedAds);
@@ -60,43 +99,8 @@ export function useLiveAds() {
     };
     globalLiveAdsListeners.add(handleUpdate);
 
-    // 2. Fetch fresh data on mount
-    fetchLiveHomepageAds();
-
-    // 3. Auto-sync periodically every 8 seconds
-    const interval = setInterval(() => {
-      fetchLiveHomepageAds();
-    }, 8000);
-
-    // 4. Sync immediately when tab regains focus or visibility
-    const handleFocus = () => fetchLiveHomepageAds();
-    const handleVisibility = () => {
-      if (document.visibilityState === 'visible') {
-        fetchLiveHomepageAds();
-      }
-    };
-    const handleStorage = (e) => {
-      if (e.key === 'daily_brief_cached_ads_v3' && e.newValue) {
-        try {
-          const parsed = JSON.parse(e.newValue);
-          if (Array.isArray(parsed)) {
-            globalLiveAdsMemory = parsed;
-            setAds(parsed);
-          }
-        } catch (err) {}
-      }
-    };
-
-    window.addEventListener('focus', handleFocus);
-    document.addEventListener('visibilitychange', handleVisibility);
-    window.addEventListener('storage', handleStorage);
-
     return () => {
       globalLiveAdsListeners.delete(handleUpdate);
-      clearInterval(interval);
-      window.removeEventListener('focus', handleFocus);
-      document.removeEventListener('visibilitychange', handleVisibility);
-      window.removeEventListener('storage', handleStorage);
     };
   }, []);
 
@@ -143,7 +147,8 @@ export const slotMatchesAd = (ad, targetSlot) => {
 
 /**
  * Universal Live Ad Slot Component
- * Renders all active ads assigned to a given slotId with responsive styling and continuous media playback
+ * Renders all active ads assigned to a given slotId.
+ * Clicking ANYWHERE on the ad card immediately redirects to the ad's destination URL.
  */
 export default function LiveAdSlot({ slotId, ads: propAds, style, className }) {
   const syncedAds = useLiveAds();
@@ -158,12 +163,25 @@ export default function LiveAdSlot({ slotId, ads: propAds, style, className }) {
   return (
     <div className={`live-ad-slot-container ${className || ''}`} style={{ width: '100%', boxSizing: 'border-box', ...style }}>
       {matchingAds.map((ad, adIdx) => {
+        const targetUrl = ad.targetUrl || '#';
+        const openNewTab = ad.openNewTab !== false;
+
+        const handleAdClick = (e) => {
+          if (!targetUrl || targetUrl === '#' || targetUrl === '') return;
+          if (openNewTab) {
+            window.open(targetUrl, '_blank', 'noopener,noreferrer');
+          } else {
+            window.location.href = targetUrl;
+          }
+        };
+
         if (ad.customHtml && ad.customHtml.trim()) {
           return (
             <div 
               key={ad.id || `ad-html-${adIdx}`}
               className="homepage-ad-container"
-              style={{ width: '100%', maxWidth: '100%', margin: '14px auto', padding: '0 4px', boxSizing: 'border-box' }}
+              style={{ width: '100%', maxWidth: '100%', margin: '14px auto', padding: '0 4px', boxSizing: 'border-box', cursor: targetUrl && targetUrl !== '#' ? 'pointer' : 'default' }}
+              onClick={handleAdClick}
               dangerouslySetInnerHTML={{ __html: ad.customHtml }} 
             />
           );
@@ -178,8 +196,6 @@ export default function LiveAdSlot({ slotId, ads: propAds, style, className }) {
         const isSidebarSlot = slotId === 'sidebar-sticky' || slotId === 'sidebar-top' || slotId === 'sidebar-bottom' || slotId?.includes('sidebar') || slotId?.includes('rail');
         const isFloated = align === 'left' || align === 'right' || isSidebarSlot;
         const containerWidth = ad.customWidth && ad.customWidth !== 'auto' ? ad.customWidth : (align === 'full' ? '100%' : '100%');
-        const targetUrl = ad.targetUrl || '#';
-        const openNewTab = ad.openNewTab !== false;
 
         const layout = ad.mediaLayout || (isSidebarSlot || ad.format === 'rectangle' ? 'stacked' : (ad.format === 'billboard' ? 'full_banner' : 'side_media'));
         const fitMode = ad.mediaFit || (layout === 'stacked' || isSidebarSlot ? 'cover' : 'contain');
@@ -188,7 +204,7 @@ export default function LiveAdSlot({ slotId, ads: propAds, style, className }) {
         const mediaBg = ad.mediaBg || (fitMode === 'contain' ? 'rgba(0, 0, 0, 0.95)' : 'transparent');
         const aspectRatio = ad.mediaAspectRatio && ad.mediaAspectRatio !== 'auto' ? ad.mediaAspectRatio : undefined;
 
-        // 1. FLOATED EDITORIAL AD CARD FORMAT (Rolex Style & Right Sidebar Card)
+        // 1. FLOATED EDITORIAL AD CARD FORMAT (Rolex Style & Right Sidebar Card - Clickable Everywhere)
         if (isFloated) {
           return (
             <div 
@@ -201,16 +217,34 @@ export default function LiveAdSlot({ slotId, ads: propAds, style, className }) {
                 boxSizing: 'border-box' 
               }}
             >
-              <div style={{
-                background: 'var(--bg-surface, var(--bg-card, #0c1522))',
-                border: '1.5px solid var(--border-color, #1e293b)',
-                borderRadius: '12px',
-                padding: '14px',
-                boxShadow: '0 8px 24px rgba(0,0,0,0.15)',
-                width: containerWidth || '100%',
-                maxWidth: '100%',
-                boxSizing: 'border-box'
-              }}>
+              <div 
+                onClick={handleAdClick}
+                role="link"
+                tabIndex={0}
+                onKeyDown={(e) => { if (e.key === 'Enter') handleAdClick(e); }}
+                style={{
+                  background: 'var(--bg-surface, var(--bg-card, #0c1522))',
+                  border: '1.5px solid var(--border-color, #1e293b)',
+                  borderRadius: '12px',
+                  padding: '14px',
+                  boxShadow: '0 8px 24px rgba(0,0,0,0.15)',
+                  width: containerWidth || '100%',
+                  maxWidth: '100%',
+                  boxSizing: 'border-box',
+                  cursor: targetUrl && targetUrl !== '#' ? 'pointer' : 'default',
+                  transition: 'transform 0.15s ease, box-shadow 0.15s ease'
+                }}
+                onMouseEnter={e => {
+                  if (targetUrl && targetUrl !== '#') {
+                    e.currentTarget.style.transform = 'translateY(-2px)';
+                    e.currentTarget.style.boxShadow = '0 12px 28px rgba(0,0,0,0.25)';
+                  }
+                }}
+                onMouseLeave={e => {
+                  e.currentTarget.style.transform = 'none';
+                  e.currentTarget.style.boxShadow = '0 8px 24px rgba(0,0,0,0.15)';
+                }}
+              >
                 {/* Ad Disclosure Header Bar: [OFFICIAL PARTNER] ... [↗ Visit Link SPONSOR] */}
                 <div style={{
                   display: 'flex',
@@ -234,25 +268,21 @@ export default function LiveAdSlot({ slotId, ads: propAds, style, className }) {
                     <span>{ad.badgeText || 'OFFICIAL PARTNER'}</span>
                   </div>
 
-                  <a
-                    href={targetUrl}
-                    target={openNewTab ? "_blank" : "_self"}
-                    rel="noopener noreferrer"
+                  <span
                     style={{
                       fontSize: '9.5px',
                       color: '#38bdf8',
                       fontWeight: 700,
                       display: 'flex',
                       alignItems: 'center',
-                      gap: '3px',
-                      textDecoration: 'none'
+                      gap: '3px'
                     }}
                   >
                     <ExternalLink size={10} /> Visit Link
                     <span style={{ color: 'var(--text-muted, #94a3b8)', marginLeft: '3px', textTransform: 'uppercase', fontSize: '8.5px' }}>
                       SPONSOR
                     </span>
-                  </a>
+                  </span>
                 </div>
 
                 {/* Media / Photo Showcase Area with Explore CTA Badge Overlay */}
@@ -279,11 +309,8 @@ export default function LiveAdSlot({ slotId, ads: propAds, style, className }) {
                     background: ad.mediaUrl ? `url(${formatCoverImageUrl(ad.mediaUrl) || ad.mediaUrl}) center/cover` : 'var(--bg-secondary, #111827)',
                     border: '1px solid var(--border-color, #1e293b)'
                   }}>
-                    {/* Explore Series / CTA Button Badge in Bottom-Right Corner */}
-                    <a
-                      href={targetUrl}
-                      target={openNewTab ? "_blank" : "_self"}
-                      rel="noopener noreferrer"
+                    {/* Explore CTA Badge Overlay in Bottom-Right Corner */}
+                    <div
                       style={{
                         position: 'absolute',
                         bottom: '10px',
@@ -296,7 +323,6 @@ export default function LiveAdSlot({ slotId, ads: propAds, style, className }) {
                         padding: '5px 12px',
                         borderRadius: '6px',
                         border: '1px solid rgba(255, 255, 255, 0.25)',
-                        textDecoration: 'none',
                         display: 'inline-flex',
                         alignItems: 'center',
                         gap: '4px',
@@ -305,7 +331,7 @@ export default function LiveAdSlot({ slotId, ads: propAds, style, className }) {
                     >
                       <span>{ad.ctaText || 'Discover Model'}</span>
                       <span>↗</span>
-                    </a>
+                    </div>
                   </div>
                 )}
 
@@ -325,14 +351,14 @@ export default function LiveAdSlot({ slotId, ads: propAds, style, className }) {
           );
         }
 
-        // 2. PURE CREATIVE / MEDIA ONLY LAYOUT
+        // 2. PURE CREATIVE / MEDIA ONLY LAYOUT (Clickable Everywhere)
         if ((layout === 'media_only' || ad.format === 'media_only') && ad.mediaUrl) {
           return (
             <div key={ad.id || `media-ad-${adIdx}`} style={{ maxWidth: '100%', margin: '14px auto', padding: '0 4px', display: 'flex', justifyContent: flexJustify, width: '100%', boxSizing: 'border-box' }}>
-              <a
-                href={targetUrl}
-                target={openNewTab ? "_blank" : "_self"}
-                rel="noopener noreferrer"
+              <div
+                onClick={handleAdClick}
+                role="link"
+                tabIndex={0}
                 style={{
                   width: containerWidth,
                   maxWidth: '100%',
@@ -345,8 +371,11 @@ export default function LiveAdSlot({ slotId, ads: propAds, style, className }) {
                   background: mediaBg,
                   border: '1px solid var(--border-color)',
                   boxShadow: 'var(--shadow-md)',
-                  textDecoration: 'none'
+                  cursor: targetUrl && targetUrl !== '#' ? 'pointer' : 'default',
+                  transition: 'transform 0.15s ease'
                 }}
+                onMouseEnter={e => { if (targetUrl && targetUrl !== '#') e.currentTarget.style.transform = 'translateY(-2px)'; }}
+                onMouseLeave={e => { e.currentTarget.style.transform = 'none'; }}
               >
                 {ad.contentType === 'video' ? (
                   <ContinuousCoverVideo
@@ -370,26 +399,43 @@ export default function LiveAdSlot({ slotId, ads: propAds, style, className }) {
                 <span style={{ position: 'absolute', top: '8px', right: '8px', background: 'rgba(0,0,0,0.85)', color: '#ffffff', fontSize: '9px', fontWeight: 900, padding: '2px 8px', borderRadius: '4px', letterSpacing: '0.5px', border: '1px solid rgba(255,255,255,0.2)' }}>
                   {ad.badgeText || 'ADVERTISEMENT'}
                 </span>
-              </a>
+              </div>
             </div>
           );
         }
 
-        // 3. FULL-WIDTH BILLBOARD / BANNER LAYOUT
+        // 3. FULL-WIDTH BILLBOARD / BANNER LAYOUT (Clickable Everywhere)
         if (layout === 'full_banner' && ad.mediaUrl) {
           return (
             <div key={ad.id || `banner-ad-${adIdx}`} style={{ maxWidth: '100%', margin: '14px auto', padding: '0 4px', display: 'flex', justifyContent: flexJustify, width: '100%', boxSizing: 'border-box' }}>
-              <div style={{
-                width: containerWidth,
-                maxWidth: '100%',
-                background: 'var(--bg-card)',
-                border: '1px solid var(--border-color)',
-                borderRadius: '8px',
-                overflow: 'hidden',
-                boxShadow: 'var(--shadow-md)',
-                display: 'flex',
-                flexDirection: 'column'
-              }}>
+              <div 
+                onClick={handleAdClick}
+                role="link"
+                tabIndex={0}
+                style={{
+                  width: containerWidth,
+                  maxWidth: '100%',
+                  background: 'var(--bg-card)',
+                  border: '1px solid var(--border-color)',
+                  borderRadius: '8px',
+                  overflow: 'hidden',
+                  boxShadow: 'var(--shadow-md)',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  cursor: targetUrl && targetUrl !== '#' ? 'pointer' : 'default',
+                  transition: 'transform 0.15s ease, box-shadow 0.15s ease'
+                }}
+                onMouseEnter={e => {
+                  if (targetUrl && targetUrl !== '#') {
+                    e.currentTarget.style.transform = 'translateY(-2px)';
+                    e.currentTarget.style.boxShadow = 'var(--shadow-lg)';
+                  }
+                }}
+                onMouseLeave={e => {
+                  e.currentTarget.style.transform = 'none';
+                  e.currentTarget.style.boxShadow = 'var(--shadow-md)';
+                }}
+              >
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '6px 14px', background: 'var(--bg-secondary, #111827)', borderBottom: '1px solid var(--border-color)' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                     <span style={{ background: '#b90014', color: '#ffffff', fontSize: '9px', fontWeight: 900, padding: '2px 6px', borderRadius: '2px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
@@ -397,16 +443,13 @@ export default function LiveAdSlot({ slotId, ads: propAds, style, className }) {
                     </span>
                     <span style={{ color: 'var(--text-muted)', fontSize: '11px', fontWeight: 800 }}>{ad.sponsorName}</span>
                   </div>
-                  <a href={targetUrl} target={openNewTab ? "_blank" : "_self"} rel="noopener noreferrer" style={{ color: '#b90014', fontSize: '11px', fontWeight: 800, textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                  <span style={{ color: '#b90014', fontSize: '11px', fontWeight: 800, display: 'flex', alignItems: 'center', gap: '4px' }}>
                     <span>{ad.ctaText || 'Learn More'}</span>
                     <ExternalLink size={11} />
-                  </a>
+                  </span>
                 </div>
 
-                <a
-                  href={targetUrl}
-                  target={openNewTab ? "_blank" : "_self"}
-                  rel="noopener noreferrer"
+                <div
                   style={{
                     width: '100%',
                     height: mediaHeight === 'auto' ? '220px' : mediaHeight,
@@ -436,7 +479,7 @@ export default function LiveAdSlot({ slotId, ads: propAds, style, className }) {
                       referrerPolicy="no-referrer"
                     />
                   )}
-                </a>
+                </div>
 
                 {(ad.headline || ad.subtitle) && (
                   <div style={{ padding: '10px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '16px', background: 'var(--bg-card)' }}>
@@ -444,10 +487,7 @@ export default function LiveAdSlot({ slotId, ads: propAds, style, className }) {
                       {ad.headline && <div style={{ fontSize: '14px', fontWeight: 800, color: 'var(--text-primary)' }}>{ad.headline}</div>}
                       {ad.subtitle && <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '2px' }}>{ad.subtitle}</div>}
                     </div>
-                    <a
-                      href={targetUrl}
-                      target={openNewTab ? "_blank" : "_self"}
-                      rel="noopener noreferrer"
+                    <div
                       style={{
                         background: '#b90014',
                         color: '#ffffff',
@@ -455,7 +495,6 @@ export default function LiveAdSlot({ slotId, ads: propAds, style, className }) {
                         borderRadius: '4px',
                         fontSize: '11.5px',
                         fontWeight: 800,
-                        textDecoration: 'none',
                         textTransform: 'uppercase',
                         letterSpacing: '0.5px',
                         flexShrink: 0,
@@ -467,7 +506,7 @@ export default function LiveAdSlot({ slotId, ads: propAds, style, className }) {
                     >
                       <span>{ad.ctaText || 'Explore'}</span>
                       <ExternalLink size={12} />
-                    </a>
+                    </div>
                   </div>
                 )}
               </div>
@@ -475,7 +514,7 @@ export default function LiveAdSlot({ slotId, ads: propAds, style, className }) {
           );
         }
 
-        // 4. VERTICAL STACKED CARD LAYOUT
+        // 4. VERTICAL STACKED CARD LAYOUT (Clickable Everywhere)
         if (layout === 'stacked' || ad.format === 'rectangle') {
           return (
             <div key={ad.id || `stacked-ad-${adIdx}`} style={{
@@ -484,17 +523,34 @@ export default function LiveAdSlot({ slotId, ads: propAds, style, className }) {
               margin: '14px auto',
               boxSizing: 'border-box'
             }}>
-              <div style={{
-                background: 'var(--bg-card)',
-                border: '1px solid var(--border-color)',
-                borderRadius: '8px',
-                overflow: 'hidden',
-                boxShadow: 'var(--shadow-sm)',
-                display: 'flex',
-                flexDirection: 'column',
-                width: '100%',
-                boxSizing: 'border-box'
-              }}>
+              <div 
+                onClick={handleAdClick}
+                role="link"
+                tabIndex={0}
+                style={{
+                  background: 'var(--bg-card)',
+                  border: '1px solid var(--border-color)',
+                  borderRadius: '8px',
+                  overflow: 'hidden',
+                  boxShadow: 'var(--shadow-sm)',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  width: '100%',
+                  boxSizing: 'border-box',
+                  cursor: targetUrl && targetUrl !== '#' ? 'pointer' : 'default',
+                  transition: 'transform 0.15s ease, box-shadow 0.15s ease'
+                }}
+                onMouseEnter={e => {
+                  if (targetUrl && targetUrl !== '#') {
+                    e.currentTarget.style.transform = 'translateY(-2px)';
+                    e.currentTarget.style.boxShadow = 'var(--shadow-md)';
+                  }
+                }}
+                onMouseLeave={e => {
+                  e.currentTarget.style.transform = 'none';
+                  e.currentTarget.style.boxShadow = 'var(--shadow-sm)';
+                }}
+              >
                 <div style={{
                   display: 'flex',
                   alignItems: 'center',
@@ -524,10 +580,7 @@ export default function LiveAdSlot({ slotId, ads: propAds, style, className }) {
                 </div>
 
                 {ad.mediaUrl && (
-                  <a
-                    href={targetUrl}
-                    target={openNewTab ? "_blank" : "_self"}
-                    rel="noopener noreferrer"
+                  <div
                     style={{
                       width: '100%',
                       height: mediaHeight === 'auto' ? '160px' : mediaHeight,
@@ -535,8 +588,7 @@ export default function LiveAdSlot({ slotId, ads: propAds, style, className }) {
                       background: mediaBg,
                       position: 'relative',
                       display: 'block',
-                      overflow: 'hidden',
-                      textDecoration: 'none'
+                      overflow: 'hidden'
                     }}
                   >
                     {ad.contentType === 'video' ? (
@@ -558,7 +610,7 @@ export default function LiveAdSlot({ slotId, ads: propAds, style, className }) {
                         referrerPolicy="no-referrer"
                       />
                     )}
-                  </a>
+                  </div>
                 )}
 
                 <div style={{
@@ -588,10 +640,7 @@ export default function LiveAdSlot({ slotId, ads: propAds, style, className }) {
                       {ad.subtitle}
                     </div>
                   )}
-                  <a
-                    href={targetUrl}
-                    target={openNewTab ? "_blank" : "_self"}
-                    rel="noopener noreferrer"
+                  <div
                     style={{
                       background: '#b90014',
                       color: '#ffffff',
@@ -599,7 +648,6 @@ export default function LiveAdSlot({ slotId, ads: propAds, style, className }) {
                       borderRadius: '4px',
                       fontSize: '11px',
                       fontWeight: 800,
-                      textDecoration: 'none',
                       textTransform: 'uppercase',
                       letterSpacing: '0.5px',
                       display: 'inline-flex',
@@ -614,14 +662,14 @@ export default function LiveAdSlot({ slotId, ads: propAds, style, className }) {
                   >
                     <span>{ad.ctaText || 'Explore'}</span>
                     <ExternalLink size={12} />
-                  </a>
+                  </div>
                 </div>
               </div>
             </div>
           );
         }
 
-        // 5. SIDE-BY-SIDE SPLIT CARD LAYOUT (For In-Feed horizontal banners)
+        // 5. SIDE-BY-SIDE SPLIT CARD LAYOUT (For In-Feed horizontal banners - Clickable Everywhere)
         return (
           <div key={ad.id || `split-ad-${adIdx}`} style={{
             maxWidth: '100%',
@@ -633,21 +681,38 @@ export default function LiveAdSlot({ slotId, ads: propAds, style, className }) {
             width: '100%',
             boxSizing: 'border-box'
           }}>
-            <div style={{
-              width: containerWidth,
-              maxWidth: '100%',
-              background: 'var(--bg-card)',
-              border: '1px solid var(--border-color)',
-              borderRadius: '8px',
-              padding: '14px 18px',
-              display: 'flex',
-              flexWrap: 'wrap',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              gap: '16px',
-              boxShadow: 'var(--shadow-sm)',
-              boxSizing: 'border-box'
-            }}>
+            <div 
+              onClick={handleAdClick}
+              role="link"
+              tabIndex={0}
+              style={{
+                width: containerWidth,
+                maxWidth: '100%',
+                background: 'var(--bg-card)',
+                border: '1px solid var(--border-color)',
+                borderRadius: '8px',
+                padding: '14px 18px',
+                display: 'flex',
+                flexWrap: 'wrap',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                gap: '16px',
+                boxShadow: 'var(--shadow-sm)',
+                boxSizing: 'border-box',
+                cursor: targetUrl && targetUrl !== '#' ? 'pointer' : 'default',
+                transition: 'transform 0.15s ease, box-shadow 0.15s ease'
+              }}
+              onMouseEnter={e => {
+                if (targetUrl && targetUrl !== '#') {
+                  e.currentTarget.style.transform = 'translateY(-2px)';
+                  e.currentTarget.style.boxShadow = 'var(--shadow-md)';
+                }
+              }}
+              onMouseLeave={e => {
+                e.currentTarget.style.transform = 'none';
+                e.currentTarget.style.boxShadow = 'var(--shadow-sm)';
+              }}
+            >
               <div style={{ display: 'flex', alignItems: 'center', gap: '16px', flex: '1 1 260px', minWidth: 0 }}>
                 {ad.mediaUrl && (
                   <div style={{
@@ -703,10 +768,7 @@ export default function LiveAdSlot({ slotId, ads: propAds, style, className }) {
                 </div>
               </div>
 
-              <a
-                href={targetUrl}
-                target={openNewTab ? "_blank" : "_self"}
-                rel="noopener noreferrer"
+              <div
                 style={{
                   background: '#b90014',
                   color: '#ffffff',
@@ -714,7 +776,6 @@ export default function LiveAdSlot({ slotId, ads: propAds, style, className }) {
                   borderRadius: '4px',
                   fontSize: '11.5px',
                   fontWeight: 800,
-                  textDecoration: 'none',
                   textTransform: 'uppercase',
                   letterSpacing: '0.5px',
                   flexShrink: 0,
@@ -726,7 +787,7 @@ export default function LiveAdSlot({ slotId, ads: propAds, style, className }) {
               >
                 <span>{ad.ctaText || 'Learn More'}</span>
                 <ExternalLink size={12} />
-              </a>
+              </div>
             </div>
           </div>
         );

@@ -1,7 +1,7 @@
 import React, { Suspense } from 'react';
 import ArticleDetailView from '../../../components/ArticleDetailView';
 
-export const runtime = 'edge';
+export const dynamicParams = true;
 
 export default async function ArticlePage({ params }) {
   const resolvedParams = await params;
