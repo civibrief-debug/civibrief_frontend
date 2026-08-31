@@ -1,12 +1,7 @@
 import React, { Suspense } from 'react';
 import SectionPageView from '../../../components/SectionPageView';
-import { CATEGORIES } from '../../../data/newsData';
 
-export function generateStaticParams() {
-  return (CATEGORIES || []).map(c => ({ slug: [c.slug] }));
-}
-
-export const dynamicParams = true;
+export const runtime = 'edge';
 
 export default async function NewsCategoryPage({ params }) {
   const resolvedParams = await params;
