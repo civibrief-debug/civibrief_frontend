@@ -373,7 +373,21 @@ export const UI_DICTIONARY = {
     "SHARE": "शेयर करें",
     "BOOKMARK": "सहेजें",
     "AUDIO": "ऑडियो",
-    "By": "द्वारा"
+    "By": "द्वारा",
+
+    // Homepage Placed Articles
+    "Tokamak Milestone: High-Temperature Superconducting Magnets Achieve Sustained Plasma": "टोकामाक मील का पत्थर: उच्च-तापमान सुपरकंडक्टिंग चुंबक ने स्थिर प्लाज्मा प्राप्त किया",
+    "Private fusion startups record 120-second plasma stability, bringing commercial net-energy gain within reach.": "निजी संलयन स्टार्टअप्स ने 120 सेकंड की प्लाज्मा स्थिरता दर्ज की।",
+    "Make money in one Day!": "एक दिन में पैसा कमाएं!",
+    "How to make money in one day. Class by Mr Aditya": "एक दिन में पैसा कैसे कमाएं। श्री आदित्य की कक्षा",
+    "CARS: Next-Gen Solid State Battery Chemistry": "कारें: अगली पीढ़ी की सॉलिड-स्टेट बैटरी तकनीक",
+    "Endurance trials demonstrate 1,100 km single-charge ranges.": "परीक्षणों में एक बार चार्ज करने पर 1,100 किमी की रेंज दर्ज की गई।",
+    "The Architecture of Sovereign Autonomy in an Era of Multipolar Fractures": "बहुध्रुवीय विभाजन के दौर में संप्रभु स्वायत्तता की रूपरेखा",
+    "Why independent institutional capacity and domestic silicon manufacturing constitute the genuine pillars of national security.": "स्वतंत्र संस्थागत क्षमता और घरेलू सिलिकॉन निर्माण राष्ट्रीय सुरक्षा के वास्तविक आधार हैं।",
+    "Global Geopolitical Risk Index 2026: Executive Briefing": "वैश्विक भू-राजनीतिक जोखिम सूचकांक 2026: कार्यकारी ब्रीफिंग",
+    "Reserve Bank maintains repo rate policy stance amid food inflation monitoring.": "खाद्य मुद्रास्फीति की निगरानी के बीच रिजर्व बैंक ने रेपो दर को स्थिर रखा।",
+    "Cabinet Committee approves ₹76,000 Cr incentive outlay for semiconductor fab assembly.": "कैबिनेट समिति ने सेमीकंडक्टर फैब असेंबली के लिए ₹76,000 करोड़ के प्रोत्साहन को मंजूरी दी।",
+    "ISRO launches third ocean surveillance payload aboard upgraded GSLV rocket.": "इसरो ने उन्नत जीएसएलवी रॉकेट से तीसरा महासागर निगरानी पेलोड लॉन्च किया।"
   },
 
   // ==========================================
@@ -534,7 +548,20 @@ export const UI_DICTIONARY = {
     "LISTEN TO ARTICLE": "ESCUCHAR ARTÍCULO",
     "AI SUMMARY": "RESUMEN IA",
     "KEY TAKEAWAYS": "PUNTOS CLAVE",
-    "By": "Por"
+    "By": "Por",
+
+    // Homepage Placed Articles
+    "Tokamak Milestone: High-Temperature Superconducting Magnets Achieve Sustained Plasma": "Hito en el Tokamak: Los imanes superconductores de alta temperatura logran plasma sostenido",
+    "Tokamak Milestone: High-Temperature Superconducting Magnets Achieve Sustained Plasma Containment": "Hito en el Tokamak: Los imanes superconductores de alta temperatura logran contención de plasma sostenido",
+    "Private fusion startups record 120-second plasma stability, bringing commercial net-energy gain within reach.": "Las nuevas empresas privadas de fusión logran una estabilidad de plasma de 120 segundos, acercando la ganancia neta comercial de energía.",
+    "Make money in one Day!": "¡Gana dinero en un solo día!",
+    "How to make money in one day. Class by Mr Aditya": "Cómo ganar dinero en un solo día. Clase impartida por el Sr. Aditya",
+    "CARS: Next-Gen Solid State Battery Chemistry": "Autos: Química de baterías de estado sólido de próxima generación",
+    "Endurance trials demonstrate 1,100 km single-charge ranges.": "Las pruebas de resistencia demuestran autonomías de 1.100 km con una sola carga.",
+    "Global Geopolitical Risk Index 2026: Executive Briefing": "Índice Global de Riesgo Geopolítico 2026: Informe Ejecutivo",
+    "Reserve Bank maintains repo rate policy stance amid food inflation monitoring.": "El Banco de la Reserva mantiene la postura sobre la tasa repo en medio del monitoreo de la inflación de alimentos.",
+    "Cabinet Committee approves ₹76,000 Cr incentive outlay for semiconductor fab assembly.": "El Comité del Gabinete aprueba un incentivo de ₹76,000 Cr para el ensamblaje de semiconductores.",
+    "ISRO launches third ocean surveillance payload aboard upgraded GSLV rocket.": "La ISRO lanza su tercera carga útil de vigilancia oceánica a bordo del cohete GSLV actualizado."
   },
 
   // ==========================================
@@ -597,7 +624,22 @@ export const UI_DICTIONARY = {
     "CURRENCY CONVERTER": "CONVERTISSEUR DE DEVISES",
     "LISTEN TO ARTICLE": "ÉCOUTER L'ARTICLE",
     "AI SUMMARY": "RÉSUMÉ IA",
-    "By": "Par"
+    "By": "Par",
+
+    // Homepage Placed Articles
+    "Tokamak Milestone: High-Temperature Superconducting Magnets Achieve Sustained Plasma": "Jalon du Tokamak : Les aimants supraconducteurs à haute température atteignent un plasma soutenu",
+    "Tokamak Milestone: High-Temperature Superconducting Magnets Achieve Sustained Plasma Containment": "Jalon du Tokamak : Les aimants supraconducteurs à haute température atteignent un confinement de plasma soutenu",
+    "Private fusion startups record 120-second plasma stability, bringing commercial net-energy gain within reach.": "Les start-ups privées de fusion enregistrent une stabilité du plasma de 120 secondes, rendant le gain net commercial accessible.",
+    "Make money in one Day!": "Gagnez de l'argent en un jour !",
+    "How to make money in one day. Class by Mr Aditya": "Comment gagner de l'argent en un jour. Cours par M. Aditya",
+    "CARS: Next-Gen Solid State Battery Chemistry": "Voitures : Chimie des batteries à l'état solide de nouvelle génération",
+    "Endurance trials demonstrate 1,100 km single-charge ranges.": "Les essais d'endurance démontrent une autonomie de 1 100 km en une seule charge.",
+    "The Architecture of Sovereign Autonomy in an Era of Multipolar Fractures": "L'architecture de l'autonomie souveraine à l'ère des fractures multipolaires",
+    "Why independent institutional capacity and domestic silicon manufacturing constitute the genuine pillars of national security.": "Pourquoi la capacité institutionnelle indépendante et la fabrication nationale de silicium constituent les véritables piliers de la sécurité nationale.",
+    "Global Geopolitical Risk Index 2026: Executive Briefing": "Indice mondial des risques géopolitiques 2026 : Briefing exécutif",
+    "Reserve Bank maintains repo rate policy stance amid food inflation monitoring.": "La Banque de réserve maintient sa politique de taux directeur face à l'inflation alimentaire.",
+    "Cabinet Committee approves ₹76,000 Cr incentive outlay for semiconductor fab assembly.": "Le comité du Cabinet approuve une incitation de 76 000 Cr ₹ pour les semi-conducteurs.",
+    "ISRO launches third ocean surveillance payload aboard upgraded GSLV rocket.": "L'ISRO lance sa troisième charge utile de surveillance océanique avec la fusée GSLV."
   },
 
   // ==========================================
@@ -633,7 +675,19 @@ export const UI_DICTIONARY = {
     "INVESTIGATIVE JOURNALISM": "INVESTIGATIV-JOURNALISMUS",
     "CURRENCY CONVERTER": "WÄHRUNGSRECHNER",
     "LISTEN TO ARTICLE": "ARTIKEL ANHÖREN",
-    "By": "Von"
+    "By": "Von",
+
+    // Homepage Placed Articles
+    "Tokamak Milestone: High-Temperature Superconducting Magnets Achieve Sustained Plasma": "Tokamak-Meilenstein: Hochtemperatur-Supraleitermagnete erreichen stabiles Plasma",
+    "Tokamak Milestone: High-Temperature Superconducting Magnets Achieve Sustained Plasma Containment": "Tokamak-Meilenstein: Hochtemperatur-Supraleitermagnete erreichen stabiles Plasma-Einschluss",
+    "Private fusion startups record 120-second plasma stability, bringing commercial net-energy gain within reach.": "Private Fusions-Startups erreichen 120 Sekunden Plasmastabilität und rücken Netto-Energiegewinn in greifbare Nähe.",
+    "Make money in one Day!": "Verdienen Sie Geld an einem Tag!",
+    "How to make money in one day. Class by Mr Aditya": "Wie man an einem Tag Geld verdient. Unterricht von Herrn Aditya",
+    "CARS: Next-Gen Solid State Battery Chemistry": "Autos: Festkörperbatterie-Chemie der nächsten Generation",
+    "Endurance trials demonstrate 1,100 km single-charge ranges.": "Dauertests demonstrieren 1.100 km Reichweite mit einer einzigen Ladung.",
+    "The Architecture of Sovereign Autonomy in an Era of Multipolar Fractures": "Die Architektur souveräner Autonomie im Zeitalter multipolarer Brüche",
+    "Why independent institutional capacity and domestic silicon manufacturing constitute the genuine pillars of national security.": "Warum unabhängige institutionelle Kapazitäten und die heimische Chipherstellung echte Pfeiler der nationalen Sicherheit sind.",
+    "Global Geopolitical Risk Index 2026: Executive Briefing": "Globaler geopolitischer Risikoindex 2026: Executive Briefing"
   },
 
   // ==========================================
@@ -869,7 +923,19 @@ export const UI_DICTIONARY = {
     "LATEST INTELLIGENCE ⚡": "СВЕЖИЕ ДАННЫЕ ⚡",
     "INVESTIGATIVE JOURNALISM": "РАССЛЕДОВАТЕЛЬСКАЯ ЖУРНАЛИСТИКА",
     "CURRENCY CONVERTER": "КОНВЕРТЕР ВАЛЮТ",
-    "By": "Автор"
+    "By": "Автор",
+
+    // Homepage Placed Articles
+    "Tokamak Milestone: High-Temperature Superconducting Magnets Achieve Sustained Plasma": "Прорыв в Токамаке: Высокотемпературные сверхпроводящие магниты достигли устойчивой плазмы",
+    "Tokamak Milestone: High-Temperature Superconducting Magnets Achieve Sustained Plasma Containment": "Прорыв в Токамаке: Высокотемпературные сверхпроводящие магниты достигли устойчивого удержания плазмы",
+    "Private fusion startups record 120-second plasma stability, bringing commercial net-energy gain within reach.": "Частные термоядерные стартапы зафиксировали 120-секундную стабильность плазмы, приближая коммерческий выход энергии.",
+    "Make money in one Day!": "Заработайте деньги за один день!",
+    "How to make money in one day. Class by Mr Aditya": "Как заработать деньги за один день. Урок от г-на Адитьи",
+    "CARS: Next-Gen Solid State Battery Chemistry": "Автомобили: Химия твердотельных аккумуляторов нового поколения",
+    "Endurance trials demonstrate 1,100 km single-charge ranges.": "Испытания подтверждают запас хода 1100 км на одной зарядке.",
+    "The Architecture of Sovereign Autonomy in an Era of Multipolar Fractures": "Архитектура суверенной автономии в эпоху многополярного раскола",
+    "Why independent institutional capacity and domestic silicon manufacturing constitute the genuine pillars of national security.": "Почему независимый институциональный потенциал и отечественное производство кремния являются опорами безопасности.",
+    "Global Geopolitical Risk Index 2026: Executive Briefing": "Глобальный индекс геополитических рисков 2026: Брифинг для руководителей"
   },
 
   // ==========================================
@@ -1239,7 +1305,7 @@ export const UI_DICTIONARY = {
   }
 };
 
-import { getCachedTranslation } from './translationService';
+import { getCachedTranslation } from './translationService.js';
 
 /**
  * Universal synchronous translation lookup helper
