@@ -36,18 +36,24 @@ const ARTICLE_CACHE = new Map();
 const PENDING_TRANSLATIONS = new Set();
 const PENDING_ARTICLE_TRANSLATIONS = new Set();
 
+const CACHE_KEY = 'daily_brief_article_cache_v8';
+
 // Hydrate ARTICLE_CACHE from localStorage & sessionStorage on startup for 0ms transitions
 if (typeof window !== 'undefined') {
   try {
-    const rawLocal = localStorage.getItem('daily_brief_article_cache_v4');
+    // Purge deprecated caches that may contain untranslated fallbacks
+    ['daily_brief_article_cache_v4', 'daily_brief_article_cache_v5'].forEach(k => {
+      try { localStorage.removeItem(k); sessionStorage.removeItem(k); } catch(e){}
+    });
+
+    const rawLocal = localStorage.getItem(CACHE_KEY);
     if (rawLocal) {
       const parsed = JSON.parse(rawLocal);
-      Object.entries(parsed).forEach(([k, v]) => ARTICLE_CACHE.set(k, v));
-    }
-    const rawSession = sessionStorage.getItem('daily_brief_article_cache_v4');
-    if (rawSession) {
-      const parsed = JSON.parse(rawSession);
-      Object.entries(parsed).forEach(([k, v]) => ARTICLE_CACHE.set(k, v));
+      Object.entries(parsed).forEach(([k, v]) => {
+        if (v && v._translatedLang && v.originalTitle && v.title && v.title !== v.originalTitle) {
+          ARTICLE_CACHE.set(k, v);
+        }
+      });
     }
   } catch (e) {}
 }
@@ -57,12 +63,14 @@ const persistArticleCache = () => {
   try {
     const obj = {};
     let count = 0;
-    // Persist most recent 100 translated articles
+    // Persist most recent 120 genuinely translated articles
     for (const [k, v] of ARTICLE_CACHE.entries()) {
-      if (count++ > 100) break;
-      obj[k] = v;
+      if (count++ > 120) break;
+      if (v && v.title && v.originalTitle && v.title !== v.originalTitle) {
+        obj[k] = v;
+      }
     }
-    localStorage.setItem('daily_brief_article_cache_v4', JSON.stringify(obj));
+    localStorage.setItem(CACHE_KEY, JSON.stringify(obj));
   } catch (e) {}
 };
 
@@ -139,17 +147,21 @@ export const TranslationProvider = ({ children }) => {
   const getSynchronousArticle = useCallback((article, targetLang = language) => {
     if (!article || targetLang === 'en') return article;
 
-    const cacheKey = `${article.id || article.title}_${targetLang}`;
+    const origTitle = (article.originalTitle || article.title || '').trim();
+    const cacheKey = `${article.id || origTitle}_${targetLang}`;
     const cached = ARTICLE_CACHE.get(cacheKey);
     if (cached && cached._translatedLang === targetLang && cached._fullyTranslated) {
-      return cached;
+      if (!origTitle || cached.title !== origTitle) {
+        return cached;
+      }
     }
 
     // Resolve synchronously from pre-compiled static dictionary and memory cache
     const staticTranslated = getSynchronousTranslatedArticle(article, targetLang);
 
     // If dynamic article not yet fully translated in background, trigger async worker
-    if (!staticTranslated._fullyTranslated) {
+    const isStillUntranslated = !staticTranslated._fullyTranslated || (origTitle && staticTranslated.title === origTitle);
+    if (isStillUntranslated) {
       if (!PENDING_ARTICLE_TRANSLATIONS.has(cacheKey)) {
         PENDING_ARTICLE_TRANSLATIONS.add(cacheKey);
         translateArticle(article, targetLang)
@@ -188,13 +200,58 @@ export const TranslationProvider = ({ children }) => {
   const translateArticle = useCallback(async (article, targetLang) => {
     if (targetLang === 'en' || !article) return article;
 
-    const cacheKey = `${article.id || article.title}_${targetLang}`;
+    const origTitle = (article.originalTitle || article.title || '').trim();
+    const cacheKey = `${article.id || origTitle}_${targetLang}`;
     const cached = ARTICLE_CACHE.get(cacheKey);
     if (cached && cached._translatedLang === targetLang && cached._fullyTranslated) {
-      return cached;
+      if (!origTitle || cached.title !== origTitle) {
+        return cached;
+      }
     }
 
     try {
+      // In browser, call internal /api/translate edge endpoint (bypasses browser CORS)
+      if (typeof window !== 'undefined') {
+        const res = await fetch('/api/translate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            articleId: article.id || origTitle,
+            targetLang,
+            articleData: {
+              title: article.title,
+              subtitle: article.subtitle,
+              summary: article.summary,
+              kicker: article.kicker,
+              category: article.category,
+              content: article.content
+            }
+          })
+        });
+
+        if (res.ok) {
+          const json = await res.json();
+          if (json && json.success && json.data) {
+            const data = json.data;
+            const translated = { 
+              ...article, 
+              ...data,
+              originalTitle: origTitle,
+              _translatedLang: targetLang,
+              _fullyTranslated: !!(data.title && (!origTitle || data.title !== origTitle)),
+              _contentTranslated: true
+            };
+            if (data.title) setCachedTranslation(targetLang, origTitle, data.title);
+            if (data.summary) setCachedTranslation(targetLang, article.summary, data.summary);
+            if (data.subtitle) setCachedTranslation(targetLang, article.subtitle, data.subtitle);
+            if (data.kicker) setCachedTranslation(targetLang, article.kicker, data.kicker);
+            ARTICLE_CACHE.set(cacheKey, translated);
+            persistArticleCache();
+            return translated;
+          }
+        }
+      }
+
       const keys = ['title', 'subtitle', 'summary', 'kicker', 'category'];
       const textArray = keys.map(k => article[k] || '');
       
@@ -206,6 +263,7 @@ export const TranslationProvider = ({ children }) => {
 
       const translated = { 
         ...article, 
+        originalTitle: origTitle,
         _translatedLang: targetLang,
         _fullyTranslated: true,
         _contentTranslated: true
@@ -240,9 +298,10 @@ export const TranslationProvider = ({ children }) => {
 
     let allCached = true;
     const cachedArticles = articles.map(art => {
-      const cacheKey = `${art.id || art.title}_${targetLang}`;
+      const origTitle = (art.originalTitle || art.title || '').trim();
+      const cacheKey = `${art.id || origTitle}_${targetLang}`;
       const cached = ARTICLE_CACHE.get(cacheKey);
-      if (cached && cached._translatedLang === targetLang && cached._fullyTranslated) {
+      if (cached && cached._translatedLang === targetLang && cached._fullyTranslated && (!origTitle || cached.title !== origTitle)) {
         return cached;
       }
       allCached = false;
@@ -260,14 +319,15 @@ export const TranslationProvider = ({ children }) => {
       const uncachedStrings = new Set();
 
       articles.forEach(art => {
-        const cacheKey = `${art.id || art.title}_${targetLang}`;
+        const origTitle = (art.originalTitle || art.title || '').trim();
+        const cacheKey = `${art.id || origTitle}_${targetLang}`;
         const cached = ARTICLE_CACHE.get(cacheKey);
-        if (!cached || cached._translatedLang !== targetLang || !cached._fullyTranslated) {
+        if (!cached || cached._translatedLang !== targetLang || !cached._fullyTranslated || (origTitle && cached.title === origTitle)) {
           keys.forEach(k => {
             const val = art[k];
             if (val && typeof val === 'string' && val.trim()) {
               const trimmed = val.trim();
-              if (getCachedTranslation(targetLang, trimmed) === null) {
+              if (getStaticTranslation(targetLang, trimmed) === null && getCachedTranslation(targetLang, trimmed) === null) {
                 uncachedStrings.add(trimmed);
               }
             }
@@ -275,12 +335,12 @@ export const TranslationProvider = ({ children }) => {
         }
       });
 
-      // Single-pass batch translation for all distinct strings across all articles
+      // Single-pass batch translation for all distinct strings across all articles via /api/translate
       if (uncachedStrings.size > 0) {
         const strList = Array.from(uncachedStrings);
         const translatedList = await translateBatchTexts(strList, targetLang);
         strList.forEach((orig, idx) => {
-          if (translatedList[idx]) {
+          if (translatedList[idx] && translatedList[idx] !== orig) {
             setCachedTranslation(targetLang, orig, translatedList[idx]);
           }
         });
@@ -288,28 +348,35 @@ export const TranslationProvider = ({ children }) => {
 
       // Map translations to article objects
       const finalArticles = articles.map(art => {
-        const cacheKey = `${art.id || art.title}_${targetLang}`;
+        const origTitle = (art.originalTitle || art.title || '').trim();
+        const cacheKey = `${art.id || origTitle}_${targetLang}`;
         const cached = ARTICLE_CACHE.get(cacheKey);
-        if (cached && cached._translatedLang === targetLang && cached._fullyTranslated) {
+        if (cached && cached._translatedLang === targetLang && cached._fullyTranslated && (!origTitle || cached.title !== origTitle)) {
           return cached;
         }
 
         const translatedArt = {
           ...art,
-          originalTitle: art.originalTitle || art.title,
+          originalTitle: origTitle,
           _translatedLang: targetLang,
-          _fullyTranslated: true
+          _fullyTranslated: false
         };
 
+        let hasTranslatedField = false;
         keys.forEach(k => {
           const val = art[k];
           if (val && typeof val === 'string' && val.trim()) {
-            const trans = getCachedTranslation(targetLang, val.trim());
-            if (trans) {
+            const trans = getStaticTranslation(targetLang, val.trim()) || getCachedTranslation(targetLang, val.trim());
+            if (trans && trans !== val.trim()) {
               translatedArt[k] = trans;
+              hasTranslatedField = true;
             }
           }
         });
+
+        if (hasTranslatedField && (!origTitle || translatedArt.title !== origTitle)) {
+          translatedArt._fullyTranslated = true;
+        }
 
         ARTICLE_CACHE.set(cacheKey, translatedArt);
         return translatedArt;

@@ -565,7 +565,15 @@ export default function HomePage() {
 
     if (match) {
       const translatedMatch = language !== 'en' ? getSynchronousArticle(match, language) : match;
-      return { ...baseArt, ...translatedMatch };
+      const merged = { ...translatedMatch, ...baseArt };
+      if (language !== 'en') {
+        if (baseArt.title && baseArt.title.trim().toLowerCase() !== rawTitle) {
+          merged.title = baseArt.title;
+        } else if (translatedMatch.title && translatedMatch.title.trim().toLowerCase() !== rawTitle) {
+          merged.title = translatedMatch.title;
+        }
+      }
+      return merged;
     }
     return baseArt;
   };

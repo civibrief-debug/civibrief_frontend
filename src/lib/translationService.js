@@ -53,7 +53,11 @@ export function getCachedTranslation(targetLang, text) {
   const trimmed = text.trim();
   const langMap = MEMORY_CACHE.get(targetLang);
   if (langMap && langMap.has(trimmed)) {
-    return langMap.get(trimmed);
+    const val = langMap.get(trimmed);
+    // Never treat identical English text as valid translation for foreign language
+    if (val && val !== trimmed) {
+      return val;
+    }
   }
   return null;
 }
@@ -61,15 +65,60 @@ export function getCachedTranslation(targetLang, text) {
 export function setCachedTranslation(targetLang, text, translated) {
   if (!text || typeof text !== 'string' || !translated || targetLang === 'en') return;
   const trimmed = text.trim();
+  const transTrimmed = translated.trim();
+  // Do not cache identical English text as a foreign language translation
+  if (transTrimmed === trimmed && targetLang !== 'en') return;
+
   if (!MEMORY_CACHE.has(targetLang)) {
     MEMORY_CACHE.set(targetLang, new Map());
   }
-  MEMORY_CACHE.get(targetLang).set(trimmed, translated);
+  MEMORY_CACHE.get(targetLang).set(trimmed, transTrimmed);
   queuePersistMemoryCache();
 }
 
 /**
- * Direct Google Translate GTX fetcher
+ * Client-Side Proxy to /api/translate (Bypasses Browser CORS completely for all languages!)
+ */
+async function fetchClientBatch(texts, targetLang) {
+  if (typeof window === 'undefined' || !texts || texts.length === 0) return null;
+  try {
+    const res = await fetch('/api/translate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ texts, targetLang }),
+      signal: AbortSignal.timeout ? AbortSignal.timeout(6000) : undefined
+    });
+    if (res.ok) {
+      const json = await res.json();
+      if (json && json.success && Array.isArray(json.data) && json.data.length === texts.length) {
+        return json.data;
+      }
+    }
+  } catch (e) {}
+  return null;
+}
+
+async function fetchClientText(text, targetLang) {
+  if (typeof window === 'undefined' || !text) return null;
+  try {
+    const res = await fetch('/api/translate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text, targetLang }),
+      signal: AbortSignal.timeout ? AbortSignal.timeout(4000) : undefined
+    });
+    if (res.ok) {
+      const json = await res.json();
+      if (json && json.success && typeof json.data === 'string') {
+        return json.data;
+      }
+    }
+  } catch (e) {}
+  return null;
+}
+
+/**
+ * Direct Google Translate GTX fetcher (Server / Edge runtime only)
  */
 async function fetchGtx(text, targetLang) {
   const url = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=${targetLang}&dt=t&q=${encodeURIComponent(text)}`;
@@ -94,7 +143,7 @@ async function fetchGtx(text, targetLang) {
 }
 
 /**
- * Direct Chrome Extension translate fetcher
+ * Direct Chrome Extension translate fetcher (Server / Edge runtime only)
  */
 async function fetchChromeEx(text, targetLang) {
   const url2 = `https://clients5.google.com/translate_a/t?client=dict-chrome-ex&sl=auto&tl=${targetLang}&q=${encodeURIComponent(text)}`;
@@ -129,36 +178,28 @@ export async function translatePlainText(plainText, targetLang) {
     return cached;
   }
 
-  // Tier 1: Google GTX Endpoint
+  // Tier 1 (Browser Client): Call internal /api/translate edge endpoint
+  if (typeof window !== 'undefined') {
+    const clientResult = await fetchClientText(trimmed, targetLang);
+    if (clientResult && clientResult !== trimmed) {
+      setCachedTranslation(targetLang, trimmed, clientResult);
+      return clientResult;
+    }
+  }
+
+  // Tier 2 (Server-side): Direct Google GTX
   try {
     const translated = await fetchGtx(trimmed, targetLang);
     setCachedTranslation(targetLang, trimmed, translated);
     return translated;
   } catch (err) {}
 
-  // Tier 2: Google Chrome Extension Endpoint
+  // Tier 3 (Server-side fallback): Chrome Extension endpoint
   try {
     const translated2 = await fetchChromeEx(trimmed, targetLang);
     setCachedTranslation(targetLang, trimmed, translated2);
     return translated2;
   } catch (err2) {}
-
-  // Tier 3: MyMemory Translation API
-  try {
-    const url3 = `https://api.mymemory.translated.net/get?q=${encodeURIComponent(trimmed.slice(0, 500))}&langpair=en|${targetLang}`;
-    const res3 = await fetch(url3, {
-      signal: AbortSignal.timeout ? AbortSignal.timeout(3000) : undefined
-    });
-
-    if (res3.ok) {
-      const data3 = await res3.json();
-      if (data3?.responseData?.translatedText) {
-        const translated3 = data3.responseData.translatedText;
-        setCachedTranslation(targetLang, trimmed, translated3);
-        return translated3;
-      }
-    }
-  } catch (err3) {}
 
   return plainText;
 }
@@ -195,7 +236,27 @@ export async function translateBatchTexts(texts, targetLang) {
     return results;
   }
 
-  // 2. Group uncached items into chunks of ~3000 chars for single-shot batch translation
+  // Client-Side Browser: Route uncached batch via /api/translate (Bypasses Browser CORS)
+  if (typeof window !== 'undefined') {
+    try {
+      const uncachedTexts = uncachedList.map(u => u.text);
+      const translatedBatch = await fetchClientBatch(uncachedTexts, targetLang);
+      if (translatedBatch && Array.isArray(translatedBatch) && translatedBatch.length === uncachedList.length) {
+        uncachedList.forEach((item, idx) => {
+          const trans = (translatedBatch[idx] || item.text).trim();
+          if (trans && trans !== item.text) {
+            setCachedTranslation(targetLang, item.text, trans);
+            results[item.origIndex] = trans;
+          } else {
+            results[item.origIndex] = item.text;
+          }
+        });
+        return results;
+      }
+    } catch (e) {}
+  }
+
+  // 2. Group uncached items into chunks of ~3000 chars for single-shot batch translation (Server-side)
   const DELIM = '\n<<<§T§>>>\n';
   const batches = [];
   let currentBatch = [];
