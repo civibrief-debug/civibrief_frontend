@@ -12,6 +12,42 @@ const HEADERS = {
 // Global High-Speed In-Memory Cache (TargetLang -> Text -> TranslatedText)
 const MEMORY_CACHE = new Map();
 
+// Instant Hydration from localStorage on startup (0.00ms latency)
+if (typeof window !== 'undefined') {
+  try {
+    const rawLocal = localStorage.getItem('daily_brief_text_cache_v5');
+    if (rawLocal) {
+      const parsed = JSON.parse(rawLocal);
+      Object.entries(parsed).forEach(([lang, mapObj]) => {
+        if (!MEMORY_CACHE.has(lang)) MEMORY_CACHE.set(lang, new Map());
+        const langMap = MEMORY_CACHE.get(lang);
+        Object.entries(mapObj).forEach(([k, v]) => langMap.set(k, v));
+      });
+    }
+  } catch (e) {}
+}
+
+let persistTimeout = null;
+function queuePersistMemoryCache() {
+  if (typeof window === 'undefined') return;
+  if (persistTimeout) return;
+  persistTimeout = setTimeout(() => {
+    persistTimeout = null;
+    try {
+      const exportObj = {};
+      for (const [lang, map] of MEMORY_CACHE.entries()) {
+        exportObj[lang] = {};
+        let count = 0;
+        for (const [k, v] of map.entries()) {
+          if (count++ > 600) break;
+          exportObj[lang][k] = v;
+        }
+      }
+      localStorage.setItem('daily_brief_text_cache_v5', JSON.stringify(exportObj));
+    } catch (e) {}
+  }, 1000);
+}
+
 export function getCachedTranslation(targetLang, text) {
   if (!text || typeof text !== 'string' || targetLang === 'en') return text;
   const trimmed = text.trim();
@@ -29,6 +65,7 @@ export function setCachedTranslation(targetLang, text, translated) {
     MEMORY_CACHE.set(targetLang, new Map());
   }
   MEMORY_CACHE.get(targetLang).set(trimmed, translated);
+  queuePersistMemoryCache();
 }
 
 /**
@@ -192,7 +229,10 @@ export async function translateBatchTexts(texts, targetLang) {
       }
 
       if (translatedCombined) {
-        const split = translatedCombined.split(/\s*<<<§T§>>>\s*/g);
+        let split = translatedCombined.split(/\s*(?:<<<|«««|〈〈〈|＜＜＜)\s*§\s*T\s*§\s*(?:>>>|»»»|〉〉〉|＞＞＞)\s*/gi);
+        if (split.length !== batch.length) {
+          split = translatedCombined.split(/\n\s*(?:<<<|«««|〈〈〈|＜＜＜).*?(?:>>>|»»»|〉〉〉|＞＞＞)\s*\n/gi);
+        }
         if (split.length === batch.length) {
           batch.forEach((item, idx) => {
             const trans = (split[idx] || item.text).trim();

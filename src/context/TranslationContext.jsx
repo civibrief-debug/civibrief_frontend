@@ -256,25 +256,75 @@ export const TranslationProvider = ({ children }) => {
     setIsTranslating(true);
 
     try {
-      const finalArticles = await Promise.all(
-        articles.map(async (art) => {
-          const cacheKey = `${art.id || art.title}_${targetLang}`;
-          const cached = ARTICLE_CACHE.get(cacheKey);
-          if (cached && cached._translatedLang === targetLang && cached._fullyTranslated) {
-            return cached;
-          }
-          return translateArticle(art, targetLang);
-        })
-      );
+      const keys = ['title', 'subtitle', 'summary', 'kicker', 'category'];
+      const uncachedStrings = new Set();
 
+      articles.forEach(art => {
+        const cacheKey = `${art.id || art.title}_${targetLang}`;
+        const cached = ARTICLE_CACHE.get(cacheKey);
+        if (!cached || cached._translatedLang !== targetLang || !cached._fullyTranslated) {
+          keys.forEach(k => {
+            const val = art[k];
+            if (val && typeof val === 'string' && val.trim()) {
+              const trimmed = val.trim();
+              if (getCachedTranslation(targetLang, trimmed) === null) {
+                uncachedStrings.add(trimmed);
+              }
+            }
+          });
+        }
+      });
+
+      // Single-pass batch translation for all distinct strings across all articles
+      if (uncachedStrings.size > 0) {
+        const strList = Array.from(uncachedStrings);
+        const translatedList = await translateBatchTexts(strList, targetLang);
+        strList.forEach((orig, idx) => {
+          if (translatedList[idx]) {
+            setCachedTranslation(targetLang, orig, translatedList[idx]);
+          }
+        });
+      }
+
+      // Map translations to article objects
+      const finalArticles = articles.map(art => {
+        const cacheKey = `${art.id || art.title}_${targetLang}`;
+        const cached = ARTICLE_CACHE.get(cacheKey);
+        if (cached && cached._translatedLang === targetLang && cached._fullyTranslated) {
+          return cached;
+        }
+
+        const translatedArt = {
+          ...art,
+          originalTitle: art.originalTitle || art.title,
+          _translatedLang: targetLang,
+          _fullyTranslated: true
+        };
+
+        keys.forEach(k => {
+          const val = art[k];
+          if (val && typeof val === 'string' && val.trim()) {
+            const trans = getCachedTranslation(targetLang, val.trim());
+            if (trans) {
+              translatedArt[k] = trans;
+            }
+          }
+        });
+
+        ARTICLE_CACHE.set(cacheKey, translatedArt);
+        return translatedArt;
+      });
+
+      persistArticleCache();
       setIsTranslating(false);
+      setVersion(v => v + 1);
       return finalArticles;
     } catch (err) {
-      console.warn('Batch translation warning:', err.message);
+      console.warn('Batch translation warning:', err?.message || err);
       setIsTranslating(false);
       return articles;
     }
-  }, [translateArticle]);
+  }, []);
 
   /**
    * Batch Translate arbitrary array of strings

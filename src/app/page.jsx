@@ -311,22 +311,40 @@ export default function HomePage() {
     return id.startsWith('deep-dive-') || cat.includes('deep dive') || cat === 'special investigations' || (cat === 'investigation' && id.startsWith('deep-dive-'));
   };
 
-  // Merge database articles with fallbacks
+  // Merge database articles with fallbacks and all homepage placement sections
   const combinedArticlesPool = useMemo(() => {
     const baseList = Array.isArray(dbArticles) && dbArticles.length > 0 ? dbArticles : [];
     const fallbacks = [FALLBACK_HERO_FEATURED, ...FALLBACK_HERO_SECONDARY, ...FALLBACK_MAIN_ARTICLES];
 
-    const seenIds = new Set(baseList.map(a => a.id));
-    const seenTitles = new Set(baseList.map(a => (a.title || '').trim().toLowerCase()));
+    // Extract all articles and stories embedded inside homepage placement builder instances
+    const sectionArticles = [];
+    if (Array.isArray(homepageArticleSections)) {
+      homepageArticleSections.forEach(inst => {
+        if (!inst || inst.enabled === false) return;
+        if (inst.mainStory) sectionArticles.push(inst.mainStory);
+        if (Array.isArray(inst.subStories)) sectionArticles.push(...inst.subStories);
+        if (Array.isArray(inst.slides)) sectionArticles.push(...inst.slides);
+        if (Array.isArray(inst.slideStories)) sectionArticles.push(...inst.slideStories);
+        if (Array.isArray(inst.stories)) sectionArticles.push(...inst.stories);
+      });
+    }
 
-    const merged = [...baseList];
-    fallbacks.forEach(f => {
-      if (!seenIds.has(f.id) && !seenTitles.has((f.title || '').trim().toLowerCase())) {
-        merged.push(f);
-      }
+    const seenIds = new Set();
+    const seenTitles = new Set();
+    const merged = [];
+
+    [...sectionArticles, ...baseList, ...fallbacks].forEach(item => {
+      if (!item) return;
+      const id = item.id || '';
+      const title = (item.title || '').trim().toLowerCase();
+      if ((id && seenIds.has(id)) || (title && seenTitles.has(title))) return;
+      if (id) seenIds.add(id);
+      if (title) seenTitles.add(title);
+      merged.push(item);
     });
+
     return merged;
-  }, [dbArticles]);
+  }, [dbArticles, homepageArticleSections]);
 
   // Handle translation when articles, deep dives, wires, breaking news, or language change
   useEffect(() => {
@@ -359,9 +377,21 @@ export default function HomePage() {
       });
     }
 
-    translateBatch(FAST_NEWS_WIRES_STATIC.map(w => w.text), language).then(translated => {
+    // Translate wires from placement builder or fallback
+    const opInst = Array.isArray(homepageArticleSections) 
+      ? homepageArticleSections.find(s => s && s.enabled !== false && (s.sectionRegion === 'hero_col3' || s.templateType === 'opinion'))
+      : null;
+
+    const wireItems = opInst?.intelligenceStream?.items && Array.isArray(opInst.intelligenceStream.items) && opInst.intelligenceStream.items.length > 0
+      ? opInst.intelligenceStream.items.map(w => w.text)
+      : FAST_NEWS_WIRES_STATIC.map(w => w.text);
+
+    translateBatch(wireItems, language).then(translated => {
       if (isMounted && translated) {
-        const mapped = FAST_NEWS_WIRES_STATIC.map((w, idx) => ({
+        const rawList = opInst?.intelligenceStream?.items && Array.isArray(opInst.intelligenceStream.items) && opInst.intelligenceStream.items.length > 0
+          ? opInst.intelligenceStream.items
+          : FAST_NEWS_WIRES_STATIC;
+        const mapped = rawList.map((w, idx) => ({
           time: t(w.time),
           text: translated[idx] || w.text
         }));
@@ -369,26 +399,34 @@ export default function HomePage() {
       }
     });
 
-    translateBatch([EDITORIAL_OPINION_STATIC.title, EDITORIAL_OPINION_STATIC.deck], language).then(translated => {
+    // Translate opinion box from placement builder or fallback
+    const opinionTitle = opInst?.editorialOpinion?.title || EDITORIAL_OPINION_STATIC.title;
+    const opinionDeck = opInst?.editorialOpinion?.deck || opInst?.editorialOpinion?.content || EDITORIAL_OPINION_STATIC.deck;
+
+    translateBatch([opinionTitle, opinionDeck], language).then(translated => {
       if (isMounted && translated) {
         setTranslatedOpinion({
-          title: translated[0] || EDITORIAL_OPINION_STATIC.title,
-          deck: translated[1] || EDITORIAL_OPINION_STATIC.deck
+          title: translated[0] || opinionTitle,
+          deck: translated[1] || opinionDeck
         });
       }
     });
 
-    translateBatch([SPONSORED_SHOWCASE_STATIC.title, SPONSORED_SHOWCASE_STATIC.subtitle], language).then(translated => {
+    // Translate sponsored showcase from placement builder or fallback
+    const sponsorTitle = opInst?.sponsoredShowcase?.headline || opInst?.sponsoredShowcase?.title || SPONSORED_SHOWCASE_STATIC.title;
+    const sponsorSubtitle = opInst?.sponsoredShowcase?.subtext || opInst?.sponsoredShowcase?.subtitle || SPONSORED_SHOWCASE_STATIC.subtitle;
+
+    translateBatch([sponsorTitle, sponsorSubtitle], language).then(translated => {
       if (isMounted && translated) {
         setTranslatedSponsor({
-          title: translated[0] || SPONSORED_SHOWCASE_STATIC.title,
-          subtitle: translated[1] || SPONSORED_SHOWCASE_STATIC.subtitle
+          title: translated[0] || sponsorTitle,
+          subtitle: translated[1] || sponsorSubtitle
         });
       }
     });
 
     return () => { isMounted = false; };
-  }, [combinedArticlesPool, language, translateMultipleArticles, translateDeepDives, translateBatch, t]);
+  }, [combinedArticlesPool, language, translateMultipleArticles, translateDeepDives, translateBatch, t, homepageArticleSections]);
 
   const activeArticles = useMemo(() => {
     const rawPool = combinedArticlesPool.filter(a => !isDeepDiveArticle(a));
@@ -462,30 +500,30 @@ export default function HomePage() {
 
   const activeOpinion = useMemo(() => {
     const inst = getInstanceForRegion('hero_col3', 'opinion');
-    if (inst && inst.editorialOpinion) {
-      return {
-        title: inst.editorialOpinion.title,
-        deck: inst.editorialOpinion.deck || inst.editorialOpinion.content
-      };
+    const rawTitle = inst?.editorialOpinion?.title || EDITORIAL_OPINION_STATIC.title;
+    const rawDeck = inst?.editorialOpinion?.deck || inst?.editorialOpinion?.content || EDITORIAL_OPINION_STATIC.deck;
+
+    if (language === 'en') {
+      return { title: rawTitle, deck: rawDeck };
     }
-    if (language === 'en') return EDITORIAL_OPINION_STATIC;
-    if (translatedOpinion) return translatedOpinion;
+    if (translatedOpinion && translatedOpinion.title) return translatedOpinion;
     return {
-      title: t(EDITORIAL_OPINION_STATIC.title),
-      deck: t(EDITORIAL_OPINION_STATIC.deck)
+      title: t(rawTitle),
+      deck: t(rawDeck)
     };
   }, [language, translatedOpinion, t, homepageArticleSections]);
 
   const activeWires = useMemo(() => {
     const inst = getInstanceForRegion('hero_col3', 'opinion');
-    if (inst && inst.intelligenceStream && Array.isArray(inst.intelligenceStream.items) && inst.intelligenceStream.items.length > 0) {
-      return inst.intelligenceStream.items.map(w => ({
-        time: w.time,
-        text: w.text
-      }));
+    const rawItems = inst?.intelligenceStream?.items && Array.isArray(inst.intelligenceStream.items) && inst.intelligenceStream.items.length > 0
+      ? inst.intelligenceStream.items
+      : FAST_NEWS_WIRES_STATIC;
+
+    if (language === 'en') {
+      return rawItems.map(w => ({ time: w.time, text: w.text }));
     }
     if (translatedWires && translatedWires.length > 0) return translatedWires;
-    return FAST_NEWS_WIRES_STATIC.map(w => ({
+    return rawItems.map(w => ({
       time: t(w.time),
       text: t(w.text)
     }));
@@ -493,17 +531,16 @@ export default function HomePage() {
 
   const activeSponsor = useMemo(() => {
     const inst = getInstanceForRegion('hero_col3', 'opinion');
-    if (inst && inst.sponsoredShowcase) {
-      return {
-        title: inst.sponsoredShowcase.headline || inst.sponsoredShowcase.title,
-        subtitle: inst.sponsoredShowcase.subtext || inst.sponsoredShowcase.subtitle
-      };
+    const rawTitle = inst?.sponsoredShowcase?.headline || inst?.sponsoredShowcase?.title || SPONSORED_SHOWCASE_STATIC.title;
+    const rawSub = inst?.sponsoredShowcase?.subtext || inst?.sponsoredShowcase?.subtitle || SPONSORED_SHOWCASE_STATIC.subtitle;
+
+    if (language === 'en') {
+      return { title: rawTitle, subtitle: rawSub };
     }
-    if (language === 'en') return SPONSORED_SHOWCASE_STATIC;
-    if (translatedSponsor) return translatedSponsor;
+    if (translatedSponsor && translatedSponsor.title) return translatedSponsor;
     return {
-      title: t(SPONSORED_SHOWCASE_STATIC.title),
-      subtitle: t(SPONSORED_SHOWCASE_STATIC.subtitle)
+      title: t(rawTitle),
+      subtitle: t(rawSub)
     };
   }, [language, translatedSponsor, t, homepageArticleSections]);
 
@@ -512,15 +549,25 @@ export default function HomePage() {
     return (homepageArticleSections || []).find(s => s && (s.id === zoneId || s.instanceId === zoneId || s.sectionRegion === zoneId));
   };
 
-  // Safe helper to enrich article stub with full master database record
+  // Safe helper to enrich article stub with full master database record and instant synchronous translation
   const enrichArticle = (art) => {
     if (!art) return art;
-    const match = (activeArticles || []).find(a => a.id === art.id || (art.title && a.title === art.title)) ||
-                  (dbArticles || []).find(a => a.id === art.id || (art.title && a.title === art.title));
+    const baseArt = language !== 'en' ? getSynchronousArticle(art, language) : art;
+
+    const rawTitle = (art.originalTitle || art.title || '').trim().toLowerCase();
+    const match = (activeArticles || []).find(a => 
+      (art.id && a.id === art.id) || 
+      (rawTitle && ((a.originalTitle && a.originalTitle.trim().toLowerCase() === rawTitle) || (a.title && a.title.trim().toLowerCase() === rawTitle)))
+    ) || (dbArticles || []).find(a => 
+      (art.id && a.id === art.id) || 
+      (rawTitle && (a.title && a.title.trim().toLowerCase() === rawTitle))
+    );
+
     if (match) {
-      return { ...art, ...match };
+      const translatedMatch = language !== 'en' ? getSynchronousArticle(match, language) : match;
+      return { ...baseArt, ...translatedMatch };
     }
-    return art;
+    return baseArt;
   };
 
   // Safe handler to open modal with full hydrated article
@@ -834,13 +881,13 @@ export default function HomePage() {
                         {story.kicker ? t(story.kicker.toUpperCase()) : t(story.category || 'TOP STORY')}
                       </span>
                       <h1 className="lead-story-title">
-                        {story.title}
+                        {t(story.title)}
                       </h1>
                       <p className="lead-story-deck">
-                        {story.summary || story.subtitle || story.excerpt}
+                        {t(story.summary || story.subtitle || story.excerpt)}
                       </p>
                       <div className="lead-story-byline">
-                        <span>{t("By")} <strong>{story.author || 'Editorial Board'}</strong></span>
+                        <span>{t("By")} <strong>{story.author ? t(story.author) : t('Editorial Board')}</strong></span>
                         <span>•</span>
                         <span>{story.readTime || '4 min read'}</span>
                       </div>
@@ -900,7 +947,7 @@ export default function HomePage() {
                     {sub.kicker ? t(sub.kicker.toUpperCase()) : t(sub.category)}
                   </span>
                   <h3 className="sub-story-title">
-                    {sub.title}
+                    {t(sub.title)}
                   </h3>
                 </article>
               ))}
@@ -932,14 +979,14 @@ export default function HomePage() {
             {story.kicker ? t(story.kicker.toUpperCase()) : t(story.category || 'FEATURED')}
           </span>
           <h2 className="second-lead-title">
-            {story.title}
+            {t(story.title)}
           </h2>
           <p className="second-lead-deck">
-            {story.summary || story.subtitle || story.excerpt}
+            {t(story.summary || story.subtitle || story.excerpt)}
           </p>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '6px' }}>
             <div style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 700 }}>
-              {story.author || 'Senior Correspondent'}
+              {story.author ? t(story.author) : t('Senior Correspondent')}
             </div>
             <span style={{ fontSize: '11px', fontWeight: 800, color: 'var(--accent-crimson, #b90014)' }}>
               {t("Read Article")} →
@@ -975,10 +1022,10 @@ export default function HomePage() {
                     {story.kicker ? t(story.kicker.toUpperCase()) : t(story.category)}
                   </span>
                   <h4 className="stacked-story-title">
-                    {story.title}
+                    {t(story.title)}
                   </h4>
                   <div style={{ fontSize: '10.5px', color: 'var(--text-muted)', marginTop: '3px' }}>
-                    {story.author || 'News Desk'}
+                    {story.author ? t(story.author) : t('News Desk')}
                   </div>
                 </div>
                 <div style={{ width: '80px', height: '60px', borderRadius: '4px', overflow: 'hidden', background: '#000', flexShrink: 0 }}>
@@ -1027,10 +1074,10 @@ export default function HomePage() {
               className="opinion-main-title"
               onClick={() => setSelectedArticle(leadStory)}
             >
-              {opTitle}
+              {t(opTitle)}
             </h3>
             <p className="opinion-deck">
-              {opDeck}
+              {t(opDeck)}
             </p>
             <Link href="/section/opinion" className="opinion-read-link">
               <span>{t(opCta)}</span>
@@ -1048,12 +1095,14 @@ export default function HomePage() {
               <span style={{ fontSize: '10px', color: 'var(--text-muted)', fontWeight: 700 }}>{t(inst.intelligenceStream?.updatedLabel || "UPDATED 2M AGO")}</span>
             </div>
 
-            {wireList.map((wire, wIdx) => (
-              <div key={`wire-${wIdx}`} className="fast-news-item" onClick={() => setSelectedArticle(activeArticles[wIdx % activeArticles.length] || leadStory)}>
-                <div className="fast-news-time">{wire.time}</div>
-                <div className="fast-news-text">{wire.text}</div>
-              </div>
-            ))}
+            <div className="fast-news-timeline">
+              {wireList.map((wire, wIdx) => (
+                <div key={`wire-${wIdx}`} className="fast-news-item" onClick={() => setSelectedArticle(activeArticles[wIdx % activeArticles.length] || leadStory)}>
+                  <div className="fast-news-time">{t(wire.time)}</div>
+                  <div className="fast-news-text">{t(wire.text)}</div>
+                </div>
+              ))}
+            </div>
           </div>
 
           {/* Ad Dropzone 2: Right Sidebar (Below Intelligence) - dropzone-sidebar-bottom */}
@@ -1065,10 +1114,10 @@ export default function HomePage() {
               {t(inst.sponsoredShowcase?.badge || "SPONSORED SHOWCASE")}
             </div>
             <div style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-primary)', lineHeight: 1.35 }}>
-              {sponsorTitle}
+              {t(sponsorTitle)}
             </div>
             <div style={{ fontSize: '10.5px', color: 'var(--text-muted)', marginTop: '4px' }}>
-              {sponsorSub}
+              {t(sponsorSub)}
             </div>
           </div>
         </div>
@@ -1092,8 +1141,8 @@ export default function HomePage() {
           />
         </div>
         <span className="news-kicker">{customStory.kicker ? t(customStory.kicker.toUpperCase()) : t(customStory.category || 'NEWS')}</span>
-        <h3 className="second-lead-title">{customStory.title}</h3>
-        <p className="second-lead-deck">{customStory.summary || customStory.subtitle}</p>
+        <h3 className="second-lead-title">{t(customStory.title)}</h3>
+        <p className="second-lead-deck">{t(customStory.summary || customStory.subtitle)}</p>
       </article>
     );
   };
@@ -1241,10 +1290,10 @@ export default function HomePage() {
                 </div>
                 <span className="news-kicker">{band1Stories[0].kicker ? t(band1Stories[0].kicker) : t(band1Stories[0].category || 'POLICY & INFRASTRUCTURE')}</span>
                 <h3 style={{ fontFamily: 'var(--font-serif)', fontSize: '18px', fontWeight: 800, color: 'var(--text-primary)', margin: '2px 0' }}>
-                  {band1Stories[0].title}
+                  {t(band1Stories[0].title)}
                 </h3>
                 <p style={{ fontSize: '13px', color: 'var(--text-secondary)', lineHeight: 1.45 }}>
-                  {band1Stories[0].summary || band1Stories[0].excerpt}
+                  {t(band1Stories[0].summary || band1Stories[0].excerpt)}
                 </p>
               </article>
             )}
@@ -1254,8 +1303,8 @@ export default function HomePage() {
               <article key={`nat-art-${aIdx}`} className="stacked-story-row" onClick={() => handleOpenArticle(art)}>
                 <div className="stacked-story-content">
                   <span className="news-kicker" style={{ fontSize: '9.5px' }}>{t(art.category || 'GLOBAL')}</span>
-                  <h4 className="stacked-story-title">{art.title}</h4>
-                  <div style={{ fontSize: '10.5px', color: 'var(--text-muted)', marginTop: '2px' }}>{art.author || 'Desk'}</div>
+                  <h4 className="stacked-story-title">{t(art.title)}</h4>
+                  <div style={{ fontSize: '10.5px', color: 'var(--text-muted)', marginTop: '2px' }}>{art.author ? t(art.author) : t('Desk')}</div>
                 </div>
                 <div style={{ width: '80px', height: '60px', borderRadius: '4px', overflow: 'hidden', background: '#000', flexShrink: 0 }}>
                   <ArticleMediaCover
@@ -1292,10 +1341,10 @@ export default function HomePage() {
               >
                 <span className="news-kicker" style={{ fontSize: '9.5px' }}>{t(art.category || 'GLOBAL')}</span>
                 <h4 style={{ fontFamily: 'var(--font-serif)', fontSize: '14.5px', fontWeight: 700, color: 'var(--text-primary)', lineHeight: 1.35, margin: '2px 0 4px' }}>
-                  {art.title}
+                  {t(art.title)}
                 </h4>
                 <p style={{ fontSize: '12px', color: 'var(--text-secondary)', lineHeight: 1.4, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
-                  {art.summary || art.excerpt}
+                  {t(art.summary || art.excerpt)}
                 </p>
               </div>
             ))}
@@ -1317,7 +1366,7 @@ export default function HomePage() {
                 <div style={{ padding: '8px 12px' }}>
                   <span className="news-kicker" style={{ fontSize: '9.5px' }}>{t((band2Stories[4] || activeArticles[0])?.category?.toUpperCase() || 'GLOBAL SPOTLIGHT')}</span>
                   <div style={{ fontSize: '12.5px', fontWeight: 800, color: 'var(--text-primary)' }}>
-                    {(band2Stories[4] || activeArticles[0])?.title}
+                    {t((band2Stories[4] || activeArticles[0])?.title)}
                   </div>
                 </div>
               </div>
@@ -1344,7 +1393,7 @@ export default function HomePage() {
                       {item.category ? t(item.category.toUpperCase()) : t('NEWS')}
                     </span>
                     <div className="rank-headline-text">
-                      {item.title}
+                      {t(item.title)}
                     </div>
                   </div>
                 </div>
@@ -1391,8 +1440,8 @@ export default function HomePage() {
                   />
                 </div>
                 <span className="news-kicker" style={{ fontSize: '9.5px' }}>{t(art.category || 'BUSINESS')}</span>
-                <h3 className="dept-card-title">{art.title}</h3>
-                <div className="dept-card-byline">{art.author || 'Markets Desk'}</div>
+                <h3 className="dept-card-title">{t(art.title)}</h3>
+                <div className="dept-card-byline">{art.author ? t(art.author) : t('Markets Desk')}</div>
               </article>
             ))}
           </div>
@@ -1430,8 +1479,8 @@ export default function HomePage() {
                   />
                 </div>
                 <span className="news-kicker" style={{ fontSize: '9.5px' }}>{t(art.category || 'TECH & AI')}</span>
-                <h3 className="dept-card-title">{art.title}</h3>
-                <div className="dept-card-byline">{art.author || 'Tech Reporter'}</div>
+                <h3 className="dept-card-title">{t(art.title)}</h3>
+                <div className="dept-card-byline">{art.author ? t(art.author) : t('Tech Reporter')}</div>
               </article>
             ))}
           </div>
@@ -1476,8 +1525,8 @@ export default function HomePage() {
                     />
                   </div>
                   <span className="news-kicker" style={{ fontSize: '9.5px' }}>{t(art.category || customSec.category)}</span>
-                  <h3 className="dept-card-title">{art.title}</h3>
-                  <div className="dept-card-byline">{art.author || 'Desk Correspondent'}</div>
+                  <h3 className="dept-card-title">{t(art.title)}</h3>
+                  <div className="dept-card-byline">{art.author ? t(art.author) : t('Desk Correspondent')}</div>
                 </article>
               ))}
             </div>
@@ -1538,13 +1587,13 @@ export default function HomePage() {
                       <span>{t(dive.category)}</span>
                     </div>
                     <h3 style={{ fontFamily: 'var(--font-serif)', fontSize: '20px', fontWeight: 800, color: '#ffffff', marginBottom: '6px' }}>
-                      {dive.title}
+                      {t(dive.title)}
                     </h3>
                     <p style={{ fontSize: '13px', color: '#cbd5e1', lineHeight: 1.45, marginBottom: '10px' }}>
-                      {dive.subtitle}
+                      {t(dive.subtitle)}
                     </p>
                     <div style={{ fontSize: '11px', color: '#34d399', fontWeight: 700 }}>
-                      {t("By")} {dive.author}
+                      {t("By")} {dive.author ? t(dive.author) : ''}
                     </div>
                   </div>
                 </article>

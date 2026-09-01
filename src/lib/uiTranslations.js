@@ -902,6 +902,340 @@ export const UI_DICTIONARY = {
     "INVESTIGATIVE JOURNALISM": "JORNALISMO INVESTIGATIVO",
     "CURRENCY CONVERTER": "CONVERSOR DE MOEDAS",
     "By": "Por"
+  },
+
+  // ==========================================
+  // KOREAN (ko)
+  // ==========================================
+  ko: {
+    "Top Stories": "주요 뉴스",
+    "TOP STORIES": "주요 뉴스",
+    "Tech & AI": "기술 및 AI",
+    "TECH & AI": "기술 및 AI",
+    "Global Affairs": "글로벌협력",
+    "GLOBAL AFFAIRS": "글로벌협력",
+    "Markets & Economy": "시장 및 경제",
+    "MARKETS & ECONOMY": "시장 및 경제",
+    "MARKETS": "시장",
+    "Science & Climate": "과학 및 기후",
+    "SCIENCE & CLIMATE": "과학 및 기후",
+    "SCIENCE": "과학",
+    "Movies": "영화 산업",
+    "MOVIES": "영화 산업",
+    "Lifestyle": "라이프 스타일",
+    "LIFESTYLE": "라이프 스타일",
+    "Sports": "스포츠",
+    "SPORTS": "스포츠",
+    "Sport": "스포츠",
+    "Opinion & Essays": "오피니언 & 에세이",
+    "OPINION": "오피니언",
+    "Opinion": "오피니언",
+    "Culture & Design": "문화 및 디자인",
+    "CULTURE & DESIGN": "문화 및 디자인",
+    "Deep Dives 💎": "심층 분석 💎",
+    "Deep Dives": "심층 분석",
+    "DEEP DIVES": "심층 분석",
+    "INVESTIGATION": "심층 취재",
+    "SPECIAL REPORT": "특별 보고서",
+    "FEATURE": "특집",
+    "HEALTH": "건강",
+    "DESIGN": "디자인",
+    "Credit News": "신용 뉴스",
+    "CREDIT NEWS": "신용 뉴스",
+    "SEARCH": "찾다",
+    "Search stories, topics, archives...": "기사, 주제, 아카이브 검색...",
+    "E-PAPER": "오늘의 전자종이",
+    "NEWSLETTER": "뉴스레터",
+    "SECTION": "섹션",
+    "SUBSCRIBE": "구독하다",
+    "SUBSCRIBE NOW": "지금 구독하기",
+    "LOGIN": "로그인",
+    "LOG IN": "로그인",
+    "LOGOUT": "로그아웃",
+    "PRO EDITION": "프로 에디션",
+    "FREE TRIAL": "무료 평가판",
+    "MARKET TICKER": "마켓 티커",
+    "LIVE NOW": "실시간 뉴스",
+    "HOME": "홈",
+    "NEWS": "뉴스",
+    "News": "뉴스",
+    "Business": "비즈니스",
+    "Entertainment": "엔터테인먼트",
+    "Science": "과학",
+    "Society": "사회",
+    "All": "전체",
+    "Stories Available": "제공 기사",
+    "FEATURED LEAD": "주요 기사",
+    "Staff Reporter": "Staff Reporter",
+    "Desk Correspondent": "데스크 특파원",
+    "Back to Briefings": "브리핑으로 돌아가기",
+    "Executive Takeaways": "경영진 핵심 요약",
+    "Read Article": "기사 읽기",
+    "Read More Top Stories": "주요 뉴스 더보기",
+    "Geopolitics & Strategy": "지정학 및 전략",
+    "Trade & Supply Chains": "무역 및 공급망",
+    "Diplomacy & Treaties": "외교 및 조약",
+    "Diplomacy": "외교",
+    "Defense & Security": "국방 및 안보",
+    "International Law & UN": "국제법 및 UN",
+    "Sovereign Infrastructure": "주권 인프라",
+    "Sovereign Frontiers & Statecraft": "주권 국경 및 국정운영",
+    "Comprehensive coverage of international trade corridors, sanctions, and defense treaties.": "국제 무역 회랑, 제재 및 국방 조약에 대한 종합 보도.",
+    "SEE ALL NEWSLETTERS": "모든 뉴스레터 보기",
+    "Artificial Intelligence": "인공지능",
+    "Chips & Silicon Hardware": "칩 및 실리콘 하드웨어",
+    "Chips & Silicon": "칩 및 실리콘",
+    "Quantum & Edge Compute": "양자 및 에지 컴퓨팅",
+    "Cybersecurity & Defense": "사이버 안보 및 방위",
+    "Cybersecurity": "사이버 안보",
+    "Autonomous Systems & Robotics": "자율 시스템 및 로봇공학",
+    "Clean Energy & Nuclear Fusion": "청정 에너지 및 핵융합",
+    "Biotech & Genomic Medicine": "바이오테크 및 유전체 의학",
+    "Aerospace & Commercial Orbit": "항공우주 및 상업 궤도",
+    "Next-Gen Mobility & EVs": "차세대 모빌리티 및 전기차",
+    "Global Stock Indices": "글로벌 주가 지수",
+    "Central Banks & Interest Rates": "중앙은행 및 금리",
+    "Commodities & Critical Minerals": "원자재 및 핵심 광물",
+    "Currencies & FX Markets": "통화 및 외환 시장",
+    "Sovereign Wealth & Private Equity": "국부 펀드 및 사모펀드",
+    "Venture Capital & Innovation": "벤처 캐피탈 및 혁신",
+    "EDITORIAL OPINION": "사설 및 논평",
+    "The Architecture of Sovereign Autonomy in an Era of Multipolar Fractures": "다극화 분열 시대의 주권 자율성 구조",
+    "Why independent institutional capacity and domestic silicon manufacturing constitute the genuine pillars of national security.": "독립적인 제도적 역량과 국내 반도체 제조가 진정한 국가 안보의 기둥인 이유.",
+    "Read Our Editorials": "사설 읽기",
+    "LATEST INTELLIGENCE ⚡": "최신 속보 ⚡",
+    "UPDATED 2M AGO": "2분 전 업데이트됨",
+    "14 MINS AGO": "14분 전",
+    "28 MINS AGO": "28분 전",
+    "42 MINS AGO": "42분 전",
+    "1 HOUR AGO": "1시간 전",
+    "SPONSORED SHOWCASE": "스폰서 쇼케이스",
+    "SPONSORED": "스폰서",
+    "National & Global Affairs": "국내 및 국제 문제",
+    "World & Geopolitics": "세계 및 지정학",
+    "Tech & AI Innovation Hub": "기술 및 AI 혁신 허브",
+    "Markets, Economy & Wealth": "시장, 경제 및 자산",
+    "MOST READ TODAY": "오늘 가장 많이 읽은 기사",
+    "INVESTIGATIVE JOURNALISM": "탐사 저널리즘",
+    "Explore Archive": "아카이브 탐색",
+    "MEMBER EXCLUSIVE": "회원 전용",
+    "CURRENCY CONVERTER": "환율 계산기",
+    "TOP MUTUAL FUNDS PERFORMANCE": "최고 수익 펀드",
+    "LISTEN TO ARTICLE": "기사 듣기",
+    "AI SUMMARY": "AI 요약",
+    "KEY TAKEAWAYS": "핵심 요점",
+    "SHARE": "공유",
+    "BOOKMARK": "북마크",
+    "AUDIO": "오디오",
+    "By": "에 의해",
+    "BREAKING WIRE": "브레이킹 와이어",
+    "Today's e-Paper 📰": "오늘의 전자종이 📰",
+    "PRO EDITION": "프로 에디션",
+    "Gift Yourself Financial & Geopolitical Clarity with Daily Brief Prime": "Daily Brief Prime으로 금융 및 지정학적 명확성을 자신에게 선물하세요",
+    "Free Trial Offer Extended For": "무료 평가판 제공 기간 연장",
+
+    // Homepage Placed Articles
+    "Tokamak Milestone: High-Temperature Superconducting Magnets Achieve Sustained Plasma": "토카막 이정표: 고온 초전도 자석이 지속적인 플라즈마 달성",
+    "Tokamak Milestone: High-Temperature Superconducting Magnets Achieve Sustained Plasma Containment": "토카막 이정표: 고온 초전도 자석이 지속적인 플라즈마 격폐 달성",
+    "Private fusion startups record 120-second plasma stability, bringing commercial net-energy gain within reach.": "민간 핵융합 스타트업이 120초 플라즈마 안정을 기록하여 상업적 순에너지 생산을 가시화했습니다.",
+    "Private fusion startups record 120-second plasma stability, bringing commercial net-energy gain within 5-year reach.": "민간 핵융합 스타트업이 120초 플라즈마 안정을 기록하여 5년 내 상업적 순에너지 생산을 가시화했습니다.",
+    "Make money in one Day!": "하루만에 돈을 벌어보세요!",
+    "How to make money in one day. Class by Mr Aditya": "하루만에 돈 버는 방법. Mr Aditya의 수업",
+    "CARS: Next-Gen Solid State Battery Chemistry": "자동차: 차세대 전고체 배터리 화학 기술",
+    "Endurance trials demonstrate 1,100 km single-charge ranges.": "주행 시험에서 1회 충전으로 1,100km 주행 거리를 입증했습니다.",
+    "Global Geopolitical Risk Index 2026: Executive Briefing": "2026 글로벌 지정학적 리스크 지수: 경영진 브리핑",
+    "Reserve Bank maintains repo rate policy stance amid food inflation monitoring.": "중앙은행, 식품 인플레이션 모니터링 속에서 기준금리 정책 기조 유지.",
+    "Cabinet Committee approves ₹76,000 Cr incentive outlay for semiconductor fab assembly.": "내각 위원회, 반도체 팹 조립을 위한 76,000억 루피 인센티브 지출 승인.",
+    "ISRO launches third ocean surveillance payload aboard upgraded GSLV rocket.": "ISRO, 업그레이드된 GSLV 로켓에 3번째 해양 감시 탑재체 발사.",
+    "The Architecture of Tomorrow: Next-Gen Compute Models Shift Global Tech Power": "내일의 아키텍처: 차세대 컴퓨팅 모델이 글로벌 기술 패권을 이동시키다",
+    "As chip manufacturing advances beyond 2-nanometer thresholds, silicon independence has become the ultimate geopolitical chess move.": "반도체 제조가 2나노미터 임계값을 넘어서면서, 실리콘 독립은 궁극적인 지정학적 체스 수가 되었습니다."
+  },
+
+  // ==========================================
+  // JAPANESE (ja)
+  // ==========================================
+  ja: {
+    "Top Stories": "トップニュース",
+    "TOP STORIES": "トップニュース",
+    "Tech & AI": "テクノロジー & AI",
+    "TECH & AI": "テクノロジー & AI",
+    "Global Affairs": "国際情勢",
+    "GLOBAL AFFAIRS": "国際情勢",
+    "Markets & Economy": "市場 & 経済",
+    "MARKETS & ECONOMY": "市場 & 経済",
+    "MARKETS": "市場",
+    "Science & Climate": "科学 & 気候",
+    "SCIENCE & CLIMATE": "科学 & 気候",
+    "SCIENCE": "科学",
+    "Movies": "映画",
+    "MOVIES": "映画",
+    "Lifestyle": "ライフスタイル",
+    "LIFESTYLE": "ライフスタイル",
+    "Sports": "スポーツ",
+    "SPORTS": "スポーツ",
+    "Sport": "スポーツ",
+    "Opinion & Essays": "オピニオン & 社説",
+    "OPINION": "オピニオン",
+    "Opinion": "オピニオン",
+    "Culture & Design": "文化 & デザイン",
+    "CULTURE & DESIGN": "文化 & デザイン",
+    "Deep Dives 💎": "徹底調査 💎",
+    "Deep Dives": "徹底調査",
+    "DEEP DIVES": "徹底調査",
+    "INVESTIGATION": "調査報道",
+    "SPECIAL REPORT": "特別リポート",
+    "SEARCH": "検索",
+    "Search stories, topics, archives...": "ニュース、トピック、アーカイブを検索...",
+    "E-PAPER": "電子版",
+    "NEWSLETTER": "メルマガ",
+    "SECTION": "セクション",
+    "SUBSCRIBE": "定期購読",
+    "SUBSCRIBE NOW": "今すぐ購読",
+    "LOGIN": "ログイン",
+    "LOG IN": "ログイン",
+    "LOGOUT": "ログアウト",
+    "PRO EDITION": "プロ版",
+    "FREE TRIAL": "無料トライアル",
+    "MARKET TICKER": "相場ティッカー",
+    "LIVE NOW": "ライブ速報",
+    "HOME": "ホーム",
+    "NEWS": "ニュース",
+    "News": "ニュース",
+    "FEATURED LEAD": "注目トップ記事",
+    "Staff Reporter": "特派員",
+    "Desk Correspondent": "デスク特派員",
+    "Read Article": "記事を読む",
+    "Read More Top Stories": "主要ニュースをもっと見る",
+    "EDITORIAL OPINION": "社説とオピニオン",
+    "The Architecture of Sovereign Autonomy in an Era of Multipolar Fractures": "多極化分裂時代における主権自律の構造",
+    "Why independent institutional capacity and domestic silicon manufacturing constitute the genuine pillars of national security.": "独立した制度的能力と国内半導体製造が国家安全保障の真の柱となる理由。",
+    "Read Our Editorials": "社説を読む",
+    "LATEST INTELLIGENCE ⚡": "最新情報速報 ⚡",
+    "UPDATED 2M AGO": "2分前更新",
+    "SPONSORED SHOWCASE": "スポンサー特集",
+    "INVESTIGATIVE JOURNALISM": "調査報道ジャーナリズム",
+    "MEMBER EXCLUSIVE": "会員限定",
+    "CURRENCY CONVERTER": "為替換算ツール",
+    "LISTEN TO ARTICLE": "記事を聴く",
+    "AUDIO": "音声",
+    "By": "著者",
+    "BREAKING WIRE": "速報ワイヤー",
+    "Today's e-Paper 📰": "本日の電子版 📰",
+    "Tokamak Milestone: High-Temperature Superconducting Magnets Achieve Sustained Plasma": "トカマクの画期的成果：高温超伝導磁石が持続的プラズマを達成",
+    "Tokamak Milestone: High-Temperature Superconducting Magnets Achieve Sustained Plasma Containment": "トカマクの画期的成果：高温超伝導磁石が持続的プラズマ閉じ込めを達成",
+    "Private fusion startups record 120-second plasma stability, bringing commercial net-energy gain within reach.": "民間の核融合スタートアップが120秒のプラズマ安定性を記録し、商用純エネルギー獲得を視野に。",
+    "Make money in one Day!": "1日でお金を稼ぐ方法！",
+    "How to make money in one day. Class by Mr Aditya": "1日でお金を稼ぐ方法。アディティヤ氏の特別講義",
+    "CARS: Next-Gen Solid State Battery Chemistry": "自動車：次世代全固体電池の化学技術",
+    "Endurance trials demonstrate 1,100 km single-charge ranges.": "走行テストで1回充電1,100kmの航続距離を実証。"
+  },
+
+  // ==========================================
+  // CHINESE SIMPLIFIED (zh-CN)
+  // ==========================================
+  "zh-CN": {
+    "Top Stories": "头条新闻",
+    "TOP STORIES": "头条新闻",
+    "Tech & AI": "科技与AI",
+    "TECH & AI": "科技与AI",
+    "Global Affairs": "全球事务",
+    "GLOBAL AFFAIRS": "全球事务",
+    "Markets & Economy": "市场与经济",
+    "MARKETS & ECONOMY": "市场与经济",
+    "MARKETS": "市场",
+    "Science & Climate": "科学与气候",
+    "SCIENCE & CLIMATE": "科学与气候",
+    "SCIENCE": "科学",
+    "Movies": "电影",
+    "MOVIES": "电影",
+    "Lifestyle": "生活方式",
+    "LIFESTYLE": "生活方式",
+    "Sports": "体育",
+    "SPORTS": "体育",
+    "Sport": "体育",
+    "Opinion & Essays": "社论与评论",
+    "OPINION": "社论",
+    "Opinion": "社论",
+    "Culture & Design": "文化与设计",
+    "CULTURE & DESIGN": "文化与设计",
+    "Deep Dives 💎": "深度调查 💎",
+    "Deep Dives": "深度调查",
+    "DEEP DIVES": "深度调查",
+    "INVESTIGATION": "深度调查",
+    "SPECIAL REPORT": "特别报道",
+    "SEARCH": "搜索",
+    "Search stories, topics, archives...": "搜索报道、话题、归档...",
+    "E-PAPER": "电子报",
+    "NEWSLETTER": "时事通讯",
+    "SECTION": "版块",
+    "SUBSCRIBE": "订阅",
+    "SUBSCRIBE NOW": "立即订阅",
+    "LOGIN": "登录",
+    "LOG IN": "登录",
+    "LOGOUT": "登出",
+    "PRO EDITION": "专业版",
+    "FREE TRIAL": "免费试用",
+    "MARKET TICKER": "市场行情",
+    "LIVE NOW": "实时直播",
+    "HOME": "首页",
+    "NEWS": "新闻",
+    "News": "新闻",
+    "FEATURED LEAD": "焦点头条",
+    "Staff Reporter": "本报记者",
+    "Desk Correspondent": "特派记者",
+    "Read Article": "阅读全文",
+    "Read More Top Stories": "阅读更多头条新闻",
+    "EDITORIAL OPINION": "社论观点",
+    "The Architecture of Sovereign Autonomy in an Era of Multipolar Fractures": "多极分化时代的国家主权自主架构",
+    "Why independent institutional capacity and domestic silicon manufacturing constitute the genuine pillars of national security.": "为何独立机构能力和本土芯片制造是国家安全的真正支柱。",
+    "Read Our Editorials": "阅读社论",
+    "LATEST INTELLIGENCE ⚡": "最新动态 ⚡",
+    "UPDATED 2M AGO": "2分钟前更新",
+    "SPONSORED SHOWCASE": "赞助专栏",
+    "INVESTIGATIVE JOURNALISM": "调查性新闻",
+    "MEMBER EXCLUSIVE": "会员专享",
+    "CURRENCY CONVERTER": "汇率换算",
+    "LISTEN TO ARTICLE": "朗读文章",
+    "AUDIO": "音频",
+    "By": "作者",
+    "BREAKING WIRE": "突发快讯",
+    "Today's e-Paper 📰": "今日电子报 📰",
+    "Tokamak Milestone: High-Temperature Superconducting Magnets Achieve Sustained Plasma": "托卡马克里程碑：高温超导磁体实现持续等离子体运行",
+    "Tokamak Milestone: High-Temperature Superconducting Magnets Achieve Sustained Plasma Containment": "托卡马克里程碑：高温超导磁体实现持续等离子体约束",
+    "Private fusion startups record 120-second plasma stability, bringing commercial net-energy gain within reach.": "民营核聚变初创企业创下120秒等离子体稳定运行记录，商用净能量增益近在咫尺。",
+    "Make money in one Day!": "一天之内赚到钱！",
+    "How to make money in one day. Class by Mr Aditya": "如何一天赚到钱。Aditya先生公开课",
+    "CARS: Next-Gen Solid State Battery Chemistry": "汽车：下一代全固态电池化学技术",
+    "Endurance trials demonstrate 1,100 km single-charge ranges.": "耐久测试显示单次充电续航里程达1,100公里。"
+  },
+
+  // ==========================================
+  // ITALIAN (it)
+  // ==========================================
+  it: {
+    "Top Stories": "Prime Notizie",
+    "Tech & AI": "Tecnologia & IA",
+    "Global Affairs": "Affari Globali",
+    "Markets & Economy": "Mercati & Economia",
+    "Science & Climate": "Scienza & Clima",
+    "Opinion & Essays": "Opinioni & Saggi",
+    "Culture & Design": "Cultura & Design",
+    "Deep Dives 💎": "Inchieste Esclusive 💎",
+    "Deep Dives": "Inchieste Esclusive",
+    "SEARCH": "CERCA",
+    "E-PAPER": "EDIZIONE DIGITALE",
+    "NEWSLETTER": "NEWSLETTER",
+    "SECTION": "SEZIONE",
+    "SUBSCRIBE": "ABBONATI",
+    "LOGIN": "ACCEDI",
+    "EDITORIAL OPINION": "OPINIONE EDITORIALE",
+    "LATEST INTELLIGENCE ⚡": "ULTIME NOTIZIE ⚡",
+    "INVESTIGATIVE JOURNALISM": "GIORNALISMO D'INCHIESTA",
+    "CURRENCY CONVERTER": "CONVERTITORE VALUTE",
+    "By": "Di",
+    "Tokamak Milestone: High-Temperature Superconducting Magnets Achieve Sustained Plasma": "Traguardo Tokamak: I magneti superconduttori ad alta temperatura ottengono plasma sostenuto",
+    "Make money in one Day!": "Guadagna soldi in un solo giorno!",
+    "CARS: Next-Gen Solid State Battery Chemistry": "Auto: Chimica delle batterie allo stato solido di nuova generazione"
   }
 };
 
@@ -928,30 +1262,39 @@ export function getStaticTranslation(targetLang, text) {
 export function getSynchronousTranslatedArticle(article, targetLang) {
   if (!article || targetLang === 'en') return article;
 
-  const staticTitle = getStaticTranslation(targetLang, article.title);
-  const staticSubtitle = getStaticTranslation(targetLang, article.subtitle);
-  const staticSummary = getStaticTranslation(targetLang, article.summary);
-  const staticExcerpt = getStaticTranslation(targetLang, article.excerpt);
-  const staticKicker = getStaticTranslation(targetLang, article.kicker);
-  const staticCategory = getStaticTranslation(targetLang, article.category);
-  const staticSupertitle = getStaticTranslation(targetLang, article.supertitle);
-  const staticAuthor = getStaticTranslation(targetLang, article.author);
+  const rawTitle = article.originalTitle || article.title || '';
+  const rawSubtitle = article.originalSubtitle || article.subtitle || '';
+  const rawSummary = article.originalSummary || article.summary || '';
+  const rawExcerpt = article.originalExcerpt || article.excerpt || '';
+  const rawKicker = article.kicker || '';
+  const rawCategory = article.category || '';
+  const rawSupertitle = article.supertitle || '';
+  const rawAuthor = article.author || '';
 
-  const cachedTitle = getCachedTranslation(targetLang, article.title);
-  const cachedSubtitle = getCachedTranslation(targetLang, article.subtitle);
-  const cachedSummary = getCachedTranslation(targetLang, article.summary);
-  const cachedExcerpt = getCachedTranslation(targetLang, article.excerpt);
-  const cachedKicker = getCachedTranslation(targetLang, article.kicker);
-  const cachedCategory = getCachedTranslation(targetLang, article.category);
+  const staticTitle = getStaticTranslation(targetLang, rawTitle);
+  const staticSubtitle = getStaticTranslation(targetLang, rawSubtitle);
+  const staticSummary = getStaticTranslation(targetLang, rawSummary);
+  const staticExcerpt = getStaticTranslation(targetLang, rawExcerpt);
+  const staticKicker = getStaticTranslation(targetLang, rawKicker);
+  const staticCategory = getStaticTranslation(targetLang, rawCategory);
+  const staticSupertitle = getStaticTranslation(targetLang, rawSupertitle);
+  const staticAuthor = getStaticTranslation(targetLang, rawAuthor);
 
-  const title = staticTitle || cachedTitle || article.title;
-  const subtitle = staticSubtitle || cachedSubtitle || article.subtitle;
-  const summary = staticSummary || cachedSummary || article.summary;
-  const excerpt = staticExcerpt || cachedExcerpt || article.excerpt;
-  const kicker = staticKicker || cachedKicker || article.kicker;
-  const category = staticCategory || cachedCategory || article.category;
-  const supertitle = staticSupertitle || article.supertitle;
-  const author = staticAuthor || article.author;
+  const cachedTitle = getCachedTranslation(targetLang, rawTitle);
+  const cachedSubtitle = getCachedTranslation(targetLang, rawSubtitle);
+  const cachedSummary = getCachedTranslation(targetLang, rawSummary);
+  const cachedExcerpt = getCachedTranslation(targetLang, rawExcerpt);
+  const cachedKicker = getCachedTranslation(targetLang, rawKicker);
+  const cachedCategory = getCachedTranslation(targetLang, rawCategory);
+
+  const title = staticTitle || cachedTitle || rawTitle;
+  const subtitle = staticSubtitle || cachedSubtitle || rawSubtitle;
+  const summary = staticSummary || cachedSummary || rawSummary;
+  const excerpt = staticExcerpt || cachedExcerpt || rawExcerpt;
+  const kicker = staticKicker || cachedKicker || rawKicker;
+  const category = staticCategory || cachedCategory || rawCategory;
+  const supertitle = staticSupertitle || rawSupertitle;
+  const author = staticAuthor || rawAuthor;
 
   const isFullyTranslated = !!(staticTitle || cachedTitle);
 
@@ -962,6 +1305,9 @@ export function getSynchronousTranslatedArticle(article, targetLang) {
 
   return {
     ...article,
+    originalTitle: rawTitle,
+    originalSubtitle: rawSubtitle,
+    originalSummary: rawSummary,
     title,
     subtitle: subtitle || summary || excerpt,
     summary: summary || excerpt || subtitle,

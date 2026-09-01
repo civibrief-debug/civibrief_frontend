@@ -307,13 +307,13 @@ function SectionPageInner({ slug }) {
 
                   {/* Lead Headline */}
                   <h2 style={{ fontFamily: 'var(--font-serif)', fontSize: '32px', fontWeight: 900, lineHeight: 1.25, margin: '0 0 12px 0', color: 'var(--text-primary)' }}>
-                    {leadStory.title}
+                    {t(leadStory.title)}
                   </h2>
 
                   {/* Lead Summary */}
                   {leadStory.summary && (
                     <p style={{ fontSize: '16px', lineHeight: 1.6, color: 'var(--text-secondary)', margin: '0 0 16px 0' }}>
-                      {leadStory.summary}
+                      {t(leadStory.summary)}
                     </p>
                   )}
 
@@ -349,11 +349,11 @@ function SectionPageInner({ slug }) {
                           </div>
                         )}
                         <h3 style={{ fontFamily: 'var(--font-serif)', fontSize: '20px', fontWeight: 800, lineHeight: 1.35, margin: '0 0 8px 0', color: 'var(--text-primary)' }}>
-                          {art.title}
+                          {t(art.title)}
                         </h3>
                         {art.summary && (
                           <p style={{ fontSize: '14px', lineHeight: 1.5, color: 'var(--text-secondary)', margin: '0 0 10px 0', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
-                            {art.summary}
+                            {t(art.summary)}
                           </p>
                         )}
                         <div style={{ display: 'flex', alignItems: 'center', gap: '12px', fontSize: '12px', color: 'var(--text-muted)', fontWeight: 700 }}>
