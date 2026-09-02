@@ -2,15 +2,15 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
-import { 
-  Volume2, 
-  ArrowUpRight, 
-  Sparkles, 
-  TrendingUp, 
-  Bookmark, 
-  Share2, 
-  Compass, 
-  Flame, 
+import {
+  Volume2,
+  ArrowUpRight,
+  Sparkles,
+  TrendingUp,
+  Bookmark,
+  Share2,
+  Compass,
+  Flame,
   Lock,
   ChevronLeft,
   ChevronRight,
@@ -30,13 +30,13 @@ import {
   BookOpen,
   Hash
 } from 'lucide-react';
-import { 
+import {
   BREAKING_NEWS,
-  HERO_FEATURED as FALLBACK_HERO_FEATURED, 
-  HERO_SECONDARY as FALLBACK_HERO_SECONDARY, 
-  MAIN_ARTICLES as FALLBACK_MAIN_ARTICLES, 
-  MOST_READ as FALLBACK_MOST_READ, 
-  DEEP_DIVES as FALLBACK_DEEP_DIVES 
+  HERO_FEATURED as FALLBACK_HERO_FEATURED,
+  HERO_SECONDARY as FALLBACK_HERO_SECONDARY,
+  MAIN_ARTICLES as FALLBACK_MAIN_ARTICLES,
+  MOST_READ as FALLBACK_MOST_READ,
+  DEEP_DIVES as FALLBACK_DEEP_DIVES
 } from '../data/newsData';
 import { ArticleModal } from '../components/ArticleModal';
 import { LoginModal } from '../components/LoginModal';
@@ -77,7 +77,7 @@ const getInstantCache = (key, fallback = []) => {
       const parsed = JSON.parse(raw);
       if (Array.isArray(parsed) && parsed.length > 0) return parsed;
     }
-  } catch (e) {}
+  } catch (e) { }
   return fallback;
 };
 
@@ -97,6 +97,51 @@ export const getCategorySlug = (category) => {
   return 'top-stories';
 };
 
+export const CATEGORY_TO_REGIONS_MAP = {
+  "Top Stories": ["hero_col1", "hero_col2"],
+  "Editorial": ["hero_col3"],
+  "Opinion & Essays": ["hero_col3"],
+  "Sports": ["sports_desk"],
+  "Tech & AI": ["tech_ai"],
+  "Science & Climate": ["science_climate"],
+  "Markets & Economy": ["markets_economy"],
+  "Credit News": ["markets_economy"],
+  "Global Affairs": ["world_geopolitics", "national_global"],
+  "India & Policy": ["national_global"],
+  "Movies & Culture": ["lifestyle_culture"],
+  "Lifestyle & Design": ["lifestyle_culture"],
+  "Deep Dives 💎": ["deep_dives"]
+};
+
+export const matchesInstanceToRegion = (inst, regionId) => {
+  if (!inst || inst.enabled === false) return false;
+
+  // 1. Explicit primary region match
+  if (inst.sectionRegion === regionId) return true;
+
+  // 2. Legacy / default column matching
+  if (!inst.sectionRegion) {
+    if (regionId === 'hero_col1' && (inst.column === 'left' || inst.templateType === 'hero_lead')) return true;
+    if (regionId === 'hero_col2' && (inst.column === 'center' || inst.templateType === 'hero_second_lead' || inst.templateType === 'hero_stacked')) return true;
+    if (regionId === 'hero_col3' && (inst.column === 'right' || inst.templateType === 'opinion')) return true;
+  }
+
+  // 3. Multi-Assigned Categories matching:
+  // If ANY assigned category in inst.categories maps to this regionId!
+  const assignedCats = Array.isArray(inst.categories) && inst.categories.length > 0
+    ? inst.categories
+    : (inst.category ? [inst.category] : []);
+
+  for (const cat of assignedCats) {
+    const mappedRegions = CATEGORY_TO_REGIONS_MAP[cat];
+    if (mappedRegions && mappedRegions.includes(regionId)) {
+      return true;
+    }
+  }
+
+  return false;
+};
+
 export default function HomePage() {
   const [dbArticles, setDbArticles] = useState([]);
   const [translatedArticles, setTranslatedArticles] = useState(null);
@@ -109,15 +154,15 @@ export default function HomePage() {
   const [selectedArticle, setSelectedArticle] = useState(null);
   const [isLoginOpen, setIsLoginOpen] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const { 
-    language, 
-    t, 
-    getSynchronousArticle, 
-    getSynchronousArticleList, 
-    translateMultipleArticles, 
-    translateDeepDives, 
-    translateBatch, 
-    isTranslating 
+  const {
+    language,
+    t,
+    getSynchronousArticle,
+    getSynchronousArticleList,
+    translateMultipleArticles,
+    translateDeepDives,
+    translateBatch,
+    isTranslating
   } = useTranslation();
 
   const [homepageAds, setHomepageAds] = useState([]);
@@ -151,7 +196,7 @@ export default function HomePage() {
         globalMemoryArticles = publishedOnly;
         try {
           localStorage.setItem('daily_brief_cached_articles_v3', JSON.stringify(publishedOnly));
-        } catch (e) {}
+        } catch (e) { }
         setDbArticles(prev => {
           if (JSON.stringify(prev) === JSON.stringify(publishedOnly)) return prev;
           return publishedOnly;
@@ -171,7 +216,7 @@ export default function HomePage() {
         globalMemoryAds = json.data;
         try {
           localStorage.setItem('daily_brief_cached_ads_v3', JSON.stringify(json.data));
-        } catch (e) {}
+        } catch (e) { }
         setHomepageAds(prev => {
           if (JSON.stringify(prev) === JSON.stringify(json.data)) return prev;
           return json.data;
@@ -191,7 +236,7 @@ export default function HomePage() {
         globalMemorySections = json.data;
         try {
           localStorage.setItem('daily_brief_cached_sections_v3', JSON.stringify(json.data));
-        } catch (e) {}
+        } catch (e) { }
         setHomepageArticleSections(prev => {
           if (JSON.stringify(prev) === JSON.stringify(json.data)) return prev;
           return json.data;
@@ -217,31 +262,31 @@ export default function HomePage() {
       if (cachedSections && cachedSections.length > 0) {
         setHomepageArticleSections(cachedSections);
       }
-    } catch (e) {}
+    } catch (e) { }
 
     // 2. Fetch live data
-    fetchLiveArticles().catch(() => {});
-    fetchHomepageAds().catch(() => {});
-    fetchHomepageArticlePlacements().catch(() => {});
+    fetchLiveArticles().catch(() => { });
+    fetchHomepageAds().catch(() => { });
+    fetchHomepageArticlePlacements().catch(() => { });
 
     // Fast 6s background polling
     const interval = setInterval(() => {
-      fetchLiveArticles().catch(() => {});
-      fetchHomepageAds().catch(() => {});
-      fetchHomepageArticlePlacements().catch(() => {});
+      fetchLiveArticles().catch(() => { });
+      fetchHomepageAds().catch(() => { });
+      fetchHomepageArticlePlacements().catch(() => { });
     }, 6000);
 
     // Instant sync on tab focus or visibility return
     const handleFocus = () => {
-      fetchLiveArticles().catch(() => {});
-      fetchHomepageAds().catch(() => {});
-      fetchHomepageArticlePlacements().catch(() => {});
+      fetchLiveArticles().catch(() => { });
+      fetchHomepageAds().catch(() => { });
+      fetchHomepageArticlePlacements().catch(() => { });
     };
     const handleVisibility = () => {
       if (document.visibilityState === 'visible') {
-        fetchLiveArticles().catch(() => {});
-        fetchHomepageAds().catch(() => {});
-        fetchHomepageArticlePlacements().catch(() => {});
+        fetchLiveArticles().catch(() => { });
+        fetchHomepageAds().catch(() => { });
+        fetchHomepageArticlePlacements().catch(() => { });
       }
     };
     const handleStorage = (e) => {
@@ -249,13 +294,13 @@ export default function HomePage() {
         try {
           const parsed = JSON.parse(e.newValue);
           if (Array.isArray(parsed)) setHomepageAds(parsed);
-        } catch (err) {}
+        } catch (err) { }
       }
       if (e.key === 'daily_brief_cached_sections_v3' && e.newValue) {
         try {
           const parsed = JSON.parse(e.newValue);
           if (Array.isArray(parsed)) setHomepageArticleSections(parsed);
-        } catch (err) {}
+        } catch (err) { }
       }
     };
 
@@ -288,8 +333,8 @@ export default function HomePage() {
         if (Array.isArray(homepageArticleSections)) {
           homepageArticleSections.forEach(inst => {
             if (inst && inst.templateType === 'hero_lead') {
-              const slideCount = Array.isArray(inst.slides) && inst.slides.length > 0 
-                ? inst.slides.length 
+              const slideCount = Array.isArray(inst.slides) && inst.slides.length > 0
+                ? inst.slides.length
                 : (Array.isArray(inst.slideStories) && inst.slideStories.length > 0 ? inst.slideStories.length : 1);
               if (slideCount > 1) {
                 const current = next[inst.instanceId] || 0;
@@ -378,7 +423,7 @@ export default function HomePage() {
     }
 
     // Translate wires from placement builder or fallback
-    const opInst = Array.isArray(homepageArticleSections) 
+    const opInst = Array.isArray(homepageArticleSections)
       ? homepageArticleSections.find(s => s && s.enabled !== false && (s.sectionRegion === 'hero_col3' || s.templateType === 'opinion'))
       : null;
 
@@ -454,17 +499,13 @@ export default function HomePage() {
     if (!Array.isArray(homepageArticleSections)) return null;
     return homepageArticleSections.find(s => {
       if (!s || s.enabled === false) return false;
-      if (s.sectionRegion === regionId) return true;
       if (templateType && s.templateType === templateType) return true;
-      if (regionId === 'hero_col1' && (s.column === 'left' || s.templateType === 'hero_lead')) return true;
-      if (regionId === 'hero_col2' && (s.column === 'center' || s.templateType === 'hero_second_lead' || s.templateType === 'hero_stacked')) return true;
-      if (regionId === 'hero_col3' && (s.column === 'right' || s.templateType === 'opinion')) return true;
-      return false;
+      return matchesInstanceToRegion(s, regionId);
     });
   };
 
-  // Helper to find all placed template instances in a specific hero column
-  const getInstancesForColumn = (regionId) => {
+  // Universal helper to find all placed template instances in any region (hero column or department)
+  const getInstancesForRegion = (regionId, slotPosition = null) => {
     if (!Array.isArray(homepageArticleSections) || homepageArticleSections.length === 0) {
       if (regionId === 'hero_col1') return [{ instanceId: 'default-hero-lead', templateType: 'hero_lead', sectionRegion: 'hero_col1' }];
       if (regionId === 'hero_col2') return [
@@ -477,18 +518,20 @@ export default function HomePage() {
 
     const matched = homepageArticleSections.filter(i => {
       if (!i || i.enabled === false) return false;
-      if (i.sectionRegion === regionId) return true;
-      if (!i.sectionRegion) {
-        if (regionId === 'hero_col1' && (i.column === 'left' || i.templateType === 'hero_lead')) return true;
-        if (regionId === 'hero_col2' && (i.column === 'center' || i.templateType === 'hero_second_lead' || i.templateType === 'hero_stacked')) return true;
-        if (regionId === 'hero_col3' && (i.column === 'right' || i.templateType === 'opinion')) return true;
+      const matches = matchesInstanceToRegion(i, regionId);
+      if (!matches) return false;
+
+      if (slotPosition === 'below_ad') {
+        return i.slotPosition === 'below_ad';
+      } else if (slotPosition === 'above_ad') {
+        return i.slotPosition !== 'below_ad';
       }
-      return false;
+      return true;
     });
 
     if (matched.length > 0) return matched;
 
-    // Fallback if that specific column is empty
+    // Fallback if hero columns are empty
     if (regionId === 'hero_col1') return [{ instanceId: 'default-hero-lead', templateType: 'hero_lead', sectionRegion: 'hero_col1' }];
     if (regionId === 'hero_col2') return [
       { instanceId: 'default-second-lead', templateType: 'hero_second_lead', sectionRegion: 'hero_col2' },
@@ -497,6 +540,8 @@ export default function HomePage() {
     if (regionId === 'hero_col3') return [{ instanceId: 'default-opinion', templateType: 'opinion', sectionRegion: 'hero_col3' }];
     return [];
   };
+
+  const getInstancesForColumn = (regionId) => getInstancesForRegion(regionId);
 
   const activeOpinion = useMemo(() => {
     const inst = getInstanceForRegion('hero_col3', 'opinion');
@@ -555,11 +600,11 @@ export default function HomePage() {
     const baseArt = language !== 'en' ? getSynchronousArticle(art, language) : art;
 
     const rawTitle = (art.originalTitle || art.title || '').trim().toLowerCase();
-    const match = (activeArticles || []).find(a => 
-      (art.id && a.id === art.id) || 
+    const match = (activeArticles || []).find(a =>
+      (art.id && a.id === art.id) ||
       (rawTitle && ((a.originalTitle && a.originalTitle.trim().toLowerCase() === rawTitle) || (a.title && a.title.trim().toLowerCase() === rawTitle)))
-    ) || (dbArticles || []).find(a => 
-      (art.id && a.id === art.id) || 
+    ) || (dbArticles || []).find(a =>
+      (art.id && a.id === art.id) ||
       (rawTitle && (a.title && a.title.trim().toLowerCase() === rawTitle))
     );
 
@@ -603,7 +648,7 @@ export default function HomePage() {
       if (inst.mainStory) {
         const pool = [inst.mainStory, ...(Array.isArray(inst.subStories) ? inst.subStories : [])].map(enrichArticle);
         if (pool.length >= defaultCount) return pool.slice(0, defaultCount);
-        
+
         // Fill remaining with category-matched articles
         const seen = new Set(pool.map(a => a.id || a.title));
         const filled = [...pool];
@@ -662,13 +707,19 @@ export default function HomePage() {
     const matchesCategory = (artCat, targetCat) => {
       const c = (artCat || '').toLowerCase().trim();
       return c === targetCat || c.includes(targetCat) || targetCat.includes(c) ||
-             (targetCat.includes('global') && (c.includes('global') || c.includes('world') || c.includes('nation') || c.includes('policy') || c.includes('diplomacy'))) ||
-             (targetCat.includes('nation') && (c.includes('nation') || c.includes('india') || c.includes('policy') || c.includes('affair') || c.includes('govern') || c.includes('credit'))) ||
-             (targetCat.includes('india') && (c.includes('india') || c.includes('nation') || c.includes('policy') || c.includes('govern'))) ||
-             (targetCat.includes('market') && (c.includes('market') || c.includes('econom') || c.includes('credit') || c.includes('business') || c.includes('finan'))) ||
-             (targetCat.includes('credit') && (c.includes('credit') || c.includes('bank') || c.includes('market') || c.includes('econom') || c.includes('finan'))) ||
-             (targetCat.includes('tech') && (c.includes('tech') || c.includes('ai') || c.includes('compute') || c.includes('silicon'))) ||
-             (targetCat.includes('science') && (c.includes('science') || c.includes('climate') || c.includes('space') || c.includes('energy')));
+        (targetCat.includes('global') && (c.includes('global') || c.includes('world') || c.includes('nation') || c.includes('policy') || c.includes('diplomacy'))) ||
+        (targetCat.includes('nation') && (c.includes('nation') || c.includes('india') || c.includes('policy') || c.includes('affair') || c.includes('govern') || c.includes('credit'))) ||
+        (targetCat.includes('india') && (c.includes('india') || c.includes('nation') || c.includes('policy') || c.includes('govern'))) ||
+        (targetCat.includes('market') && (c.includes('market') || c.includes('econom') || c.includes('credit') || c.includes('business') || c.includes('finan'))) ||
+        (targetCat.includes('credit') && (c.includes('credit') || c.includes('bank') || c.includes('market') || c.includes('econom') || c.includes('finan'))) ||
+        (targetCat.includes('tech') && (c.includes('tech') || c.includes('ai') || c.includes('compute') || c.includes('silicon'))) ||
+        (targetCat.includes('science') && (c.includes('science') || c.includes('climate') || c.includes('space') || c.includes('energy'))) ||
+        (targetCat.includes('sport') && (c.includes('sport') || c.includes('cricket') || c.includes('football') || c.includes('game') || c.includes('match') || c.includes('olympic') || c.includes('tennis'))) ||
+        (targetCat.includes('life') && (c.includes('life') || c.includes('style') || c.includes('design') || c.includes('travel') || c.includes('wellness'))) ||
+        (targetCat.includes('culture') && (c.includes('culture') || c.includes('movie') || c.includes('art') || c.includes('cinema') || c.includes('film'))) ||
+        (targetCat.includes('movie') && (c.includes('movie') || c.includes('cinema') || c.includes('entertainment') || c.includes('film'))) ||
+        (targetCat.includes('editorial') && (c.includes('editorial') || c.includes('opinion') || c.includes('essay') || c.includes('column'))) ||
+        (targetCat.includes('opinion') && (c.includes('opinion') || c.includes('editorial') || c.includes('essay')));
     };
 
     const filtered = activeArticles.filter(a => {
@@ -739,7 +790,7 @@ export default function HomePage() {
   }, [homepageArticleSections, activeArticles]);
 
   const leadStory = topStoriesList[currentHeroIndex] || topStoriesList[0] || activeArticles[0] || FALLBACK_HERO_FEATURED;
-  
+
   // Second Lead Story (Column 2 Top Feature)
   const secondLead = useMemo(() => {
     const secInst = getInstanceForRegion('hero_col2', 'hero_second_lead');
@@ -782,6 +833,14 @@ export default function HomePage() {
     return resolveZoneArticles('tech_ai', 'Tech & AI', 6);
   }, [homepageArticleSections, activeArticles]);
 
+  const sportsStories = useMemo(() => {
+    return resolveZoneArticles('sports_desk', 'Sports', 6);
+  }, [homepageArticleSections, activeArticles]);
+
+  const lifestyleStories = useMemo(() => {
+    return resolveZoneArticles('lifestyle_culture', 'Lifestyle', 6);
+  }, [homepageArticleSections, activeArticles]);
+
   const forYouStories = useMemo(() => {
     return (activeArticles.length >= 8 ? activeArticles.slice(4, 8) : FALLBACK_MAIN_ARTICLES.slice(0, 4)).map(enrichArticle);
   }, [activeArticles]);
@@ -818,10 +877,11 @@ export default function HomePage() {
     }
   };
 
-  // Dynamic Template Renderer for all 4 Core Templates + Duplicated Copies placed in Hero Columns
-  const renderFrontendHeroTemplate = (inst, idx) => {
+  // Dynamic Template Renderer for all 4 Core Templates + Placed Copies Across All Sections
+  const renderFrontendHeroTemplate = (inst, idx, regionId = null) => {
     if (!inst) return null;
     const type = inst.templateType || 'hero_second_lead';
+    const cardKey = `${regionId || inst.sectionRegion || 'tpl'}-${inst.instanceId || idx}`;
 
     // 1. Template 1: Dominant Hero Lead Stage with Sliding Carousel + 2 Sub-stories
     if (type === 'hero_lead') {
@@ -838,10 +898,10 @@ export default function HomePage() {
       const subStoriesList = rawSubs.map(enrichArticle);
 
       return (
-        <div key={inst.instanceId || `hero-lead-${idx}`} style={{ display: 'flex', flexDirection: 'column', width: '100%', marginBottom: '20px' }}>
+        <div key={cardKey} style={{ display: 'flex', flexDirection: 'column', width: '100%', marginBottom: '20px' }}>
           {/* Top Stories Smooth Auto-Sliding Carousel */}
           <div className="hero-lead-carousel-wrapper" style={{ width: '100%', overflow: 'hidden', position: 'relative' }}>
-            <div 
+            <div
               className="hero-lead-carousel-track"
               style={{
                 display: 'flex',
@@ -852,7 +912,7 @@ export default function HomePage() {
               }}
             >
               {slidesList.map((story, sIdx) => (
-                <div 
+                <div
                   key={`top-story-slide-${story.id || sIdx}`}
                   style={{
                     width: '100%',
@@ -860,7 +920,7 @@ export default function HomePage() {
                     boxSizing: 'border-box'
                   }}
                 >
-                  <article 
+                  <article
                     className="lead-story-hero-card"
                     onClick={() => handleOpenArticle(story)}
                   >
@@ -908,7 +968,7 @@ export default function HomePage() {
 
           {/* Small Dotted Navigation Buttons Below Carousel */}
           {slidesList.length > 1 && (
-            <div 
+            <div
               className="hero-carousel-dots"
               aria-label="Top stories navigation dots"
               suppressHydrationWarning={true}
@@ -970,7 +1030,7 @@ export default function HomePage() {
       const story = enrichArticle(inst.mainStory || inst.slides?.[0] || inst.stories?.[0] || secondLead);
 
       return (
-        <article key={inst.instanceId || `sec-lead-${idx}`} className="second-lead-card" onClick={() => handleOpenArticle(story)} style={{ marginBottom: '20px' }}>
+        <article key={cardKey} className="second-lead-card" onClick={() => handleOpenArticle(story)} style={{ marginBottom: '20px' }}>
           <div style={{ width: '100%', height: '220px', overflow: 'hidden', borderRadius: '4px', background: '#000', marginBottom: '8px' }}>
             <ArticleMediaCover
               article={story}
@@ -1012,7 +1072,7 @@ export default function HomePage() {
       const storiesList = rawList.map(enrichArticle);
 
       return (
-        <div key={inst.instanceId || `stacked-${idx}`} style={{ display: 'flex', flexDirection: 'column', marginBottom: '20px' }}>
+        <div key={cardKey} style={{ display: 'flex', flexDirection: 'column', marginBottom: '20px' }}>
           {inst.sectionTitle && (
             <div style={{ fontSize: '12px', fontWeight: 800, color: 'var(--accent-crimson, #b90014)', textTransform: 'uppercase', letterSpacing: '0.6px', marginBottom: '8px', borderBottom: '1px solid var(--border-color)', paddingBottom: '4px' }}>
               {t(inst.sectionTitle)}
@@ -1020,7 +1080,7 @@ export default function HomePage() {
           )}
           <div style={{ display: 'flex', flexDirection: 'column' }}>
             {storiesList.filter(Boolean).map((story, sIdx) => (
-              <article 
+              <article
                 key={`stacked-item-${story.id || sIdx}`}
                 className="stacked-story-row"
                 onClick={() => handleOpenArticle(story)}
@@ -1071,14 +1131,14 @@ export default function HomePage() {
       const sponsorSub = inst.sponsoredShowcase?.subtext || inst.sponsoredShowcase?.subtitle || activeSponsor.subtitle;
 
       return (
-        <div key={inst.instanceId || `opinion-${idx}`} style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginBottom: '20px' }}>
+        <div key={cardKey} style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginBottom: '20px' }}>
           {/* The Hindu-Style Editorial Opinion Box */}
           <div className="the-hindu-opinion-box">
             <div className="opinion-crest-header">
               <CrestLogo style={{ width: '22px', height: '22px' }} />
               <span className="opinion-crest-title">{t(inst.sectionTitle || 'EDITORIAL OPINION')}</span>
             </div>
-            <h3 
+            <h3
               className="opinion-main-title"
               onClick={() => setSelectedArticle(leadStory)}
             >
@@ -1170,357 +1230,307 @@ export default function HomePage() {
             ZONE 1: LIVE PROMO STRIPS (ET + THE HINDU STYLE)
             ========================================================================= */}
 
-      {/* 1.2 Top Leaderboard Ad Slot */}
-      {renderLiveAd('masthead-top')}
+        {/* 1.2 Top Leaderboard Ad Slot */}
+        {renderLiveAd('masthead-top')}
 
-      {/* 1.3 ETPrime-Style Promotional Offer Strip */}
-      <div className="et-promo-strip">
-        <div className="et-promo-inner">
-          <div className="et-promo-text-group">
-            <span className="et-promo-badge">{t("PRO EDITION")}</span>
-            <span className="et-promo-headline">
-              {t("Gift Yourself Financial & Geopolitical Clarity with Daily Brief Prime")}
-            </span>
-            <span className="et-promo-timer">
-              ⏱ {t("Free Trial Offer Extended For")} 04 : 12 : 38
-            </span>
-          </div>
-
-          <button 
-            type="button"
-            onClick={() => setIsLoginOpen(true)}
-            className="et-promo-btn"
-          >
-            <span>{t("Start Free Trial @ ₹0")}</span>
-            <ArrowUpRight size={13} />
-          </button>
-        </div>
-      </div>
-
-      {/* 1.4 Live Breaking News Alert Wire */}
-      <div className="breaking-alert-strip">
-        <div className="breaking-alert-inner">
-          <div className="breaking-badge">
-            <span className="breaking-pulse-dot" />
-            <span>{t("BREAKING WIRE")}</span>
-          </div>
-          <div className="breaking-headline-text">
-            {activeBreakingNews[breakingIndex] || activeBreakingNews[0] || BREAKING_NEWS[0]}
-          </div>
-          <Link href="/edition" style={{ fontSize: '11px', fontWeight: 800, color: '#b90014', textTransform: 'uppercase', textDecoration: 'none', whiteSpace: 'nowrap' }}>
-            {t("Today's e-Paper 📰")}
-          </Link>
-        </div>
-      </div>
-
-      {/* 1.5 Above Hero Spotlight Ad Slot (dropzone-hero-above) */}
-      {renderLiveAd('hero-above')}
-
-      {/* =========================================================================
-          ZONE 2: ABOVE-THE-FOLD HERO MULTI-COLUMN NEWSPAPER CLUSTER
-          ========================================================================= */}
-      {getZoneConfig('zone-hero-lead')?.enabled !== false && (
-        <section className="newspaper-hero-cluster" dir={isRtl ? 'rtl' : 'ltr'}>
-          {/* COLUMN 1 (42%): Placed Templates for Col 1 (Left Dominant Stage) */}
-          <div className="newspaper-hero-col col-divider-right hero-dominant-col" style={{ display: 'flex', flexDirection: 'column' }}>
-            {getInstancesForColumn('hero_col1').map((inst, idx) => (
-              <React.Fragment key={inst.instanceId || `col1-inst-${idx}`}>
-                {renderFrontendHeroTemplate(inst, idx)}
-              </React.Fragment>
-            ))}
-          </div>
-
-          {/* COLUMN 2 (31%): Placed Templates for Col 2 (Center Features & Stacks) */}
-          <div className="newspaper-hero-col col-divider-right" style={{ display: 'flex', flexDirection: 'column' }}>
-            {getInstancesForColumn('hero_col2').map((inst, idx) => (
-              <React.Fragment key={inst.instanceId || `col2-inst-${idx}`}>
-                {renderFrontendHeroTemplate(inst, idx)}
-              </React.Fragment>
-            ))}
-          </div>
-
-          {/* COLUMN 3 (27%): Placed Templates for Col 3 (Right Editorial & Intelligence Rail) */}
-          <div className="newspaper-hero-col" style={{ display: 'flex', flexDirection: 'column' }}>
-            {(() => {
-              const col3Instances = getInstancesForColumn('hero_col3');
-              const hasOpinionTemplate = col3Instances.some(inst => (inst.templateType || inst.type) === 'opinion');
-              return (
-                <>
-                  {!hasOpinionTemplate && renderLiveAd('sidebar-top')}
-                  {col3Instances.map((inst, idx) => (
-                    <React.Fragment key={inst.instanceId || `col3-inst-${idx}`}>
-                      {renderFrontendHeroTemplate(inst, idx)}
-                    </React.Fragment>
-                  ))}
-                  {!hasOpinionTemplate && renderLiveAd('sidebar-bottom')}
-                </>
-              );
-            })()}
-          </div>
-        </section>
-      )}
-
-      {/* =========================================================================
-          ZONE 3: HIGH-IMPACT MID-PAGE LEADERBOARD AD BREAK (hero-bottom)
-          ========================================================================= */}
-      {renderLiveAd('hero-bottom')}
-
-      {/* =========================================================================
-          ZONE 4: SECOND MAJOR EDITORIAL BAND (NATIONAL, WORLD & MOST READ)
-          ========================================================================= */}
-      {(getZoneConfig('zone-band-1')?.enabled !== false || getZoneConfig('zone-band-2')?.enabled !== false) && (
-        <section className="newspaper-editorial-band" dir={isRtl ? 'rtl' : 'ltr'}>
-          {/* Band Col 1 (40%): National / Custom Band 1 Feature + Horizontal Story Cards */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-            <div className="section-ribbon-header" style={{ marginBottom: '8px' }}>
-              <div className="section-ribbon-title">
-                <span className="bar" />
-                <span>{t(getZoneConfig('zone-band-1')?.sectionTitle || 'National & Global Affairs')}</span>
-              </div>
-              <Link href="/section/global" className="section-view-all-link">
-                <span>{t("View Desk")}</span> <ArrowRight size={11} />
-              </Link>
-            </div>
-
-            {band1Stories[0] && (
-              <article className="lead-story-hero-card" onClick={() => handleOpenArticle(band1Stories[0])}>
-                <div style={{ width: '100%', height: '200px', borderRadius: '4px', overflow: 'hidden', background: '#000', marginBottom: '8px' }}>
-                  <ArticleMediaCover
-                    article={band1Stories[0]}
-                    style={{ width: '100%', height: '100%' }}
-                    priority={true}
-                    autoPlay={true}
-                    muted={true}
-                    loop={true}
-                    controls={false}
-                    playsInline={true}
-                  />
-                </div>
-                <span className="news-kicker">{band1Stories[0].kicker ? t(band1Stories[0].kicker) : t(band1Stories[0].category || 'POLICY & INFRASTRUCTURE')}</span>
-                <h3 style={{ fontFamily: 'var(--font-serif)', fontSize: '18px', fontWeight: 800, color: 'var(--text-primary)', margin: '2px 0' }}>
-                  {t(band1Stories[0].title)}
-                </h3>
-                <p style={{ fontSize: '13px', color: 'var(--text-secondary)', lineHeight: 1.45 }}>
-                  {t(band1Stories[0].summary || band1Stories[0].excerpt)}
-                </p>
-              </article>
-            )}
-
-            {/* Stacked Horizontal Cards */}
-            {band1Stories.slice(1, 5).map((art, aIdx) => (
-              <article key={`nat-art-${aIdx}`} className="stacked-story-row" onClick={() => handleOpenArticle(art)}>
-                <div className="stacked-story-content">
-                  <span className="news-kicker" style={{ fontSize: '9.5px' }}>{t(art.category || 'GLOBAL')}</span>
-                  <h4 className="stacked-story-title">{t(art.title)}</h4>
-                  <div style={{ fontSize: '10.5px', color: 'var(--text-muted)', marginTop: '2px' }}>{art.author ? t(art.author) : t('Desk')}</div>
-                </div>
-                <div style={{ width: '80px', height: '60px', borderRadius: '4px', overflow: 'hidden', background: '#000', flexShrink: 0 }}>
-                  <ArticleMediaCover
-                    article={art}
-                    style={{ width: '100%', height: '100%' }}
-                    autoPlay={true}
-                    muted={true}
-                    loop={true}
-                    controls={false}
-                    playsInline={true}
-                  />
-                </div>
-              </article>
-            ))}
-          </div>
-
-          {/* Band Col 2 (32%): World & Geopolitics / Custom Band 2 Stack */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-            <div className="section-ribbon-header" style={{ marginBottom: '8px' }}>
-              <div className="section-ribbon-title">
-                <span className="bar" />
-                <span>{t(getZoneConfig('zone-band-2')?.sectionTitle || 'World & Geopolitics')}</span>
-              </div>
-              <Link href="/section/global" className="section-view-all-link">
-                <span>{t("More World")}</span> <ArrowRight size={11} />
-              </Link>
-            </div>
-
-            {band2Stories.slice(0, 4).map((art, idx) => (
-              <div 
-                key={`world-${idx}`}
-                onClick={() => handleOpenArticle(art)}
-                style={{ cursor: 'pointer', paddingBottom: '12px', borderBottom: '1px solid var(--border-color)' }}
-              >
-                <span className="news-kicker" style={{ fontSize: '9.5px' }}>{t(art.category || 'GLOBAL')}</span>
-                <h4 style={{ fontFamily: 'var(--font-serif)', fontSize: '14.5px', fontWeight: 700, color: 'var(--text-primary)', lineHeight: 1.35, margin: '2px 0 4px' }}>
-                  {t(art.title)}
-                </h4>
-                <p style={{ fontSize: '12px', color: 'var(--text-secondary)', lineHeight: 1.4, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
-                  {t(art.summary || art.excerpt)}
-                </p>
-              </div>
-            ))}
-
-            {/* Visual Feature Card */}
-            {(band2Stories[4] || activeArticles[0]) && (
-              <div style={{ background: 'var(--bg-secondary)', borderRadius: '4px', overflow: 'hidden', border: '1px solid var(--border-color)', cursor: 'pointer' }} onClick={() => handleOpenArticle(band2Stories[4] || activeArticles[0])}>
-                <div style={{ width: '100%', height: '120px', background: '#000', overflow: 'hidden' }}>
-                  <ArticleMediaCover
-                    article={band2Stories[4] || activeArticles[0]}
-                    style={{ width: '100%', height: '100%' }}
-                    autoPlay={true}
-                    muted={true}
-                    loop={true}
-                    controls={false}
-                    playsInline={true}
-                  />
-                </div>
-                <div style={{ padding: '8px 12px' }}>
-                  <span className="news-kicker" style={{ fontSize: '9.5px' }}>{t((band2Stories[4] || activeArticles[0])?.category?.toUpperCase() || 'GLOBAL SPOTLIGHT')}</span>
-                  <div style={{ fontSize: '12.5px', fontWeight: 800, color: 'var(--text-primary)' }}>
-                    {t((band2Stories[4] || activeArticles[0])?.title)}
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* Band Col 3 (28%): Most Read Today Numbered Ranking (The Hindu + ET Style) */}
-          <div>
-            <div className="most-read-newspaper-box">
-              <div className="most-read-header">
-                <Flame size={16} color="#b90014" />
-                <span>{t("MOST READ TODAY")}</span>
-              </div>
-
-              {(activeArticles.length > 0 ? activeArticles.slice(0, 5) : FALLBACK_MOST_READ).map((item, idx) => (
-                <div 
-                  key={`rank-${item.id || idx}`} 
-                  className="most-read-rank-row"
-                  onClick={() => handleOpenArticle(item)}
-                >
-                  <span className="rank-digit">0{idx + 1}</span>
-                  <div className="rank-headline-content">
-                    <span className="news-kicker" style={{ fontSize: '9px', marginBottom: '1px' }}>
-                      {item.category ? t(item.category.toUpperCase()) : t('NEWS')}
-                    </span>
-                    <div className="rank-headline-text">
-                      {t(item.title)}
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            {/* Right Rail Sticky Ad Slot */}
-            <div style={{ marginTop: '16px' }}>
-              {renderLiveAd('sidebar-sticky')}
-            </div>
-          </div>
-        </section>
-      )}
-
-      {/* =========================================================================
-          ZONE 5: SECTION-BASED NEWSROOM DEPARTMENTS (INDIA, BUSINESS, TECH)
-          ========================================================================= */}
-
-      {/* 5.1 Business, Markets & Industry / Department 1 */}
-      {getZoneConfig('zone-dept-1')?.enabled !== false && (
-        <section className="newspaper-department-section" dir={isRtl ? 'rtl' : 'ltr'}>
-          <div className="section-ribbon-header">
-            <div className="section-ribbon-title">
-              <span className="bar" />
-              <span>{t(getZoneConfig('zone-dept-1')?.sectionTitle || 'Business, Markets & Economy')}</span>
-            </div>
-            <Link href="/section/markets" className="section-view-all-link">
-              <span>{t("All Business News")}</span> <ArrowRight size={11} />
-            </Link>
-          </div>
-
-          <div className="department-grid-4col">
-            {(businessStories.length > 0 ? businessStories : activeArticles.slice(0, 4)).map((art, idx) => (
-              <article key={`biz-${art.id || idx}`} className="dept-card" onClick={() => handleOpenArticle(art)}>
-                <div style={{ width: '100%', height: '150px', borderRadius: '4px', overflow: 'hidden', background: '#000', marginBottom: '8px' }}>
-                  <ArticleMediaCover
-                    article={art}
-                    style={{ width: '100%', height: '100%' }}
-                    autoPlay={true}
-                    muted={true}
-                    loop={true}
-                    controls={false}
-                    playsInline={true}
-                  />
-                </div>
-                <span className="news-kicker" style={{ fontSize: '9.5px' }}>{t(art.category || 'BUSINESS')}</span>
-                <h3 className="dept-card-title">{t(art.title)}</h3>
-                <div className="dept-card-byline">{art.author ? t(art.author) : t('Markets Desk')}</div>
-              </article>
-            ))}
-          </div>
-        </section>
-      )}
-
-      {/* In-Feed Native Ad Slot Break */}
-      {renderLiveAd('in-feed-mid')}
-
-      {/* 5.2 Technology, AI & Space Intelligence / Department 2 */}
-      {getZoneConfig('zone-dept-2')?.enabled !== false && (
-        <section className="newspaper-department-section" dir={isRtl ? 'rtl' : 'ltr'}>
-          <div className="section-ribbon-header">
-            <div className="section-ribbon-title">
-              <span className="bar" />
-              <span>{t(getZoneConfig('zone-dept-2')?.sectionTitle || 'Technology, AI & Space')}</span>
-            </div>
-            <Link href="/section/tech" className="section-view-all-link">
-              <span>{t("Explore Tech")}</span> <ArrowRight size={11} />
-            </Link>
-          </div>
-
-          <div className="department-grid-4col">
-            {(techStories.length > 0 ? techStories : activeArticles.slice(2, 6)).map((art, idx) => (
-              <article key={`tech-${art.id || idx}`} className="dept-card" onClick={() => handleOpenArticle(art)}>
-                <div style={{ width: '100%', height: '150px', borderRadius: '4px', overflow: 'hidden', background: '#000', marginBottom: '8px' }}>
-                  <ArticleMediaCover
-                    article={art}
-                    style={{ width: '100%', height: '100%' }}
-                    autoPlay={true}
-                    muted={true}
-                    loop={true}
-                    controls={false}
-                    playsInline={true}
-                  />
-                </div>
-                <span className="news-kicker" style={{ fontSize: '9.5px' }}>{t(art.category || 'TECH & AI')}</span>
-                <h3 className="dept-card-title">{t(art.title)}</h3>
-                <div className="dept-card-byline">{art.author ? t(art.author) : t('Tech Reporter')}</div>
-              </article>
-            ))}
-          </div>
-        </section>
-      )}
-
-      {/* Feed Position 2 Ad Slot Break */}
-      {renderLiveAd('feed-row-2')}
-
-      {/* =========================================================================
-          DYNAMIC CUSTOM MODULAR BLOCKS (ADDED BY ADMIN VIA SLOT BUILDER)
-          ========================================================================= */}
-      {customDynamicSections.map((customSec) => {
-        const customStories = resolveZoneArticles(customSec, customSec.category, customSec.itemCount || 4);
-        return (
-          <section key={customSec.id} className="newspaper-department-section" dir={isRtl ? 'rtl' : 'ltr'}>
-            <div className="section-ribbon-header">
-              <div className="section-ribbon-title">
-                <span className="bar" />
-                <span>{t(customSec.sectionTitle || customSec.zoneName)}</span>
-                <span style={{ fontSize: '11px', background: 'rgba(185, 0, 20, 0.15)', color: '#b90014', padding: '2px 8px', borderRadius: '4px', marginLeft: '6px' }}>
-                  {t(customSec.zoneBadge || customSec.category)}
-                </span>
-              </div>
-              <span className="section-view-all-link">
-                <span>{t(customSec.category)} {t("Desk")}</span> <ArrowRight size={11} />
+        {/* 1.3 ETPrime-Style Promotional Offer Strip */}
+        <div className="et-promo-strip">
+          <div className="et-promo-inner">
+            <div className="et-promo-text-group">
+              <span className="et-promo-badge">{t("PRO EDITION")}</span>
+              <span className="et-promo-headline">
+                {t("Gift Yourself Financial & Geopolitical Clarity with Daily Brief Prime")}
+              </span>
+              <span className="et-promo-timer">
+                ⏱ {t("Free Trial Offer Extended For")} 04 : 12 : 38
               </span>
             </div>
 
+            <button
+              type="button"
+              onClick={() => setIsLoginOpen(true)}
+              className="et-promo-btn"
+            >
+              <span>{t("Start Free Trial @ ₹0")}</span>
+              <ArrowUpRight size={13} />
+            </button>
+          </div>
+        </div>
+
+        {/* 1.4 Live Breaking News Alert Wire */}
+        <div className="breaking-alert-strip">
+          <div className="breaking-alert-inner">
+            <div className="breaking-badge">
+              <span className="breaking-pulse-dot" />
+              <span>{t("BREAKING WIRE")}</span>
+            </div>
+            <div className="breaking-headline-text">
+              {activeBreakingNews[breakingIndex] || activeBreakingNews[0] || BREAKING_NEWS[0]}
+            </div>
+            <Link href="/edition" style={{ fontSize: '11px', fontWeight: 800, color: '#b90014', textTransform: 'uppercase', textDecoration: 'none', whiteSpace: 'nowrap' }}>
+              {t("Today's e-Paper 📰")}
+            </Link>
+          </div>
+        </div>
+
+        {/* 1.5 Above Hero Spotlight Ad Slot (dropzone-hero-above) */}
+        {renderLiveAd('hero-above')}
+
+        {/* =========================================================================
+          ZONE 2: ABOVE-THE-FOLD HERO MULTI-COLUMN NEWSPAPER CLUSTER
+          ========================================================================= */}
+        {getZoneConfig('zone-hero-lead')?.enabled !== false && (
+          <section className="newspaper-hero-cluster" dir={isRtl ? 'rtl' : 'ltr'}>
+            {/* COLUMN 1 (42%): Placed Templates for Col 1 (Left Dominant Stage) */}
+            <div className="newspaper-hero-col col-divider-right hero-dominant-col" style={{ display: 'flex', flexDirection: 'column' }}>
+              {getInstancesForColumn('hero_col1').map((inst, idx) => (
+                <React.Fragment key={inst.instanceId || `col1-inst-${idx}`}>
+                  {renderFrontendHeroTemplate(inst, idx, 'hero_col1')}
+                </React.Fragment>
+              ))}
+            </div>
+
+            {/* COLUMN 2 (31%): Placed Templates for Col 2 (Center Features & Stacks) */}
+            <div className="newspaper-hero-col col-divider-right" style={{ display: 'flex', flexDirection: 'column' }}>
+              {getInstancesForColumn('hero_col2').map((inst, idx) => (
+                <React.Fragment key={inst.instanceId || `col2-inst-${idx}`}>
+                  {renderFrontendHeroTemplate(inst, idx, 'hero_col2')}
+                </React.Fragment>
+              ))}
+            </div>
+
+            {/* COLUMN 3 (27%): Placed Templates for Col 3 (Right Editorial & Intelligence Rail) */}
+            <div className="newspaper-hero-col" style={{ display: 'flex', flexDirection: 'column' }}>
+              {(() => {
+                const col3Instances = getInstancesForColumn('hero_col3');
+                const hasOpinionTemplate = col3Instances.some(inst => (inst.templateType || inst.type) === 'opinion');
+                return (
+                  <>
+                    {!hasOpinionTemplate && renderLiveAd('sidebar-top')}
+                    {col3Instances.map((inst, idx) => (
+                      <React.Fragment key={inst.instanceId || `col3-inst-${idx}`}>
+                        {renderFrontendHeroTemplate(inst, idx, 'hero_col3')}
+                      </React.Fragment>
+                    ))}
+                    {!hasOpinionTemplate && renderLiveAd('sidebar-bottom')}
+                  </>
+                );
+              })()}
+            </div>
+          </section>
+        )}
+
+        {/* =========================================================================
+          ZONE 3: HIGH-IMPACT MID-PAGE LEADERBOARD AD BREAK (hero-bottom)
+          ========================================================================= */}
+        {renderLiveAd('hero-bottom')}
+
+        {/* =========================================================================
+          ZONE 4: SECOND MAJOR EDITORIAL BAND (NATIONAL, WORLD & MOST READ)
+          ========================================================================= */}
+        {(getZoneConfig('zone-band-1')?.enabled !== false || getZoneConfig('zone-band-2')?.enabled !== false) && (
+          <section className="newspaper-editorial-band" dir={isRtl ? 'rtl' : 'ltr'}>
+            {/* Band Col 1 (40%): National / Custom Band 1 Feature + Horizontal Story Cards */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              <div className="section-ribbon-header" style={{ marginBottom: '8px' }}>
+                <div className="section-ribbon-title">
+                  <span className="bar" />
+                  <span>{t(getZoneConfig('zone-band-1')?.sectionTitle || 'National & Global Affairs')}</span>
+                </div>
+                <Link href="/section/global" className="section-view-all-link">
+                  <span>{t("View Desk")}</span> <ArrowRight size={11} />
+                </Link>
+              </div>
+
+              {/* Placed Templates in National Affairs (Top / Above Ad) */}
+              {getInstancesForRegion('national_global', 'above_ad').map((inst, idx) => (
+                <React.Fragment key={inst.instanceId || `nat-top-${idx}`}>
+                  {renderFrontendHeroTemplate(inst, idx, 'national_global')}
+                </React.Fragment>
+              ))}
+
+              {band1Stories[0] && (
+                <article className="lead-story-hero-card" onClick={() => handleOpenArticle(band1Stories[0])}>
+                  <div style={{ width: '100%', height: '200px', borderRadius: '4px', overflow: 'hidden', background: '#000', marginBottom: '8px' }}>
+                    <ArticleMediaCover
+                      article={band1Stories[0]}
+                      style={{ width: '100%', height: '100%' }}
+                      priority={true}
+                      autoPlay={true}
+                      muted={true}
+                      loop={true}
+                      controls={false}
+                      playsInline={true}
+                    />
+                  </div>
+                  <span className="news-kicker">{band1Stories[0].kicker ? t(band1Stories[0].kicker) : t(band1Stories[0].category || 'POLICY & INFRASTRUCTURE')}</span>
+                  <h3 style={{ fontFamily: 'var(--font-serif)', fontSize: '18px', fontWeight: 800, color: 'var(--text-primary)', margin: '2px 0' }}>
+                    {t(band1Stories[0].title)}
+                  </h3>
+                  <p style={{ fontSize: '13px', color: 'var(--text-secondary)', lineHeight: 1.45 }}>
+                    {t(band1Stories[0].summary || band1Stories[0].excerpt)}
+                  </p>
+                </article>
+              )}
+
+              {/* Stacked Horizontal Cards */}
+              {band1Stories.slice(1, 5).map((art, aIdx) => (
+                <article key={`nat-art-${aIdx}`} className="stacked-story-row" onClick={() => handleOpenArticle(art)}>
+                  <div className="stacked-story-content">
+                    <span className="news-kicker" style={{ fontSize: '9.5px' }}>{t(art.category || 'GLOBAL')}</span>
+                    <h4 className="stacked-story-title">{t(art.title)}</h4>
+                    <div style={{ fontSize: '10.5px', color: 'var(--text-muted)', marginTop: '2px' }}>{art.author ? t(art.author) : t('Desk')}</div>
+                  </div>
+                  <div style={{ width: '80px', height: '60px', borderRadius: '4px', overflow: 'hidden', background: '#000', flexShrink: 0 }}>
+                    <ArticleMediaCover
+                      article={art}
+                      style={{ width: '100%', height: '100%' }}
+                      autoPlay={true}
+                      muted={true}
+                      loop={true}
+                      controls={false}
+                      playsInline={true}
+                    />
+                  </div>
+                </article>
+              ))}
+
+              {/* Placed Templates in National Affairs (Bottom / Below Ad) */}
+              {getInstancesForRegion('national_global', 'below_ad').map((inst, idx) => (
+                <React.Fragment key={inst.instanceId || `nat-bot-${idx}`}>
+                  {renderFrontendHeroTemplate(inst, idx, 'national_global')}
+                </React.Fragment>
+              ))}
+            </div>
+
+            {/* Band Col 2 (32%): World & Geopolitics / Custom Band 2 Stack */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+              <div className="section-ribbon-header" style={{ marginBottom: '8px' }}>
+                <div className="section-ribbon-title">
+                  <span className="bar" />
+                  <span>{t(getZoneConfig('zone-band-2')?.sectionTitle || 'World & Geopolitics')}</span>
+                </div>
+                <Link href="/section/global" className="section-view-all-link">
+                  <span>{t("More World")}</span> <ArrowRight size={11} />
+                </Link>
+              </div>
+
+              {/* Placed Templates in World Geopolitics (Top / Above Ad) */}
+              {getInstancesForRegion('world_geopolitics', 'above_ad').map((inst, idx) => (
+                <React.Fragment key={inst.instanceId || `world-top-${idx}`}>
+                  {renderFrontendHeroTemplate(inst, idx, 'world_geopolitics')}
+                </React.Fragment>
+              ))}
+
+              {band2Stories.slice(0, 4).map((art, idx) => (
+                <div
+                  key={`world-${idx}`}
+                  onClick={() => handleOpenArticle(art)}
+                  style={{ cursor: 'pointer', paddingBottom: '12px', borderBottom: '1px solid var(--border-color)' }}
+                >
+                  <span className="news-kicker" style={{ fontSize: '9.5px' }}>{t(art.category || 'GLOBAL')}</span>
+                  <h4 style={{ fontFamily: 'var(--font-serif)', fontSize: '14.5px', fontWeight: 700, color: 'var(--text-primary)', lineHeight: 1.35, margin: '2px 0 4px' }}>
+                    {t(art.title)}
+                  </h4>
+                  <p style={{ fontSize: '12px', color: 'var(--text-secondary)', lineHeight: 1.4, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+                    {t(art.summary || art.excerpt)}
+                  </p>
+                </div>
+              ))}
+
+              {/* Visual Feature Card */}
+              {(band2Stories[4] || activeArticles[0]) && (
+                <div style={{ background: 'var(--bg-secondary)', borderRadius: '4px', overflow: 'hidden', border: '1px solid var(--border-color)', cursor: 'pointer' }} onClick={() => handleOpenArticle(band2Stories[4] || activeArticles[0])}>
+                  <div style={{ width: '100%', height: '120px', background: '#000', overflow: 'hidden' }}>
+                    <ArticleMediaCover
+                      article={band2Stories[4] || activeArticles[0]}
+                      style={{ width: '100%', height: '100%' }}
+                      autoPlay={true}
+                      muted={true}
+                      loop={true}
+                      controls={false}
+                      playsInline={true}
+                    />
+                  </div>
+                  <div style={{ padding: '8px 12px' }}>
+                    <span className="news-kicker" style={{ fontSize: '9.5px' }}>{t((band2Stories[4] || activeArticles[0])?.category?.toUpperCase() || 'GLOBAL SPOTLIGHT')}</span>
+                    <div style={{ fontSize: '12.5px', fontWeight: 800, color: 'var(--text-primary)' }}>
+                      {t((band2Stories[4] || activeArticles[0])?.title)}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Placed Templates in World Geopolitics (Bottom / Below Ad) */}
+              {getInstancesForRegion('world_geopolitics', 'below_ad').map((inst, idx) => (
+                <React.Fragment key={inst.instanceId || `world-bot-${idx}`}>
+                  {renderFrontendHeroTemplate(inst, idx, 'world_geopolitics')}
+                </React.Fragment>
+              ))}
+            </div>
+
+            {/* Band Col 3 (28%): Most Read Today Numbered Ranking (The Hindu + ET Style) */}
+            <div>
+              <div className="most-read-newspaper-box">
+                <div className="most-read-header">
+                  <Flame size={16} color="#b90014" />
+                  <span>{t("MOST READ TODAY")}</span>
+                </div>
+
+                {(activeArticles.length > 0 ? activeArticles.slice(0, 5) : FALLBACK_MOST_READ).map((item, idx) => (
+                  <div
+                    key={`rank-${item.id || idx}`}
+                    className="most-read-rank-row"
+                    onClick={() => handleOpenArticle(item)}
+                  >
+                    <span className="rank-digit">0{idx + 1}</span>
+                    <div className="rank-headline-content">
+                      <span className="news-kicker" style={{ fontSize: '9px', marginBottom: '1px' }}>
+                        {item.category ? t(item.category.toUpperCase()) : t('NEWS')}
+                      </span>
+                      <div className="rank-headline-text">
+                        {t(item.title)}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Right Rail Sticky Ad Slot */}
+              <div style={{ marginTop: '16px' }}>
+                {renderLiveAd('sidebar-sticky')}
+              </div>
+            </div>
+          </section>
+        )}
+
+        {/* =========================================================================
+          ZONE 5: SECTION-BASED NEWSROOM DEPARTMENTS (INDIA, BUSINESS, TECH)
+          ========================================================================= */}
+
+        {/* 5.1 Business, Markets & Industry / Department 1 */}
+        {(getZoneConfig('zone-dept-1')?.enabled !== false || getInstancesForRegion('markets_economy').length > 0) && (
+          <section className="newspaper-department-section" dir={isRtl ? 'rtl' : 'ltr'}>
+            <div className="section-ribbon-header">
+              <div className="section-ribbon-title">
+                <span className="bar" />
+                <span>{t(getZoneConfig('zone-dept-1')?.sectionTitle || 'Business, Markets & Economy')}</span>
+              </div>
+              <Link href="/section/markets" className="section-view-all-link">
+                <span>{t("All Business News")}</span> <ArrowRight size={11} />
+              </Link>
+            </div>
+
+            {/* Placed Templates in Markets & Economy (Top / Above Ad) */}
+            {getInstancesForRegion('markets_economy', 'above_ad').map((inst, idx) => (
+              <React.Fragment key={inst.instanceId || `biz-top-${idx}`}>
+                {renderFrontendHeroTemplate(inst, idx, 'markets_economy')}
+              </React.Fragment>
+            ))}
+
             <div className="department-grid-4col">
-              {customStories.map((art, idx) => (
-                <article key={`dyn-${customSec.id}-${art.id || idx}`} className="dept-card" onClick={() => handleOpenArticle(art)}>
+              {(businessStories.length > 0 ? businessStories : activeArticles.slice(0, 4)).map((art, idx) => (
+                <article key={`biz-${art.id || idx}`} className="dept-card" onClick={() => handleOpenArticle(art)}>
                   <div style={{ width: '100%', height: '150px', borderRadius: '4px', overflow: 'hidden', background: '#000', marginBottom: '8px' }}>
                     <ArticleMediaCover
                       article={art}
@@ -1532,261 +1542,481 @@ export default function HomePage() {
                       playsInline={true}
                     />
                   </div>
-                  <span className="news-kicker" style={{ fontSize: '9.5px' }}>{t(art.category || customSec.category)}</span>
+                  <span className="news-kicker" style={{ fontSize: '9.5px' }}>{t(art.category || 'BUSINESS')}</span>
                   <h3 className="dept-card-title">{t(art.title)}</h3>
-                  <div className="dept-card-byline">{art.author ? t(art.author) : t('Desk Correspondent')}</div>
+                  <div className="dept-card-byline">{art.author ? t(art.author) : t('Markets Desk')}</div>
                 </article>
+              ))}
+            </div>
+
+            {/* Placed Templates in Markets & Economy (Bottom / Below Ad) */}
+            {getInstancesForRegion('markets_economy', 'below_ad').map((inst, idx) => (
+              <React.Fragment key={inst.instanceId || `biz-bot-${idx}`}>
+                {renderFrontendHeroTemplate(inst, idx, 'markets_economy')}
+              </React.Fragment>
+            ))}
+          </section>
+        )}
+
+        {/* In-Feed Native Ad Slot Break */}
+        {renderLiveAd('in-feed-mid')}
+
+        {/* 5.2 Technology, AI & Space Intelligence / Department 2 */}
+        {(getZoneConfig('zone-dept-2')?.enabled !== false || getInstancesForRegion('tech_ai').length > 0) && (
+          <section className="newspaper-department-section" dir={isRtl ? 'rtl' : 'ltr'}>
+            <div className="section-ribbon-header">
+              <div className="section-ribbon-title">
+                <span className="bar" />
+                <span>{t(getZoneConfig('zone-dept-2')?.sectionTitle || 'Technology, AI & Space')}</span>
+              </div>
+              <Link href="/section/tech" className="section-view-all-link">
+                <span>{t("Explore Tech")}</span> <ArrowRight size={11} />
+              </Link>
+            </div>
+
+            {/* Placed Templates in Tech & AI (Top / Above Ad) */}
+            {getInstancesForRegion('tech_ai', 'above_ad').map((inst, idx) => (
+              <React.Fragment key={inst.instanceId || `tech-top-${idx}`}>
+                {renderFrontendHeroTemplate(inst, idx, 'tech_ai')}
+              </React.Fragment>
+            ))}
+
+            <div className="department-grid-4col">
+              {(techStories.length > 0 ? techStories : activeArticles.slice(2, 6)).map((art, idx) => (
+                <article key={`tech-${art.id || idx}`} className="dept-card" onClick={() => handleOpenArticle(art)}>
+                  <div style={{ width: '100%', height: '150px', borderRadius: '4px', overflow: 'hidden', background: '#000', marginBottom: '8px' }}>
+                    <ArticleMediaCover
+                      article={art}
+                      style={{ width: '100%', height: '100%' }}
+                      autoPlay={true}
+                      muted={true}
+                      loop={true}
+                      controls={false}
+                      playsInline={true}
+                    />
+                  </div>
+                  <span className="news-kicker" style={{ fontSize: '9.5px' }}>{t(art.category || 'TECH & AI')}</span>
+                  <h3 className="dept-card-title">{t(art.title)}</h3>
+                  <div className="dept-card-byline">{art.author ? t(art.author) : t('Tech Reporter')}</div>
+                </article>
+              ))}
+            </div>
+
+            {/* Placed Templates in Tech & AI (Bottom / Below Ad) */}
+            {getInstancesForRegion('tech_ai', 'below_ad').map((inst, idx) => (
+              <React.Fragment key={inst.instanceId || `tech-bot-${idx}`}>
+                {renderFrontendHeroTemplate(inst, idx, 'tech_ai')}
+              </React.Fragment>
+            ))}
+          </section>
+        )}
+
+        {/* Feed Position 2 Ad Slot Break */}
+        {renderLiveAd('feed-row-2')}
+
+        {/* 5.4 Sports Desk & Scorecards */}
+        {(getInstancesForRegion('sports_desk').length > 0 || sportsStories.length > 0) && (
+          <section className="newspaper-department-section" dir={isRtl ? 'rtl' : 'ltr'}>
+            <div className="section-ribbon-header">
+              <div className="section-ribbon-title">
+                <span className="bar" style={{ background: '#f59e0b' }} />
+                <span>{t("Sports Desk & Scorecards")}</span>
+              </div>
+              <Link href="/section/sports" className="section-view-all-link">
+                <span>{t("All Sports News")}</span> <ArrowRight size={11} />
+              </Link>
+            </div>
+
+            {/* Placed Templates in Sports Desk (Top / Above Ad) */}
+            {getInstancesForRegion('sports_desk', 'above_ad').map((inst, idx) => (
+              <React.Fragment key={inst.instanceId || `sports-top-${idx}`}>
+                {renderFrontendHeroTemplate(inst, idx, 'sports_desk')}
+              </React.Fragment>
+            ))}
+
+            <div className="department-grid-4col">
+              {(sportsStories.length > 0 ? sportsStories : activeArticles.slice(0, 4)).map((art, idx) => (
+                <article key={`sports-${art.id || idx}`} className="dept-card" onClick={() => handleOpenArticle(art)}>
+                  <div style={{ width: '100%', height: '150px', borderRadius: '4px', overflow: 'hidden', background: '#000', marginBottom: '8px' }}>
+                    <ArticleMediaCover
+                      article={art}
+                      style={{ width: '100%', height: '100%' }}
+                      autoPlay={true}
+                      muted={true}
+                      loop={true}
+                      controls={false}
+                      playsInline={true}
+                    />
+                  </div>
+                  <span className="news-kicker" style={{ fontSize: '9.5px', color: '#f59e0b' }}>{t(art.category || 'SPORTS')}</span>
+                  <h3 className="dept-card-title">{t(art.title)}</h3>
+                  <div className="dept-card-byline">{art.author ? t(art.author) : t('Sports Correspondent')}</div>
+                </article>
+              ))}
+            </div>
+
+            {/* Placed Templates in Sports Desk (Bottom / Below Ad) */}
+            {getInstancesForRegion('sports_desk', 'below_ad').map((inst, idx) => (
+              <React.Fragment key={inst.instanceId || `sports-bot-${idx}`}>
+                {renderFrontendHeroTemplate(inst, idx, 'sports_desk')}
+              </React.Fragment>
+            ))}
+          </section>
+        )}
+
+        {/* 5.5 Lifestyle, Culture & Entertainment */}
+        {(getInstancesForRegion('lifestyle_culture').length > 0 || lifestyleStories.length > 0) && (
+          <section className="newspaper-department-section" dir={isRtl ? 'rtl' : 'ltr'}>
+            <div className="section-ribbon-header">
+              <div className="section-ribbon-title">
+                <span className="bar" style={{ background: '#ec4899' }} />
+                <span>{t("Lifestyle, Culture & Entertainment")}</span>
+              </div>
+              <Link href="/section/lifestyle" className="section-view-all-link">
+                <span>{t("Explore Culture & Design")}</span> <ArrowRight size={11} />
+              </Link>
+            </div>
+
+            {/* Placed Templates in Lifestyle & Culture (Top / Above Ad) */}
+            {getInstancesForRegion('lifestyle_culture', 'above_ad').map((inst, idx) => (
+              <React.Fragment key={inst.instanceId || `life-top-${idx}`}>
+                {renderFrontendHeroTemplate(inst, idx, 'lifestyle_culture')}
+              </React.Fragment>
+            ))}
+
+            <div className="department-grid-4col">
+              {(lifestyleStories.length > 0 ? lifestyleStories : activeArticles.slice(2, 6)).map((art, idx) => (
+                <article key={`life-${art.id || idx}`} className="dept-card" onClick={() => handleOpenArticle(art)}>
+                  <div style={{ width: '100%', height: '150px', borderRadius: '4px', overflow: 'hidden', background: '#000', marginBottom: '8px' }}>
+                    <ArticleMediaCover
+                      article={art}
+                      style={{ width: '100%', height: '100%' }}
+                      autoPlay={true}
+                      muted={true}
+                      loop={true}
+                      controls={false}
+                      playsInline={true}
+                    />
+                  </div>
+                  <span className="news-kicker" style={{ fontSize: '9.5px', color: '#ec4899' }}>{t(art.category || 'LIFESTYLE')}</span>
+                  <h3 className="dept-card-title">{t(art.title)}</h3>
+                  <div className="dept-card-byline">{art.author ? t(art.author) : t('Culture Editor')}</div>
+                </article>
+              ))}
+            </div>
+
+            {/* Placed Templates in Lifestyle & Culture (Bottom / Below Ad) */}
+            {getInstancesForRegion('lifestyle_culture', 'below_ad').map((inst, idx) => (
+              <React.Fragment key={inst.instanceId || `life-bot-${idx}`}>
+                {renderFrontendHeroTemplate(inst, idx, 'lifestyle_culture')}
+              </React.Fragment>
+            ))}
+          </section>
+        )}
+
+        {/* =========================================================================
+          DYNAMIC CUSTOM MODULAR BLOCKS (ADDED BY ADMIN VIA SLOT BUILDER)
+          ========================================================================= */}
+        {customDynamicSections.map((customSec) => {
+          const customStories = resolveZoneArticles(customSec, customSec.category, customSec.itemCount || 4);
+          return (
+            <section key={customSec.id} className="newspaper-department-section" dir={isRtl ? 'rtl' : 'ltr'}>
+              <div className="section-ribbon-header">
+                <div className="section-ribbon-title">
+                  <span className="bar" />
+                  <span>{t(customSec.sectionTitle || customSec.zoneName)}</span>
+                  <span style={{ fontSize: '11px', background: 'rgba(185, 0, 20, 0.15)', color: '#b90014', padding: '2px 8px', borderRadius: '4px', marginLeft: '6px' }}>
+                    {t(customSec.zoneBadge || customSec.category)}
+                  </span>
+                </div>
+                <span className="section-view-all-link">
+                  <span>{t(customSec.category)} {t("Desk")}</span> <ArrowRight size={11} />
+                </span>
+              </div>
+
+              <div className="department-grid-4col">
+                {customStories.map((art, idx) => (
+                  <article key={`dyn-${customSec.id}-${art.id || idx}`} className="dept-card" onClick={() => handleOpenArticle(art)}>
+                    <div style={{ width: '100%', height: '150px', borderRadius: '4px', overflow: 'hidden', background: '#000', marginBottom: '8px' }}>
+                      <ArticleMediaCover
+                        article={art}
+                        style={{ width: '100%', height: '100%' }}
+                        autoPlay={true}
+                        muted={true}
+                        loop={true}
+                        controls={false}
+                        playsInline={true}
+                      />
+                    </div>
+                    <span className="news-kicker" style={{ fontSize: '9.5px' }}>{t(art.category || customSec.category)}</span>
+                    <h3 className="dept-card-title">{t(art.title)}</h3>
+                    <div className="dept-card-byline">{art.author ? t(art.author) : t('Desk Correspondent')}</div>
+                  </article>
+                ))}
+              </div>
+            </section>
+          );
+        })}
+
+        {/* 5.3 Special Investigations & Deep Dives (Dark Feature Box) */}
+        {getZoneConfig('zone-deep-dives')?.enabled !== false && (
+          <section className="deep-dives-banner">
+            <div className="deep-dives-container">
+              {renderLiveAd('deep-dives-top')}
+
+              {/* Placed Templates in Deep Dives (Top / Above Ad) */}
+              {getInstancesForRegion('deep_dives', 'above_ad').map((inst, idx) => (
+                <React.Fragment key={inst.instanceId || `deep-top-${idx}`}>
+                  {renderFrontendHeroTemplate(inst, idx, 'deep_dives')}
+                </React.Fragment>
+              ))}
+
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px' }}>
+                <div>
+                  <div className="category-tag" style={{ color: '#34d399' }}>
+                    <Sparkles size={12} />
+                    <span>{t("INVESTIGATIVE JOURNALISM")}</span>
+                  </div>
+                  <h2 style={{ fontFamily: 'var(--font-serif)', fontSize: '28px', fontWeight: 900, color: '#ffffff', margin: '4px 0' }}>
+                    {t("Deep Dives 💎")}
+                  </h2>
+                </div>
+
+                <button
+                  type="button"
+                  suppressHydrationWarning
+                  onClick={() => {
+                    if (!isLoggedIn) setIsLoginOpen(true);
+                  }}
+                  style={{ background: 'none', border: 'none', color: '#34d399', fontWeight: 800, fontSize: '13px', display: 'flex', alignItems: 'center', gap: '4px', cursor: 'pointer' }}
+                >
+                  {t("Explore Archive")} {!isLoggedIn && <Lock size={13} />} <ArrowUpRight size={16} />
+                </button>
+              </div>
+
+              <div className="deep-dives-grid">
+                {activeDeepDives.map((dive) => (
+                  <article
+                    key={dive.id}
+                    className="deep-card"
+                    onClick={() => setSelectedArticle(dive)}
+                    style={{ cursor: 'pointer', position: 'relative' }}
+                  >
+                    <img
+                      src={dive.imageUrl}
+                      alt={dive.title}
+                      className="deep-card-img"
+                    />
+                    {!isLoggedIn && (
+                      <div style={{ position: 'absolute', top: '12px', right: '12px', background: 'rgba(185, 0, 20, 0.95)', color: '#fff', fontSize: '9.5px', fontWeight: 800, padding: '3px 8px', borderRadius: '3px', display: 'flex', alignItems: 'center', gap: '4px', zIndex: 10 }}>
+                        <Lock size={11} />
+                        <span>{t("MEMBER EXCLUSIVE")}</span>
+                      </div>
+                    )}
+                    <div className="deep-card-content">
+                      <div className="category-tag" style={{ fontSize: '10px' }}>
+                        <span>{t(dive.category)}</span>
+                      </div>
+                      <h3 style={{ fontFamily: 'var(--font-serif)', fontSize: '20px', fontWeight: 800, color: '#ffffff', marginBottom: '6px' }}>
+                        {t(dive.title)}
+                      </h3>
+                      <p style={{ fontSize: '13px', color: '#cbd5e1', lineHeight: 1.45, marginBottom: '10px' }}>
+                        {t(dive.subtitle)}
+                      </p>
+                      <div style={{ fontSize: '11px', color: '#34d399', fontWeight: 700 }}>
+                        {t("By")} {dive.author ? t(dive.author) : ''}
+                      </div>
+                    </div>
+                  </article>
+                ))}
+              </div>
+
+              {/* Placed Templates in Deep Dives (Bottom / Below Ad) */}
+              {getInstancesForRegion('deep_dives', 'below_ad').map((inst, idx) => (
+                <React.Fragment key={inst.instanceId || `deep-bot-${idx}`}>
+                  {renderFrontendHeroTemplate(inst, idx, 'deep_dives')}
+                </React.Fragment>
               ))}
             </div>
           </section>
-        );
-      })}
+        )}
 
-      {/* 5.3 Special Investigations & Deep Dives (Dark Feature Box) */}
-      {getZoneConfig('zone-deep-dives')?.enabled !== false && (
-        <section className="deep-dives-banner">
-          <div className="deep-dives-container">
-            {renderLiveAd('deep-dives-top')}
+        {/* =========================================================================
+          ZONE 6: UTILITY & FINANCIAL ENGAGEMENT MODULES (ET INSPIRED)
+          ========================================================================= */}
+        <div className="utility-modules-container" dir={isRtl ? 'rtl' : 'ltr'} suppressHydrationWarning>
+          {/* 6.1 Interactive Currency Converter */}
+          <div className="utility-card-box" suppressHydrationWarning>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', borderBottom: '1px solid var(--border-color)', paddingBottom: '8px', marginBottom: '12px' }}>
+              <DollarSign size={18} color="#b90014" />
+              <span style={{ fontFamily: 'var(--font-serif)', fontSize: '15px', fontWeight: 900, color: 'var(--text-primary)' }}>
+                {t("CURRENCY CONVERTER")}
+              </span>
+            </div>
 
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px' }}>
-              <div>
-                <div className="category-tag" style={{ color: '#34d399' }}>
-                  <Sparkles size={12} />
-                  <span>{t("INVESTIGATIVE JOURNALISM")}</span>
-                </div>
-                <h2 style={{ fontFamily: 'var(--font-serif)', fontSize: '28px', fontWeight: 900, color: '#ffffff', margin: '4px 0' }}>
-                  {t("Deep Dives 💎")}
-                </h2>
-              </div>
+            <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '8px' }}>
+              {t("Instant conversion at live institutional interbank rates:")}
+            </div>
 
-              <button 
-                type="button"
+            <div className="converter-row" suppressHydrationWarning>
+              <input
+                type="number"
+                value={convAmount}
+                onChange={(e) => setConvAmount(e.target.value)}
+                className="converter-input"
+                placeholder="Amount"
                 suppressHydrationWarning
-                onClick={() => {
-                  if (!isLoggedIn) setIsLoginOpen(true);
-                }}
-                style={{ background: 'none', border: 'none', color: '#34d399', fontWeight: 800, fontSize: '13px', display: 'flex', alignItems: 'center', gap: '4px', cursor: 'pointer' }}
+              />
+              <select
+                value={convFrom}
+                onChange={(e) => setConvFrom(e.target.value)}
+                className="converter-select"
+                suppressHydrationWarning
               >
-                {t("Explore Archive")} {!isLoggedIn && <Lock size={13} />} <ArrowUpRight size={16} />
+                <option value="USD">USD ($)</option>
+                <option value="EUR">EUR (€)</option>
+                <option value="GBP">GBP (£)</option>
+                <option value="AED">AED (د.إ)</option>
+                <option value="INR">INR (₹)</option>
+                <option value="JPY">JPY (¥)</option>
+              </select>
+              <span style={{ fontWeight: 800, color: 'var(--text-muted)' }}>TO</span>
+              <select
+                value={convTo}
+                onChange={(e) => setConvTo(e.target.value)}
+                className="converter-select"
+                suppressHydrationWarning
+              >
+                <option value="INR">INR (₹)</option>
+                <option value="USD">USD ($)</option>
+                <option value="EUR">EUR (€)</option>
+                <option value="GBP">GBP (£)</option>
+                <option value="AED">AED (د.إ)</option>
+              </select>
+              <button
+                type="button"
+                onClick={handleCurrencyConvert}
+                className="converter-convert-btn"
+                suppressHydrationWarning
+              >
+                {t("CONVERT")}
               </button>
             </div>
 
-            <div className="deep-dives-grid">
-              {activeDeepDives.map((dive) => (
-                <article 
-                  key={dive.id} 
-                  className="deep-card"
-                  onClick={() => setSelectedArticle(dive)}
-                  style={{ cursor: 'pointer', position: 'relative' }}
+            <div style={{ background: 'var(--bg-secondary)', padding: '10px 14px', borderRadius: '4px', marginTop: '10px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }} suppressHydrationWarning>
+              <span style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-muted)' }}>{t("Estimated Value:")}</span>
+              <span style={{ fontFamily: 'var(--font-mono)', fontSize: '16px', fontWeight: 900, color: '#059669' }}>
+                {convResult} {convTo}
+              </span>
+            </div>
+          </div>
+
+          {/* 6.2 Top Mutual Funds Benchmark Performance Table */}
+          <div className="utility-card-box" suppressHydrationWarning>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid var(--border-color)', paddingBottom: '8px', marginBottom: '10px' }}>
+              <span style={{ fontFamily: 'var(--font-serif)', fontSize: '15px', fontWeight: 900, color: 'var(--text-primary)' }}>
+                {t("TOP MUTUAL FUNDS PERFORMANCE")}
+              </span>
+              <span style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 700 }}>
+                {t("Return Horizon: 3Y")}
+              </span>
+            </div>
+
+            <div className="mf-tabs-bar" suppressHydrationWarning>
+              {['Equity', 'Debt', 'Hybrid', 'Featured'].map(tab => (
+                <button
+                  key={tab}
+                  type="button"
+                  onClick={() => setActiveMfTab(tab)}
+                  className={`mf-tab-btn ${activeMfTab === tab ? 'active' : ''}`}
+                  suppressHydrationWarning
                 >
-                  <img 
-                    src={dive.imageUrl} 
-                    alt={dive.title} 
-                    className="deep-card-img" 
-                  />
-                  {!isLoggedIn && (
-                    <div style={{ position: 'absolute', top: '12px', right: '12px', background: 'rgba(185, 0, 20, 0.95)', color: '#fff', fontSize: '9.5px', fontWeight: 800, padding: '3px 8px', borderRadius: '3px', display: 'flex', alignItems: 'center', gap: '4px', zIndex: 10 }}>
-                      <Lock size={11} />
-                      <span>{t("MEMBER EXCLUSIVE")}</span>
-                    </div>
-                  )}
-                  <div className="deep-card-content">
-                    <div className="category-tag" style={{ fontSize: '10px' }}>
-                      <span>{t(dive.category)}</span>
-                    </div>
-                    <h3 style={{ fontFamily: 'var(--font-serif)', fontSize: '20px', fontWeight: 800, color: '#ffffff', marginBottom: '6px' }}>
-                      {t(dive.title)}
-                    </h3>
-                    <p style={{ fontSize: '13px', color: '#cbd5e1', lineHeight: 1.45, marginBottom: '10px' }}>
-                      {t(dive.subtitle)}
-                    </p>
-                    <div style={{ fontSize: '11px', color: '#34d399', fontWeight: 700 }}>
-                      {t("By")} {dive.author ? t(dive.author) : ''}
-                    </div>
-                  </div>
-                </article>
+                  {t(tab.toUpperCase())}
+                </button>
+              ))}
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column' }}>
+              {[
+                { name: "Invesco India Largecap Fund", return3Y: "+15.92%", size: "₹1,931 Cr", stars: "★★★★★" },
+                { name: "WhiteOak Capital Large Cap Fund", return3Y: "+15.43%", size: "₹1,259 Cr", stars: "★★★★☆" },
+                { name: "Bank of India Large Cap Growth", return3Y: "+15.06%", size: "₹223 Cr", stars: "★★★★★" },
+                { name: "Quant Large Cap Direct Fund", return3Y: "+14.88%", size: "₹840 Cr", stars: "★★★★☆" }
+              ].map((fund, fIdx) => (
+                <div key={`fund-${fIdx}`} className="mf-row-item">
+                  <span className="mf-fund-name">{fund.name}</span>
+                  <span className="mf-return-val">{fund.return3Y} (3Y)</span>
+                  <span style={{ color: 'var(--text-muted)' }}>{fund.size}</span>
+                  <span className="mf-stars">{fund.stars}</span>
+                </div>
               ))}
             </div>
           </div>
-        </section>
-      )}
-
-      {/* =========================================================================
-          ZONE 6: UTILITY & FINANCIAL ENGAGEMENT MODULES (ET INSPIRED)
-          ========================================================================= */}
-      <div className="utility-modules-container" dir={isRtl ? 'rtl' : 'ltr'} suppressHydrationWarning>
-        {/* 6.1 Interactive Currency Converter */}
-        <div className="utility-card-box" suppressHydrationWarning>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', borderBottom: '1px solid var(--border-color)', paddingBottom: '8px', marginBottom: '12px' }}>
-            <DollarSign size={18} color="#b90014" />
-            <span style={{ fontFamily: 'var(--font-serif)', fontSize: '15px', fontWeight: 900, color: 'var(--text-primary)' }}>
-              {t("CURRENCY CONVERTER")}
-            </span>
-          </div>
-
-          <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '8px' }}>
-            {t("Instant conversion at live institutional interbank rates:")}
-          </div>
-
-          <div className="converter-row" suppressHydrationWarning>
-            <input 
-              type="number"
-              value={convAmount}
-              onChange={(e) => setConvAmount(e.target.value)}
-              className="converter-input"
-              placeholder="Amount"
-              suppressHydrationWarning
-            />
-            <select 
-              value={convFrom} 
-              onChange={(e) => setConvFrom(e.target.value)}
-              className="converter-select"
-              suppressHydrationWarning
-            >
-              <option value="USD">USD ($)</option>
-              <option value="EUR">EUR (€)</option>
-              <option value="GBP">GBP (£)</option>
-              <option value="AED">AED (د.إ)</option>
-              <option value="INR">INR (₹)</option>
-              <option value="JPY">JPY (¥)</option>
-            </select>
-            <span style={{ fontWeight: 800, color: 'var(--text-muted)' }}>TO</span>
-            <select 
-              value={convTo} 
-              onChange={(e) => setConvTo(e.target.value)}
-              className="converter-select"
-              suppressHydrationWarning
-            >
-              <option value="INR">INR (₹)</option>
-              <option value="USD">USD ($)</option>
-              <option value="EUR">EUR (€)</option>
-              <option value="GBP">GBP (£)</option>
-              <option value="AED">AED (د.إ)</option>
-            </select>
-            <button 
-              type="button"
-              onClick={handleCurrencyConvert}
-              className="converter-convert-btn"
-              suppressHydrationWarning
-            >
-              {t("CONVERT")}
-            </button>
-          </div>
-
-          <div style={{ background: 'var(--bg-secondary)', padding: '10px 14px', borderRadius: '4px', marginTop: '10px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }} suppressHydrationWarning>
-            <span style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-muted)' }}>{t("Estimated Value:")}</span>
-            <span style={{ fontFamily: 'var(--font-mono)', fontSize: '16px', fontWeight: 900, color: '#059669' }}>
-              {convResult} {convTo}
-            </span>
-          </div>
         </div>
 
-        {/* 6.2 Top Mutual Funds Benchmark Performance Table */}
-        <div className="utility-card-box" suppressHydrationWarning>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid var(--border-color)', paddingBottom: '8px', marginBottom: '10px' }}>
-            <span style={{ fontFamily: 'var(--font-serif)', fontSize: '15px', fontWeight: 900, color: 'var(--text-primary)' }}>
-              {t("TOP MUTUAL FUNDS PERFORMANCE")}
+        {/* 6.3 Trending Terms Pill Cloud */}
+        <div className="trending-terms-wrapper" dir={isRtl ? 'rtl' : 'ltr'}>
+          <span className="trending-terms-label">{t("TOP TRENDING TOPICS:")}</span>
+          {[
+            "Union Budget 2026",
+            "Semiconductor Fab Mission",
+            "RBI Monetary Policy",
+            "ISRO Gaganyaan Mission",
+            "Green Hydrogen Hub",
+            "Sensex 85,000 Rally",
+            "AI Compute Clusters",
+            "Sovereign Gold Bonds"
+          ].map((term, tIdx) => (
+            <span key={`term-${tIdx}`} className="trending-term-pill">
+              #{t(term)}
             </span>
-            <span style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 700 }}>
-              {t("Return Horizon: 3Y")}
-            </span>
-          </div>
-
-          <div className="mf-tabs-bar" suppressHydrationWarning>
-            {['Equity', 'Debt', 'Hybrid', 'Featured'].map(tab => (
-              <button 
-                key={tab}
-                type="button"
-                onClick={() => setActiveMfTab(tab)}
-                className={`mf-tab-btn ${activeMfTab === tab ? 'active' : ''}`}
-                suppressHydrationWarning
-              >
-                {t(tab.toUpperCase())}
-              </button>
-            ))}
-          </div>
-
-          <div style={{ display: 'flex', flexDirection: 'column' }}>
-            {[
-              { name: "Invesco India Largecap Fund", return3Y: "+15.92%", size: "₹1,931 Cr", stars: "★★★★★" },
-              { name: "WhiteOak Capital Large Cap Fund", return3Y: "+15.43%", size: "₹1,259 Cr", stars: "★★★★☆" },
-              { name: "Bank of India Large Cap Growth", return3Y: "+15.06%", size: "₹223 Cr", stars: "★★★★★" },
-              { name: "Quant Large Cap Direct Fund", return3Y: "+14.88%", size: "₹840 Cr", stars: "★★★★☆" }
-            ].map((fund, fIdx) => (
-              <div key={`fund-${fIdx}`} className="mf-row-item">
-                <span className="mf-fund-name">{fund.name}</span>
-                <span className="mf-return-val">{fund.return3Y} (3Y)</span>
-                <span style={{ color: 'var(--text-muted)' }}>{fund.size}</span>
-                <span className="mf-stars">{fund.stars}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      {/* 6.3 Trending Terms Pill Cloud */}
-      <div className="trending-terms-wrapper" dir={isRtl ? 'rtl' : 'ltr'}>
-        <span className="trending-terms-label">{t("TOP TRENDING TOPICS:")}</span>
-        {[
-          "Union Budget 2026",
-          "Semiconductor Fab Mission",
-          "RBI Monetary Policy",
-          "ISRO Gaganyaan Mission",
-          "Green Hydrogen Hub",
-          "Sensex 85,000 Rally",
-          "AI Compute Clusters",
-          "Sovereign Gold Bonds"
-        ].map((term, tIdx) => (
-          <span key={`term-${tIdx}`} className="trending-term-pill">
-            #{t(term)}
-          </span>
-        ))}
-      </div>
-
-      {/* =========================================================================
-          ZONE 7: "FOR YOU" CURATED EDITORIAL BOTTOM SHELF (THE HINDU STYLE)
-          ========================================================================= */}
-      <section className="for-you-shelf-section" dir={isRtl ? 'rtl' : 'ltr'}>
-        <div className="section-ribbon-header">
-          <div className="section-ribbon-title">
-            <span className="bar" />
-            <span>{t("Curated For You")}</span>
-          </div>
-          <span style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 700 }}>
-            {t("RECOMMENDED READING")}
-          </span>
-        </div>
-
-        <div className="department-grid-4col">
-          {forYouStories.map((art, idx) => (
-            <article key={`foryou-${art.id || idx}`} className="dept-card" onClick={() => handleOpenArticle(art)}>
-              <div style={{ width: '100%', height: '150px', borderRadius: '4px', overflow: 'hidden', background: '#000', marginBottom: '8px' }}>
-                <ArticleMediaCover
-                  article={art}
-                  style={{ width: '100%', height: '100%' }}
-                  autoPlay={true}
-                  muted={true}
-                  loop={true}
-                  controls={false}
-                  playsInline={true}
-                />
-              </div>
-              <span className="news-kicker" style={{ fontSize: '9.5px' }}>{art.category || 'FEATURE'}</span>
-              <h3 className="dept-card-title">{art.title}</h3>
-              <div className="dept-card-byline">{art.author || 'Desk Correspondent'}</div>
-            </article>
           ))}
         </div>
-      </section>
+
+        {/* =========================================================================
+          ZONE 7: "FOR YOU" CURATED EDITORIAL BOTTOM SHELF (THE HINDU STYLE)
+          ========================================================================= */}
+        <section className="for-you-shelf-section" dir={isRtl ? 'rtl' : 'ltr'}>
+          <div className="section-ribbon-header">
+            <div className="section-ribbon-title">
+              <span className="bar" />
+              <span>{t("Curated For You")}</span>
+            </div>
+            <span style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 700 }}>
+              {t("RECOMMENDED READING")}
+            </span>
+          </div>
+
+          <div className="department-grid-4col">
+            {forYouStories.map((art, idx) => (
+              <article key={`foryou-${art.id || idx}`} className="dept-card" onClick={() => handleOpenArticle(art)}>
+                <div style={{ width: '100%', height: '150px', borderRadius: '4px', overflow: 'hidden', background: '#000', marginBottom: '8px' }}>
+                  <ArticleMediaCover
+                    article={art}
+                    style={{ width: '100%', height: '100%' }}
+                    autoPlay={true}
+                    muted={true}
+                    loop={true}
+                    controls={false}
+                    playsInline={true}
+                  />
+                </div>
+                <span className="news-kicker" style={{ fontSize: '9.5px' }}>{art.category || 'FEATURE'}</span>
+                <h3 className="dept-card-title">{art.title}</h3>
+                <div className="dept-card-byline">{art.author || 'Desk Correspondent'}</div>
+              </article>
+            ))}
+          </div>
+        </section>
       </div>
 
       {/* =========================================================================
           ZONE 8: MODALS & OVERLAYS
           ========================================================================= */}
       {selectedArticle && (
-        <ArticleModal 
-          article={selectedArticle} 
-          onClose={() => setSelectedArticle(null)} 
+        <ArticleModal
+          article={selectedArticle}
+          onClose={() => setSelectedArticle(null)}
           isLoggedIn={isLoggedIn}
           onOpenLogin={() => {
             setSelectedArticle(null);
@@ -1799,7 +2029,7 @@ export default function HomePage() {
       )}
 
       {isLoginOpen && (
-        <LoginModal 
+        <LoginModal
           onClose={() => setIsLoginOpen(false)}
           onLoginSuccess={() => {
             setIsLoggedIn(true);
