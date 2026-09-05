@@ -101,9 +101,19 @@ export const ArticleModal = ({ article, onClose, isLoggedIn, onOpenLogin, onLogi
 
   const activeArticle = useMemo(() => {
     if (!effectiveSourceArticle || localLanguage === 'en') return effectiveSourceArticle || {};
-    if (translatedArticle && translatedArticle._translatedLang === localLanguage) return translatedArticle;
+    if (translatedArticle && translatedArticle._translatedLang === localLanguage) {
+      if (translatedArticle._contentTranslated || !effectiveSourceArticle.content) {
+        return translatedArticle;
+      }
+      return { 
+        ...effectiveSourceArticle, 
+        ...translatedArticle, 
+        content: translatedArticle.content || effectiveSourceArticle.content 
+      };
+    }
     return getSynchronousArticle(effectiveSourceArticle, localLanguage);
   }, [effectiveSourceArticle, localLanguage, translatedArticle, getSynchronousArticle]);
+
 
   const [zoomLevel, setZoomLevel] = useState(1.0); // 0.7 to 1.8 document zoom scale
   const [isPlayingAudio, setIsPlayingAudio] = useState(false);

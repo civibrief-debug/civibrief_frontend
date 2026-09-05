@@ -72,9 +72,19 @@ export default function ArticleDetailView({ id }) {
 
   const article = useMemo(() => {
     if (!rawArticle || language === 'en') return rawArticle;
-    if (translatedArticle && translatedArticle._translatedLang === language) return translatedArticle;
+    if (translatedArticle && translatedArticle._translatedLang === language) {
+      if (translatedArticle._contentTranslated || !rawArticle.content) {
+        return translatedArticle;
+      }
+      return { 
+        ...rawArticle, 
+        ...translatedArticle, 
+        content: translatedArticle.content || rawArticle.content 
+      };
+    }
     return getSynchronousArticle(rawArticle, language);
   }, [rawArticle, language, translatedArticle, getSynchronousArticle]);
+
 
   const toggleLike = () => {
     if (liked) {

@@ -36,13 +36,13 @@ const ARTICLE_CACHE = new Map();
 const PENDING_TRANSLATIONS = new Set();
 const PENDING_ARTICLE_TRANSLATIONS = new Set();
 
-const CACHE_KEY = 'daily_brief_article_cache_v8';
+const CACHE_KEY = 'daily_brief_article_cache_v9';
 
 // Hydrate ARTICLE_CACHE from localStorage & sessionStorage on startup for 0ms transitions
 if (typeof window !== 'undefined') {
   try {
-    // Purge deprecated caches that may contain untranslated fallbacks
-    ['daily_brief_article_cache_v4', 'daily_brief_article_cache_v5'].forEach(k => {
+    // Purge deprecated caches that may contain untranslated fallbacks or poisoned content
+    ['daily_brief_article_cache_v4', 'daily_brief_article_cache_v5', 'daily_brief_article_cache_v8'].forEach(k => {
       try { localStorage.removeItem(k); sessionStorage.removeItem(k); } catch(e){}
     });
 
@@ -141,60 +141,6 @@ export const TranslationProvider = ({ children }) => {
   }, [language, version]);
 
   /**
-   * Universal Synchronous Article Translator (0.00ms latency)
-   * Resolves instantly from ARTICLE_CACHE or static dictionary on initial render tick.
-   */
-  const getSynchronousArticle = useCallback((article, targetLang = language) => {
-    if (!article || targetLang === 'en') return article;
-
-    const origTitle = (article.originalTitle || article.title || '').trim();
-    const cacheKey = `${article.id || origTitle}_${targetLang}`;
-    const cached = ARTICLE_CACHE.get(cacheKey);
-    if (cached && cached._translatedLang === targetLang && cached._fullyTranslated) {
-      if (!origTitle || cached.title !== origTitle) {
-        return cached;
-      }
-    }
-
-    // Resolve synchronously from pre-compiled static dictionary and memory cache
-    const staticTranslated = getSynchronousTranslatedArticle(article, targetLang);
-
-    // If dynamic article not yet fully translated in background, trigger async worker
-    const isStillUntranslated = !staticTranslated._fullyTranslated || (origTitle && staticTranslated.title === origTitle);
-    if (isStillUntranslated) {
-      if (!PENDING_ARTICLE_TRANSLATIONS.has(cacheKey)) {
-        PENDING_ARTICLE_TRANSLATIONS.add(cacheKey);
-        translateArticle(article, targetLang)
-          .then(fullTranslated => {
-            if (fullTranslated && fullTranslated._fullyTranslated) {
-              ARTICLE_CACHE.set(cacheKey, fullTranslated);
-              persistArticleCache();
-              setVersion(v => v + 1);
-            }
-          })
-          .catch(() => {})
-          .finally(() => {
-            PENDING_ARTICLE_TRANSLATIONS.delete(cacheKey);
-          });
-      }
-    } else {
-      ARTICLE_CACHE.set(cacheKey, staticTranslated);
-    }
-
-    return staticTranslated;
-  }, [language, version]);
-
-  /**
-   * Universal Synchronous Article List Translator (0.00ms latency)
-   */
-  const getSynchronousArticleList = useCallback((articles, targetLang = language) => {
-    if (!articles || !Array.isArray(articles) || targetLang === 'en') {
-      return articles || [];
-    }
-    return articles.map(a => getSynchronousArticle(a, targetLang));
-  }, [getSynchronousArticle, language, version]);
-
-  /**
    * Translates a single article (including body content) with 0-1ms Cache Resolution
    */
   const translateArticle = useCallback(async (article, targetLang) => {
@@ -203,9 +149,19 @@ export const TranslationProvider = ({ children }) => {
     const origTitle = (article.originalTitle || article.title || '').trim();
     const cacheKey = `${article.id || origTitle}_${targetLang}`;
     const cached = ARTICLE_CACHE.get(cacheKey);
-    if (cached && cached._translatedLang === targetLang && cached._fullyTranslated) {
-      if (!origTitle || cached.title !== origTitle) {
-        return cached;
+
+    const hasContent = typeof article.content === 'string' && article.content.trim().length > 0;
+    const hasContentTranslated = !!(cached && cached._contentTranslated && cached.content && cached.content !== article.content);
+
+    if (cached && cached._translatedLang === targetLang) {
+      if (hasContent && hasContentTranslated) {
+        if (!origTitle || cached.title !== origTitle) {
+          return cached;
+        }
+      } else if (!hasContent && (cached._metaTranslated || cached._fullyTranslated)) {
+        if (!origTitle || cached.title !== origTitle) {
+          return cached;
+        }
       }
     }
 
@@ -238,13 +194,16 @@ export const TranslationProvider = ({ children }) => {
               ...data,
               originalTitle: origTitle,
               _translatedLang: targetLang,
-              _fullyTranslated: !!(data.title && (!origTitle || data.title !== origTitle)),
-              _contentTranslated: true
+              _metaTranslated: true,
+              _contentTranslated: !!(data.content && typeof data.content === 'string' && data.content.trim().length > 0 && data.content !== article.content),
+              _fullyTranslated: true
             };
             if (data.title) setCachedTranslation(targetLang, origTitle, data.title);
             if (data.summary) setCachedTranslation(targetLang, article.summary, data.summary);
             if (data.subtitle) setCachedTranslation(targetLang, article.subtitle, data.subtitle);
             if (data.kicker) setCachedTranslation(targetLang, article.kicker, data.kicker);
+            if (data.content) setCachedTranslation(targetLang, article.content, data.content);
+
             ARTICLE_CACHE.set(cacheKey, translated);
             persistArticleCache();
             return translated;
@@ -258,15 +217,16 @@ export const TranslationProvider = ({ children }) => {
       // Parallel batch translation of metadata and full HTML/plain content
       const [translatedMeta, translatedContent] = await Promise.all([
         translateBatchTexts(textArray, targetLang),
-        article.content ? translateHtmlContent(article.content, targetLang) : Promise.resolve('')
+        hasContent ? translateHtmlContent(article.content, targetLang) : Promise.resolve('')
       ]);
 
       const translated = { 
         ...article, 
         originalTitle: origTitle,
         _translatedLang: targetLang,
-        _fullyTranslated: true,
-        _contentTranslated: true
+        _metaTranslated: true,
+        _contentTranslated: !!(translatedContent && translatedContent !== article.content),
+        _fullyTranslated: true
       };
 
       keys.forEach((k, idx) => {
@@ -279,6 +239,9 @@ export const TranslationProvider = ({ children }) => {
       });
       if (translatedContent) {
         translated.content = translatedContent;
+        if (article.content) {
+          setCachedTranslation(targetLang, article.content, translatedContent);
+        }
       }
 
       ARTICLE_CACHE.set(cacheKey, translated);
@@ -291,6 +254,75 @@ export const TranslationProvider = ({ children }) => {
   }, []);
 
   /**
+   * Universal Synchronous Article Translator (0.00ms latency)
+   * Resolves instantly from ARTICLE_CACHE or static dictionary on initial render tick.
+   */
+  const getSynchronousArticle = useCallback((article, targetLang = language) => {
+    if (!article || targetLang === 'en') return article;
+
+    const origTitle = (article.originalTitle || article.title || '').trim();
+    const cacheKey = `${article.id || origTitle}_${targetLang}`;
+    const cached = ARTICLE_CACHE.get(cacheKey);
+    const needsContent = !!(article.content && typeof article.content === 'string' && article.content.trim().length > 0);
+    const hasContentTranslated = !!(cached && cached._contentTranslated && cached.content && cached.content !== article.content);
+
+    // If fully translated (including body content if present), return cached instantly
+    if (cached && cached._translatedLang === targetLang) {
+      if ((!needsContent && (cached._metaTranslated || cached._fullyTranslated)) || (needsContent && hasContentTranslated)) {
+        if (!origTitle || cached.title !== origTitle) {
+          return cached;
+        }
+      }
+    }
+
+    // Resolve synchronously from pre-compiled static dictionary and memory cache
+    const staticTranslated = getSynchronousTranslatedArticle(article, targetLang);
+
+    // If dynamic article not yet fully translated in background, trigger async worker
+    const isStillUntranslated = needsContent 
+      ? (!cached || !cached._contentTranslated)
+      : (!staticTranslated._fullyTranslated || (origTitle && staticTranslated.title === origTitle));
+
+    if (isStillUntranslated) {
+      if (!PENDING_ARTICLE_TRANSLATIONS.has(cacheKey)) {
+        PENDING_ARTICLE_TRANSLATIONS.add(cacheKey);
+        translateArticle(article, targetLang)
+          .then(fullTranslated => {
+            if (fullTranslated && (fullTranslated._fullyTranslated || fullTranslated._contentTranslated)) {
+              ARTICLE_CACHE.set(cacheKey, fullTranslated);
+              persistArticleCache();
+              setVersion(v => v + 1);
+            }
+          })
+          .catch(() => {})
+          .finally(() => {
+            PENDING_ARTICLE_TRANSLATIONS.delete(cacheKey);
+          });
+      }
+    } else if (staticTranslated._fullyTranslated) {
+      ARTICLE_CACHE.set(cacheKey, staticTranslated);
+    }
+
+    // If cached has metadata translated, return it merged with current content as interim display
+    if (cached && cached._translatedLang === targetLang && cached._metaTranslated) {
+      return { ...article, ...cached, content: cached._contentTranslated ? cached.content : article.content };
+    }
+
+    return staticTranslated;
+  }, [language, version, translateArticle]);
+
+  /**
+   * Universal Synchronous Article List Translator (0.00ms latency)
+   */
+  const getSynchronousArticleList = useCallback((articles, targetLang = language) => {
+    if (!articles || !Array.isArray(articles) || targetLang === 'en') {
+      return articles || [];
+    }
+    return articles.map(a => getSynchronousArticle(a, targetLang));
+  }, [getSynchronousArticle, language, version]);
+
+
+  /**
    * High-Performance Single-Pass Batch Translation for Entire News Feed
    */
   const translateMultipleArticles = useCallback(async (articles, targetLang) => {
@@ -301,7 +333,7 @@ export const TranslationProvider = ({ children }) => {
       const origTitle = (art.originalTitle || art.title || '').trim();
       const cacheKey = `${art.id || origTitle}_${targetLang}`;
       const cached = ARTICLE_CACHE.get(cacheKey);
-      if (cached && cached._translatedLang === targetLang && cached._fullyTranslated && (!origTitle || cached.title !== origTitle)) {
+      if (cached && cached._translatedLang === targetLang && (cached._metaTranslated || cached._fullyTranslated) && (!origTitle || cached.title !== origTitle)) {
         return cached;
       }
       allCached = false;
@@ -322,7 +354,7 @@ export const TranslationProvider = ({ children }) => {
         const origTitle = (art.originalTitle || art.title || '').trim();
         const cacheKey = `${art.id || origTitle}_${targetLang}`;
         const cached = ARTICLE_CACHE.get(cacheKey);
-        if (!cached || cached._translatedLang !== targetLang || !cached._fullyTranslated || (origTitle && cached.title === origTitle)) {
+        if (!cached || cached._translatedLang !== targetLang || (!cached._metaTranslated && !cached._fullyTranslated) || (origTitle && cached.title === origTitle)) {
           keys.forEach(k => {
             const val = art[k];
             if (val && typeof val === 'string' && val.trim()) {
@@ -351,7 +383,7 @@ export const TranslationProvider = ({ children }) => {
         const origTitle = (art.originalTitle || art.title || '').trim();
         const cacheKey = `${art.id || origTitle}_${targetLang}`;
         const cached = ARTICLE_CACHE.get(cacheKey);
-        if (cached && cached._translatedLang === targetLang && cached._fullyTranslated && (!origTitle || cached.title !== origTitle)) {
+        if (cached && cached._translatedLang === targetLang && (cached._metaTranslated || cached._fullyTranslated) && (!origTitle || cached.title !== origTitle)) {
           return cached;
         }
 
@@ -359,6 +391,8 @@ export const TranslationProvider = ({ children }) => {
           ...art,
           originalTitle: origTitle,
           _translatedLang: targetLang,
+          _metaTranslated: false,
+          _contentTranslated: false,
           _fullyTranslated: false
         };
 
@@ -375,7 +409,7 @@ export const TranslationProvider = ({ children }) => {
         });
 
         if (hasTranslatedField && (!origTitle || translatedArt.title !== origTitle)) {
-          translatedArt._fullyTranslated = true;
+          translatedArt._metaTranslated = true;
         }
 
         ARTICLE_CACHE.set(cacheKey, translatedArt);
@@ -392,6 +426,7 @@ export const TranslationProvider = ({ children }) => {
       return articles;
     }
   }, []);
+
 
   /**
    * Batch Translate arbitrary array of strings
