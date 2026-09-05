@@ -29,15 +29,34 @@ export async function POST(req) {
 
     // Case 2: Single plain text
     if (typeof text === 'string' && text.trim()) {
+      const results = {};
+
+      // Test 1: MyMemory
       try {
-        const url = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=${targetLang}&dt=t&q=${encodeURIComponent(text)}`;
-        const gtxRes = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)' } });
-        const gtxStatus = gtxRes.status;
-        const gtxText = await gtxRes.text();
-        return NextResponse.json({ success: true, gtxStatus, gtxText: gtxText.slice(0, 300) });
-      } catch (err) {
-        return NextResponse.json({ success: false, error: err.message });
-      }
+        const mmUrl = `https://api.mymemory.translated.net/get?q=${encodeURIComponent(text)}&langpair=en|${targetLang}`;
+        const mmRes = await fetch(mmUrl);
+        const mmJson = await mmRes.json();
+        results.myMemory = { status: mmRes.status, text: mmJson?.responseData?.translatedText };
+      } catch (e) { results.myMemory = { error: e.message }; }
+
+      // Test 2: Google m web scraper
+      try {
+        const gmUrl = `https://translate.google.com/m?sl=auto&tl=${targetLang}&q=${encodeURIComponent(text)}`;
+        const gmRes = await fetch(gmUrl, { headers: { 'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 14_0 like Mac OS X)' } });
+        const gmHtml = await gmRes.text();
+        const match = gmHtml.match(/class="result-container">([^<]+)<\/div>/i);
+        results.googleM = { status: gmRes.status, text: match ? match[1] : null };
+      } catch (e) { results.googleM = { error: e.message }; }
+
+      // Test 3: Lingva mirror
+      try {
+        const lingvaUrl = `https://lingva.ml/api/v1/auto/${targetLang}/${encodeURIComponent(text)}`;
+        const lingvaRes = await fetch(lingvaUrl);
+        const lingvaJson = await lingvaRes.json();
+        results.lingva = { status: lingvaRes.status, text: lingvaJson?.translation };
+      } catch (e) { results.lingva = { error: e.message }; }
+
+      return NextResponse.json({ success: true, results });
     }
 
     // Case 3: Single article data
