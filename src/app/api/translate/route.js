@@ -29,8 +29,15 @@ export async function POST(req) {
 
     // Case 2: Single plain text
     if (typeof text === 'string' && text.trim()) {
-      const translated = await translatePlainText(text, targetLang);
-      return NextResponse.json({ success: true, data: translated });
+      try {
+        const url = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=${targetLang}&dt=t&q=${encodeURIComponent(text)}`;
+        const gtxRes = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)' } });
+        const gtxStatus = gtxRes.status;
+        const gtxText = await gtxRes.text();
+        return NextResponse.json({ success: true, gtxStatus, gtxText: gtxText.slice(0, 300) });
+      } catch (err) {
+        return NextResponse.json({ success: false, error: err.message });
+      }
     }
 
     // Case 3: Single article data
