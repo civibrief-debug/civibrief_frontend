@@ -38,6 +38,7 @@ import {
   MOST_READ as FALLBACK_MOST_READ,
   DEEP_DIVES as FALLBACK_DEEP_DIVES
 } from '../data/newsData';
+import { INITIAL_BOOTSTRAP_ARTICLES, INITIAL_BOOTSTRAP_SECTIONS } from '../data/initialCacheData';
 import { ArticleModal } from '../components/ArticleModal';
 import { LoginModal } from '../components/LoginModal';
 import { CrestLogo } from '../components/CrestLogo';
@@ -51,6 +52,20 @@ import { useTranslation } from '../context/TranslationContext';
 let globalMemoryArticles = null;
 let globalMemoryAds = null;
 let globalMemorySections = null;
+
+const getInitialArticles = () => {
+  if (globalMemoryArticles && globalMemoryArticles.length > 0) return globalMemoryArticles;
+  const local = getInstantCache('daily_brief_cached_articles_v3', null);
+  if (local && local.length > 0) return local;
+  return INITIAL_BOOTSTRAP_ARTICLES || [];
+};
+
+const getInitialSections = () => {
+  if (globalMemorySections && globalMemorySections.length > 0) return globalMemorySections;
+  const local = getInstantCache('daily_brief_cached_sections_v3', null);
+  if (local && local.length > 0) return local;
+  return INITIAL_BOOTSTRAP_SECTIONS || [];
+};
 
 const EDITORIAL_OPINION_STATIC = {
   title: "The Architecture of Sovereign Autonomy in an Era of Multipolar Fractures",
@@ -143,7 +158,7 @@ export const matchesInstanceToRegion = (inst, regionId) => {
 };
 
 export default function HomePage() {
-  const [dbArticles, setDbArticles] = useState([]);
+  const [dbArticles, setDbArticles] = useState(getInitialArticles);
   const [translatedArticles, setTranslatedArticles] = useState(null);
   const [translatedDeepDives, setTranslatedDeepDives] = useState(null);
   const [translatedBreakingNews, setTranslatedBreakingNews] = useState(null);
@@ -165,8 +180,11 @@ export default function HomePage() {
     isTranslating
   } = useTranslation();
 
-  const [homepageAds, setHomepageAds] = useState([]);
-  const [homepageArticleSections, setHomepageArticleSections] = useState([]);
+  const [homepageAds, setHomepageAds] = useState(() => {
+    if (globalMemoryAds && globalMemoryAds.length > 0) return globalMemoryAds;
+    return getInstantCache('daily_brief_cached_ads_v3', []);
+  });
+  const [homepageArticleSections, setHomepageArticleSections] = useState(getInitialSections);
   const [activeSlide, setActiveSlide] = useState(0);
   const [slideIndices, setSlideIndices] = useState({});
 

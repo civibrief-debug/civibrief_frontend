@@ -5,9 +5,18 @@ export const runtime = 'edge';
 
 function formatArticle(r) {
   if (!r) return null;
+  const isMakeMoney = Boolean(
+    (r.title && r.title.toLowerCase().includes('make money in one day')) ||
+    r.id === 'story-1787712591702-sec' ||
+    r.id === 'art-1787402824300' ||
+    (r.videoUrl && (r.videoUrl.includes('6197175') || r.videoUrl.includes('make-money-cover')))
+  );
+
   return {
     ...r,
-    coverMediaType: r.coverMediaType || (r.videoUrl ? 'video' : 'image'),
+    coverMediaType: isMakeMoney ? 'video' : (r.coverMediaType || (r.videoUrl ? 'video' : 'image')),
+    videoUrl: isMakeMoney ? '/videos/make-money-cover.mp4' : r.videoUrl,
+    imageUrl: isMakeMoney ? '/videos/make-money-poster.jpg' : r.imageUrl,
     isHero: Boolean(r.isHero),
     isEditorsPick: Boolean(r.isEditorsPick),
     isTrending: Boolean(r.isTrending),
@@ -49,7 +58,7 @@ export async function GET(req) {
     const formatted = (rows || []).map(formatArticle);
     return NextResponse.json(
       { success: true, data: formatted },
-      { headers: { 'Cache-Control': 'public, max-age=5, s-maxage=15, stale-while-revalidate=60' } }
+      { headers: { 'Cache-Control': 'public, max-age=60, s-maxage=300, stale-while-revalidate=86400' } }
     );
   } catch (err) {
     return NextResponse.json({ success: false, error: err?.message || 'Server error', data: [] }, { status: 500 });

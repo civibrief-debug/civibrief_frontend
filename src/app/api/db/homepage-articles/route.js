@@ -8,11 +8,35 @@ export async function GET() {
     await queryD1(`CREATE TABLE IF NOT EXISTS homepage_articles (id TEXT PRIMARY KEY, data TEXT, updated_at TEXT);`);
     const rows = await queryD1('SELECT data FROM homepage_articles WHERE id = "current_homepage_articles" LIMIT 1;');
     if (rows && rows.length > 0 && rows[0].data) {
-      const parsed = JSON.parse(rows[0].data);
+      let parsed = JSON.parse(rows[0].data);
       if (Array.isArray(parsed) && parsed.length > 0) {
+        parsed = parsed.map(sec => {
+          if (sec.mainStory && sec.mainStory.title && sec.mainStory.title.toLowerCase().includes('make money')) {
+            sec.mainStory.coverMediaType = 'video';
+            sec.mainStory.videoUrl = '/videos/make-money-cover.mp4';
+            sec.mainStory.imageUrl = '/videos/make-money-poster.jpg';
+            sec.mainStory.posterUrl = '/videos/make-money-poster.jpg';
+          }
+          if (Array.isArray(sec.stories)) {
+            sec.stories = sec.stories.map(st => {
+              if (st.title && st.title.toLowerCase().includes('make money')) {
+                return {
+                  ...st,
+                  coverMediaType: 'video',
+                  videoUrl: '/videos/make-money-cover.mp4',
+                  imageUrl: '/videos/make-money-poster.jpg',
+                  posterUrl: '/videos/make-money-poster.jpg'
+                };
+              }
+              return st;
+            });
+          }
+          return sec;
+        });
+
         return NextResponse.json(
           { success: true, data: parsed },
-          { headers: { 'Cache-Control': 'public, max-age=1, s-maxage=2, stale-while-revalidate=10' } }
+          { headers: { 'Cache-Control': 'public, max-age=60, s-maxage=300, stale-while-revalidate=86400' } }
         );
       }
     }

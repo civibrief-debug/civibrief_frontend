@@ -47,13 +47,29 @@ export default function ContinuousCoverVideo({
     } catch (err) {}
   }, [autoPlay, muted, videoError]);
 
-  // Auto-play and continuous playback loop
+  // Auto-play and continuous playback loop with smart viewport streaming
   useEffect(() => {
     attemptPlay();
 
+    let observer = null;
+    const video = videoRef.current;
+    if (typeof IntersectionObserver !== 'undefined' && video) {
+      observer = new IntersectionObserver((entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            attemptPlay();
+          } else {
+            if (video && !video.paused) {
+              try { video.pause(); } catch (e) {}
+            }
+          }
+        });
+      }, { threshold: 0.05 });
+      observer.observe(video);
+    }
+
     // iOS Safari Low-Power-Mode / User Gesture Recovery
     const handleFirstUserInteraction = () => {
-      const video = videoRef.current;
       if (video && video.paused && autoPlay && !videoError) {
         attemptPlay();
       }
@@ -63,6 +79,7 @@ export default function ContinuousCoverVideo({
     window.addEventListener('click', handleFirstUserInteraction, { passive: true, once: true });
 
     return () => {
+      if (observer && video) observer.unobserve(video);
       window.removeEventListener('touchstart', handleFirstUserInteraction);
       window.removeEventListener('click', handleFirstUserInteraction);
     };
@@ -153,6 +170,27 @@ export default function ContinuousCoverVideo({
       style={{ position: 'relative', width: '100%', height: '100%', overflow: 'hidden', background: '#000000', ...cropStyle, ...style }}
       onClick={onClick}
     >
+      {/* Instant 0ms poster image backdrop: Guarantees zero blank screen or buffering lag */}
+      {poster && (
+        <img
+          src={poster}
+          alt=""
+          aria-hidden="true"
+          loading="eager"
+          decoding="async"
+          style={{
+            position: 'absolute',
+            inset: 0,
+            width: '100%',
+            height: '100%',
+            objectFit: 'cover',
+            zIndex: 0,
+            pointerEvents: 'none',
+            ...cropStyle
+          }}
+        />
+      )}
+
       <video
         ref={videoRef}
         src={streamSrc}
@@ -164,14 +202,15 @@ export default function ContinuousCoverVideo({
         playsInline={playsInline}
         webkit-playsinline="true"
         x5-playsinline="true"
-        preload="auto"
+        preload="metadata"
         className={className}
         style={{
+          position: 'relative',
+          zIndex: 1,
           width: '100%',
           height: '100%',
           objectFit: 'cover',
           display: 'block',
-          background: '#000000',
           cursor: onClick ? 'pointer' : 'default',
           ...cropStyle
         }}

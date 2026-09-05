@@ -11,6 +11,15 @@ export async function GET(request) {
   }
 
   let cleanUrl = targetUrl.trim();
+  if (cleanUrl.includes('6197175') || cleanUrl.includes('make-money-cover')) {
+    return NextResponse.redirect(new URL('/videos/make-money-cover.mp4', request.url), {
+      status: 301,
+      headers: {
+        'Cache-Control': 'public, max-age=31536000, immutable'
+      }
+    });
+  }
+
   if (!cleanUrl.startsWith('http://') && !cleanUrl.startsWith('https://')) {
     cleanUrl = `https://${cleanUrl}`;
   }

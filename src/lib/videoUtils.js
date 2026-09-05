@@ -828,13 +828,15 @@ export function resolveArticleMedia(article, fallbackCategory = '') {
     article.id === 'story-1787712591702-sec' ||
     article.id === 'art-make-money-in-one-day' ||
     article.id === 'story-1787712591702-st1' ||
-    article.id === 'story-1787714283634-sub1'
+    article.id === 'story-1787714283634-sub1' ||
+    article.id === 'art-1787402824300' ||
+    (article.videoUrl && (article.videoUrl.includes('6197175') || article.videoUrl.includes('make-money-cover')))
   );
 
   // Extract raw fields
   const mediaTypeField = String(article.coverMediaType || (isMakeMoneyArticle ? 'video' : '') || article.media_type || article.mediaType || '').toLowerCase().trim();
-  const rawVideoUrl = (article.videoUrl || article.coverVideoUrl || article.originalCoverVideoUrl || article.video_url || article.embed_url || article.embedUrl || article.media_url || article.mediaUrl || (isMakeMoneyArticle ? 'https://www.pexels.com/download/video/6197175/' : '')).trim();
-  const rawImageUrl = (article.imageUrl || article.coverImageUrl || article.originalCoverImageUrl || article.image_url || article.thumbnail_url || article.thumbnailUrl || article.featured_image || (isMakeMoneyArticle ? 'https://images.unsplash.com/photo-1559526324-4b87b5e36e44?auto=format&fit=crop&w=1200&q=80' : '')).trim();
+  const rawVideoUrl = (isMakeMoneyArticle ? '/videos/make-money-cover.mp4' : (article.videoUrl || article.coverVideoUrl || article.originalCoverVideoUrl || article.video_url || article.embed_url || article.embedUrl || article.media_url || article.mediaUrl || '')).trim();
+  const rawImageUrl = (isMakeMoneyArticle ? '/videos/make-money-poster.jpg' : (article.imageUrl || article.coverImageUrl || article.originalCoverImageUrl || article.image_url || article.thumbnail_url || article.thumbnailUrl || article.featured_image || '')).trim();
 
   // Helper to extract clean video string
   const cleanVideo = (() => {
@@ -1163,7 +1165,20 @@ export function getContinuousVideoUrls(url) {
   }
 
   // Pexels Videos (Avoid attachment header download prompt, stream inline via proxy)
-  if (/pexels\.com/i.test(cleanUrl)) {
+  if (/pexels\.com/i.test(cleanUrl) || /6197175/i.test(cleanUrl) || /make-money-cover/i.test(cleanUrl)) {
+    if (cleanUrl.includes('6197175') || cleanUrl.includes('make-money-cover')) {
+      return {
+        streamUrl: '/videos/make-money-cover.mp4',
+        directStreamUrl: 'https://videos.pexels.com/video-files/6197175/6197175-sd_640_274_30fps.mp4',
+        proxyStreamUrl: '/videos/make-money-cover.mp4',
+        posterUrl: '/videos/make-money-poster.jpg',
+        embedUrl: '',
+        isGDrive: false,
+        isYouTube: false,
+        isVimeo: false,
+        isPexels: true
+      };
+    }
     return {
       streamUrl: `/api/proxy-video?url=${encodeURIComponent(cleanUrl)}`,
       directStreamUrl: cleanUrl,
