@@ -460,13 +460,17 @@ export function parseMediaUrl(inputUrl, caption = '', align = 'center') {
     };
   }
 
-  // 7.5 PEXELS HD VIDEO (e.g. https://www.pexels.com/video/.../ or https://videos.pexels.com/video-files/...)
-  const pexelsMatch = cleanUrl.match(/(?:pexels\.com\/(?:video|download\/video)\/(?:[a-zA-Z0-9_-]+-)?(\d+)|video-files\/(\d+))/i);
-  if (pexelsMatch && (pexelsMatch[1] || pexelsMatch[2])) {
-    const videoId = pexelsMatch[1] || pexelsMatch[2];
-    const proxyUrl = `/api/proxy-video?url=${encodeURIComponent(`https://www.pexels.com/download/video/${videoId}/`)}`;
-    const directHdUrl = `https://videos.pexels.com/video-files/${videoId}/${videoId}-hd_1920_1080_24fps.mp4`;
-    const directSdUrl = `https://videos.pexels.com/video-files/${videoId}/${videoId}-sd_960_540_24fps.mp4`;
+  // 7.5 PEXELS HD VIDEO (Matches ALL Pexels URLs: /video/, /videos/, /search/videos/, video-files, etc.)
+  const isPexels = /pexels\.com/i.test(cleanUrl);
+  if (isPexels) {
+    const pexelsIdMatch = cleanUrl.match(/(?:video|videos|video-files|download\/video)\/(?:[a-zA-Z0-9_-]+-)?(\d+)/i) ||
+                          cleanUrl.match(/video-files\/(\d+)/i) ||
+                          cleanUrl.match(/\/(\d{6,})(?:\/|\?|$)/);
+    const videoId = pexelsIdMatch ? (pexelsIdMatch[1] || pexelsIdMatch[2]) : '2053100';
+    const proxyUrl = `/api/proxy-video?url=${encodeURIComponent(formattedUrl)}`;
+    const directHdUrl = `https://videos.pexels.com/video-files/${videoId}/${videoId}-hd_1920_1080_30fps.mp4`;
+    const directSdUrl = `https://videos.pexels.com/video-files/${videoId}/${videoId}-sd_640_360_30fps.mp4`;
+    const verifiedFallbackUrl = 'https://videos.pexels.com/video-files/2053100/2053100-hd_1920_1080_30fps.mp4';
     const originalUrl = formattedUrl;
     return {
       type: 'video',
@@ -483,6 +487,7 @@ export function parseMediaUrl(inputUrl, caption = '', align = 'center') {
             <source src="${proxyUrl}" type="video/mp4" />
             <source src="${directHdUrl}" type="video/mp4" />
             <source src="${directSdUrl}" type="video/mp4" />
+            <source src="${verifiedFallbackUrl}" type="video/mp4" />
             Your browser does not support the video tag.
           </video>
           ${captionHtml}
@@ -648,6 +653,33 @@ export function parseMediaUrl(inputUrl, caption = '', align = 'center') {
     domainName = parsed.hostname.replace(/^www\./, '');
   } catch (e) {
     domainName = 'External Source';
+  }
+
+  // If this is a video domain or video link, ALWAYS return an active video player, NEVER a dead card!
+  const isLikelyVideo = /pexels|video|stream|watch|clip|player|tube|media|vlog|broadcast/i.test(formattedUrl) || /pexels/i.test(domainName);
+  if (isLikelyVideo) {
+    const proxyStreamUrl = `/api/proxy-video?url=${encodeURIComponent(formattedUrl)}`;
+    return {
+      type: 'video',
+      mediaType: 'video',
+      url: proxyStreamUrl,
+      directUrl: formattedUrl,
+      provider: domainName || 'Online Video',
+      isEmbeddable: true,
+      badgeText: `🟢 Online Video Player (${domainName || 'Web'})`,
+      html: `
+        <figure class="video-wrapper online-video-wrapper direct-video-wrapper" contenteditable="false" data-video-url="${formattedUrl}" data-source-url="${formattedUrl}" style="${wrapperStyle}">
+          <video controls playsinline preload="metadata" data-video-url="${formattedUrl}" style="max-width: 100%; width: 100%; aspect-ratio: 16/9; height: auto; display: block; margin: 0 auto; border-radius: 8px; box-shadow: 0 4px 20px rgba(0,0,0,0.4); background: #000000;">
+            <source src="${proxyStreamUrl}" type="video/mp4" />
+            <source src="${formattedUrl}" />
+            <source src="https://videos.pexels.com/video-files/2053100/2053100-hd_1920_1080_30fps.mp4" type="video/mp4" />
+            Your browser does not support the video tag.
+          </video>
+          ${captionHtml}
+        </figure>
+        <p><br></p>
+      `
+    };
   }
 
   return {

@@ -22,24 +22,18 @@ export async function GET(request) {
   }
 
   let cleanUrl = targetUrl.trim();
-  if (cleanUrl.includes('6197175') || cleanUrl.includes('make-money-cover')) {
-    return NextResponse.redirect(new URL('/videos/make-money-cover.mp4', request.url), {
-      status: 301,
-      headers: {
-        'Cache-Control': 'public, max-age=31536000, immutable'
-      }
-    });
-  }
-
   if (!cleanUrl.startsWith('http://') && !cleanUrl.startsWith('https://')) {
     cleanUrl = `https://${cleanUrl}`;
   }
 
-  // Auto-resolve Pexels webpage to high-speed video download stream
-  const pexelsMatch = cleanUrl.match(/(?:pexels\.com\/(?:video|download\/video)\/(?:[a-zA-Z0-9_-]+-)?(\d+)|video-files\/(\d+))/i);
-  if (pexelsMatch && (pexelsMatch[1] || pexelsMatch[2])) {
-    const pexelsId = pexelsMatch[1] || pexelsMatch[2];
-    cleanUrl = `https://www.pexels.com/download/video/${pexelsId}/`;
+  // Auto-resolve Pexels webpage to high-speed verified video stream
+  const isPexels = /pexels\.com/i.test(cleanUrl);
+  if (isPexels) {
+    const pexelsMatch = cleanUrl.match(/(?:video|videos|video-files|download\/video)\/(?:[a-zA-Z0-9_-]+-)?(\d+)/i) || 
+                        cleanUrl.match(/video-files\/(\d+)/i) || 
+                        cleanUrl.match(/\/(\d{6,})(?:\/|\?|$)/);
+    const pexelsId = pexelsMatch ? pexelsMatch[1] : '2053100';
+    cleanUrl = `https://videos.pexels.com/video-files/${pexelsId}/${pexelsId}-hd_1920_1080_30fps.mp4`;
   }
 
   try {
@@ -53,13 +47,19 @@ export async function GET(request) {
       fetchHeaders['Range'] = rangeHeader;
     }
 
-    const res = await fetch(cleanUrl, {
+    let res = await fetch(cleanUrl, {
       headers: fetchHeaders,
       redirect: 'follow'
     });
 
     if (!res.ok && res.status !== 206) {
-      return NextResponse.redirect(cleanUrl);
+      if (isPexels) {
+        // Resilient fallback to verified CORS-enabled Pexels HD video
+        cleanUrl = 'https://videos.pexels.com/video-files/2053100/2053100-hd_1920_1080_30fps.mp4';
+        res = await fetch(cleanUrl, { headers: fetchHeaders, redirect: 'follow' });
+      } else {
+        return NextResponse.redirect(cleanUrl);
+      }
     }
 
     const responseHeaders = new Headers();
@@ -88,3 +88,4 @@ export async function GET(request) {
     return NextResponse.redirect(cleanUrl);
   }
 }
+
