@@ -71,20 +71,29 @@ export default function ArticleDetailView({ id }) {
   }, [rawArticle, language, translateArticle]);
 
   const article = useMemo(() => {
-    if (!rawArticle || language === 'en') return rawArticle;
+    if (!rawArticle) return rawArticle;
+    if (language === 'en') {
+      return rawArticle;
+    }
     if (translatedArticle && translatedArticle._translatedLang === language) {
-      if (translatedArticle._contentTranslated || !rawArticle.content) {
-        return translatedArticle;
-      }
       return { 
         ...rawArticle, 
         ...translatedArticle, 
-        content: translatedArticle.content || rawArticle.content 
+        content: translatedArticle.content || rawArticle.content,
+        takeaways: translatedArticle.takeaways || rawArticle.takeaways,
+        author: translatedArticle.author || rawArticle.author,
+        title: translatedArticle.title || rawArticle.title,
+        subtitle: translatedArticle.subtitle || rawArticle.subtitle,
+        summary: translatedArticle.summary || rawArticle.summary,
+        category: translatedArticle.category || rawArticle.category,
+        kicker: translatedArticle.kicker || rawArticle.kicker
       };
     }
     return getSynchronousArticle(rawArticle, language);
   }, [rawArticle, language, translatedArticle, getSynchronousArticle]);
 
+
+  const isRtl = ['ar', 'he', 'fa', 'ur', 'ku'].includes(language);
 
   const toggleLike = () => {
     if (liked) {
@@ -104,25 +113,25 @@ export default function ArticleDetailView({ id }) {
         article={article} 
       />
 
-      <main style={{ maxWidth: '900px', margin: '40px auto', padding: '0 24px' }}>
+      <main style={{ maxWidth: '900px', margin: '40px auto', padding: '0 24px' }} dir={isRtl ? 'rtl' : 'ltr'}>
         {/* Back Link & Category */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '24px' }}>
           <Link href="/" style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--text-muted)', fontSize: '14px', fontWeight: 600 }}>
             <ArrowLeft size={16} />
             <span>{t("Back to Briefings")}</span>
           </Link>
-          <span className="category-badge">{t(article.category || 'NEWS')}</span>
+          <span className="category-badge">{article.category || 'NEWS'}</span>
         </div>
 
         {/* Title */}
-        <h1 style={{ fontFamily: 'var(--font-serif)', fontSize: '42px', fontWeight: 800, lineHeight: 1.2, marginBottom: '20px' }}>
+        <h1 style={{ fontFamily: 'var(--font-serif)', fontSize: '42px', fontWeight: 800, lineHeight: 1.2, marginBottom: '20px' }} dir={isRtl ? 'rtl' : 'ltr'}>
           {article.title}
         </h1>
 
         {/* Article Metadata Bar */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingBottom: '20px', borderBottom: '1px solid var(--border-color)', marginBottom: '32px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-            <span style={{ fontWeight: 800, fontSize: '14px', color: 'var(--accent-emerald)' }}>{article.author || 'Staff Reporter'}</span>
+            <span style={{ fontWeight: 800, fontSize: '14px', color: 'var(--accent-emerald)' }}>{article.author || t('Staff Reporter')}</span>
           </div>
 
 
@@ -178,7 +187,7 @@ export default function ArticleDetailView({ id }) {
 
         {/* Key Takeaways Box */}
         {article.takeaways && article.takeaways.length > 0 && (
-          <div style={{ background: 'var(--accent-emerald-light)', borderLeft: '4px solid var(--accent-emerald)', padding: '24px', borderRadius: 'var(--radius-md)', marginBottom: '36px' }}>
+          <div style={{ background: 'var(--accent-emerald-light)', borderLeft: '4px solid var(--accent-emerald)', padding: '24px', borderRadius: 'var(--radius-md)', marginBottom: '36px' }} dir={isRtl ? 'rtl' : 'ltr'}>
             <div style={{ fontSize: '12px', fontWeight: 800, color: 'var(--accent-emerald)', textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: '10px', display: 'flex', alignItems: 'center', gap: '6px' }}>
               <Sparkles size={14} />
               {t("Executive Takeaways")}
@@ -195,7 +204,7 @@ export default function ArticleDetailView({ id }) {
         )}
 
         {/* Article Body */}
-        <div style={{ fontFamily: 'var(--font-serif)', fontSize: '19px', lineHeight: 1.7, color: 'var(--text-primary)' }}>
+        <div style={{ fontFamily: 'var(--font-serif)', fontSize: '19px', lineHeight: 1.7, color: 'var(--text-primary)' }} dir={isRtl ? 'rtl' : 'ltr'}>
           {article.content && (article.content.includes('<') || article.content.includes('>')) ? (
             <SafeArticleBody content={article.content} className="article-body" adConfig={article} adPlacements={article.adPlacements} />
           ) : (

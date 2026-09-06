@@ -916,7 +916,7 @@ export default function HomePage() {
     if (!isLoggedIn) {
       setIsLoginOpen(true);
     } else {
-      setSelectedArticle(dive);
+      handleOpenArticle(dive);
     }
   };
 
@@ -1183,7 +1183,7 @@ export default function HomePage() {
             </div>
             <h3
               className="opinion-main-title"
-              onClick={() => setSelectedArticle(leadStory)}
+              onClick={() => handleOpenArticle(leadStory)}
             >
               {t(opTitle)}
             </h3>
@@ -1208,7 +1208,7 @@ export default function HomePage() {
 
             <div className="fast-news-timeline">
               {wireList.map((wire, wIdx) => (
-                <div key={`wire-${wIdx}`} className="fast-news-item" onClick={() => setSelectedArticle(activeArticles[wIdx % activeArticles.length] || leadStory)}>
+                <div key={`wire-${wIdx}`} className="fast-news-item" onClick={() => handleOpenArticle(activeArticles[wIdx % activeArticles.length] || leadStory)}>
                   <div className="fast-news-time">{t(wire.time)}</div>
                   <div className="fast-news-text">{t(wire.text)}</div>
                 </div>
@@ -1842,7 +1842,7 @@ export default function HomePage() {
                   <article
                     key={dive.id}
                     className="deep-card"
-                    onClick={() => setSelectedArticle(dive)}
+                    onClick={() => handleOpenArticle(dive)}
                     style={{ cursor: 'pointer', position: 'relative' }}
                   >
                     <img

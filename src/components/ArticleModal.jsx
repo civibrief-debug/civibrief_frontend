@@ -8,6 +8,8 @@ import ContinuousCoverVideo from './ContinuousCoverVideo';
 import ArticleMediaCover from './ArticleMediaCover';
 
 import { LanguageSelector } from './LanguageSelector';
+import { getStaticTranslation } from '../lib/uiTranslations';
+import { getCachedTranslation } from '../lib/translationService';
 import { 
   X, 
   Play,
@@ -22,7 +24,9 @@ import {
   Gauge,
   Plus,
   Minus,
-  ChevronRight
+  ChevronRight,
+  Sparkles,
+  Check
 } from 'lucide-react';
 
 export const ArticleModal = ({ article, onClose, isLoggedIn, onOpenLogin, onLoginSuccess }) => {
@@ -84,17 +88,18 @@ export const ArticleModal = ({ article, onClose, isLoggedIn, onOpenLogin, onLogi
     if (!effectiveSourceArticle) return;
 
     if (localLanguage === 'en') {
-      // If original English master or fields exist, activeArticle restores them instantly in 0.00ms
-      if (effectiveSourceArticle.originalArticle || effectiveSourceArticle.originalTitle) {
+      // If we have an original English base article and currently displaying translated version:
+      if (effectiveSourceArticle.originalArticle && effectiveSourceArticle._translatedLang && effectiveSourceArticle._translatedLang !== 'en') {
         setTranslatedArticle(null);
         setLocalIsTranslating(false);
         return;
       }
-      // If no original English stored and text has foreign characters, translate to English
-      const hasForeignChars = (effectiveSourceArticle.title && /[^\x00-\x7F]/.test(effectiveSourceArticle.title)) ||
-                              (effectiveSourceArticle.summary && /[^\x00-\x7F]/.test(effectiveSourceArticle.summary)) ||
-                              (effectiveSourceArticle.content && /[^\x00-\x7F]/.test(effectiveSourceArticle.content));
-      if (!hasForeignChars) {
+      if (effectiveSourceArticle.originalTitle && effectiveSourceArticle.title !== effectiveSourceArticle.originalTitle) {
+        setTranslatedArticle(null);
+        setLocalIsTranslating(false);
+        return;
+      }
+      if (!effectiveSourceArticle._translatedLang || effectiveSourceArticle._translatedLang === 'en') {
         setTranslatedArticle(null);
         setLocalIsTranslating(false);
         return;
@@ -102,8 +107,14 @@ export const ArticleModal = ({ article, onClose, isLoggedIn, onOpenLogin, onLogi
     }
 
     setLocalIsTranslating(true);
-    // Always translate from original master to prevent compound translation degradation
-    const sourceForTranslation = effectiveSourceArticle.originalArticle || effectiveSourceArticle;
+    // Always translate from base original, ensuring content, takeaways, and author are preserved
+    const baseSource = effectiveSourceArticle.originalArticle || effectiveSourceArticle;
+    const sourceForTranslation = {
+      ...baseSource,
+      content: baseSource.content || effectiveSourceArticle.originalContent || effectiveSourceArticle.content,
+      takeaways: baseSource.takeaways || effectiveSourceArticle.originalTakeaways || effectiveSourceArticle.takeaways,
+      author: baseSource.author || effectiveSourceArticle.originalAuthor || effectiveSourceArticle.author,
+    };
     translateArticle(sourceForTranslation, localLanguage).then(translated => {
       if (isMounted) {
         setTranslatedArticle(translated);
@@ -132,6 +143,11 @@ export const ArticleModal = ({ article, onClose, isLoggedIn, onOpenLogin, onLogi
     if (!effectiveSourceArticle) return {};
 
     if (localLanguage === 'en') {
+      // If we got a translated article in English (e.g. translated from foreign article)
+      if (translatedArticle && translatedArticle._translatedLang === 'en') {
+        return translatedArticle;
+      }
+
       // Tier 1: Instant 0.00ms pristine restoration from master English article
       if (effectiveSourceArticle.originalArticle) {
         return {
@@ -140,7 +156,7 @@ export const ArticleModal = ({ article, onClose, isLoggedIn, onOpenLogin, onLogi
           title: effectiveSourceArticle.originalTitle || effectiveSourceArticle.originalArticle.title,
           subtitle: effectiveSourceArticle.originalSubtitle || effectiveSourceArticle.originalArticle.subtitle,
           summary: effectiveSourceArticle.originalSummary || effectiveSourceArticle.originalArticle.summary,
-          content: effectiveSourceArticle.originalContent || effectiveSourceArticle.originalArticle.content,
+          content: effectiveSourceArticle.originalContent || effectiveSourceArticle.originalArticle.content || effectiveSourceArticle.content,
           kicker: effectiveSourceArticle.originalKicker || effectiveSourceArticle.originalArticle.kicker,
           category: effectiveSourceArticle.originalCategory || effectiveSourceArticle.originalArticle.category,
           author: effectiveSourceArticle.originalAuthor || effectiveSourceArticle.originalArticle.author,
@@ -148,10 +164,10 @@ export const ArticleModal = ({ article, onClose, isLoggedIn, onOpenLogin, onLogi
           _translatedLang: 'en'
         };
       }
-      if (effectiveSourceArticle.originalTitle || effectiveSourceArticle.originalSummary || effectiveSourceArticle.originalContent) {
+      if (effectiveSourceArticle.originalTitle && effectiveSourceArticle.title !== effectiveSourceArticle.originalTitle) {
         return {
           ...effectiveSourceArticle,
-          title: effectiveSourceArticle.originalTitle || effectiveSourceArticle.title,
+          title: effectiveSourceArticle.originalTitle,
           subtitle: effectiveSourceArticle.originalSubtitle || effectiveSourceArticle.subtitle,
           summary: effectiveSourceArticle.originalSummary || effectiveSourceArticle.summary,
           content: effectiveSourceArticle.originalContent || effectiveSourceArticle.content,
@@ -162,20 +178,21 @@ export const ArticleModal = ({ article, onClose, isLoggedIn, onOpenLogin, onLogi
           _translatedLang: 'en'
         };
       }
-      if (translatedArticle && translatedArticle._translatedLang === 'en') {
-        return translatedArticle;
-      }
-      return getSynchronousArticle(effectiveSourceArticle, 'en');
+      return effectiveSourceArticle;
     }
 
     if (translatedArticle && translatedArticle._translatedLang === localLanguage) {
-      if (translatedArticle._contentTranslated || !effectiveSourceArticle.content) {
-        return translatedArticle;
-      }
       return { 
         ...effectiveSourceArticle, 
         ...translatedArticle, 
-        content: translatedArticle.content || effectiveSourceArticle.content 
+        content: translatedArticle.content || effectiveSourceArticle.content,
+        takeaways: translatedArticle.takeaways || effectiveSourceArticle.takeaways,
+        author: translatedArticle.author || effectiveSourceArticle.author,
+        title: translatedArticle.title || effectiveSourceArticle.title,
+        subtitle: translatedArticle.subtitle || effectiveSourceArticle.subtitle,
+        summary: translatedArticle.summary || effectiveSourceArticle.summary,
+        category: translatedArticle.category || effectiveSourceArticle.category,
+        kicker: translatedArticle.kicker || effectiveSourceArticle.kicker
       };
     }
     return getSynchronousArticle(effectiveSourceArticle, localLanguage);
@@ -206,7 +223,12 @@ export const ArticleModal = ({ article, onClose, isLoggedIn, onOpenLogin, onLogi
   const isPausedRef = useRef(false);
   const isPlayingRef = useRef(false);
 
-  const isRtl = ['ar', 'he', 'fa', 'ur'].includes(localLanguage);
+  const isRtl = ['ar', 'he', 'fa', 'ur', 'ku'].includes(localLanguage);
+
+  const localT = (str) => {
+    if (!str || typeof str !== 'string' || localLanguage === 'en') return str;
+    return getStaticTranslation(localLanguage, str) || getCachedTranslation(localLanguage, str) || t(str);
+  };
 
   // Use activeArticle (translated) for displaying text
   const paragraphs = (activeArticle.content || activeArticle.summary || activeArticle.excerpt || "").split('\n\n');
@@ -711,7 +733,7 @@ export const ArticleModal = ({ article, onClose, isLoggedIn, onOpenLogin, onLogi
             <div className="article-modal-header" dir="ltr">
               <div className="article-modal-category">
                 <span className="category-tag-badge">
-                  {t(activeArticle.category || "NEWS")} {isDeepDive && ("💎 " + t("MEMBER EXCLUSIVE"))}
+                  {activeArticle.category || "NEWS"} {isDeepDive && ("💎 " + (getStaticTranslation(localLanguage, "MEMBER EXCLUSIVE") || t("MEMBER EXCLUSIVE")))}
                 </span>
               </div>
             </div>
@@ -822,11 +844,11 @@ export const ArticleModal = ({ article, onClose, isLoggedIn, onOpenLogin, onLogi
         {/* Meta Info */}
         <div className="article-modal-meta" dir={isRtl ? 'rtl' : 'ltr'}>
           <div className="article-modal-author">
-            {activeArticle.author || "THE DAILY BRIEF BUREAU"}
+            {activeArticle.author || getStaticTranslation(localLanguage, "THE DAILY BRIEF BUREAU") || t("THE DAILY BRIEF BUREAU")}
           </div>
           <div className="article-modal-time">
             <Clock size={14} />
-            {activeArticle.time || "Just now"}
+            {activeArticle.time || getStaticTranslation(localLanguage, "Just now") || t("Just now")}
           </div>
         </div>
 
@@ -1110,6 +1132,33 @@ export const ArticleModal = ({ article, onClose, isLoggedIn, onOpenLogin, onLogi
           />
         </div>
 
+        {/* Executive Takeaways Box */}
+        {activeArticle.takeaways && activeArticle.takeaways.length > 0 && (
+          <div 
+            style={{ 
+              background: 'var(--accent-emerald-light, #ecfdf5)', 
+              borderLeft: '4px solid var(--accent-emerald, #059669)', 
+              padding: '20px 24px', 
+              borderRadius: 'var(--radius-md, 8px)', 
+              marginBottom: '28px' 
+            }} 
+            dir={isRtl ? 'rtl' : 'ltr'}
+          >
+            <div style={{ fontSize: '12px', fontWeight: 800, color: 'var(--accent-emerald, #059669)', textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: '10px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <Sparkles size={14} />
+              <span>{getStaticTranslation(localLanguage, "Executive Takeaways") || t("Executive Takeaways")}</span>
+            </div>
+            <ul style={{ listStyle: 'none', display: 'flex', flexDirection: 'column', gap: '8px', padding: 0, margin: 0 }}>
+              {activeArticle.takeaways.map((point, idx) => (
+                <li key={idx} style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', fontSize: '15px', color: 'var(--text-primary)', lineHeight: 1.45 }}>
+                  <Check size={18} color="var(--accent-emerald, #059669)" style={{ flexShrink: 0, marginTop: '2px' }} />
+                  <span>{point}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+
         {/* Article Body Content */}
         <div 
           className="article-rich-body"
@@ -1180,10 +1229,10 @@ export const ArticleModal = ({ article, onClose, isLoggedIn, onOpenLogin, onLogi
                   <Lock size={26} color="#dc2626" />
                 </div>
                 <h3 style={{ fontFamily: 'Georgia, serif', fontSize: '22px', fontWeight: 800, color: '#111', marginBottom: '6px' }}>
-                  {t("Deep Dives 💎 Member Exclusive")}
+                  {localT("Deep Dives 💎 Member Exclusive")}
                 </h3>
                 <p style={{ fontSize: '14px', color: '#555', maxWidth: '460px', marginBottom: '18px', lineHeight: 1.45 }}>
-                  {t("This investigative report and raw dataset are restricted to registered Daily Brief members. Please log in or sign up to continue reading.")}
+                  {localT("This investigative report and raw dataset are restricted to registered Daily Brief members. Please log in or sign up to continue reading.")}
                 </p>
                 <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', justifyContent: 'center' }}>
                   <button
@@ -1191,7 +1240,7 @@ export const ArticleModal = ({ article, onClose, isLoggedIn, onOpenLogin, onLogi
                     style={{ background: '#dc2626', color: '#fff', border: 'none', padding: '12px 24px', fontWeight: 800, fontSize: '14px', borderRadius: '6px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px' }}
                   >
                     <Lock size={16} />
-                    <span>{t("Log In to Unlock Story")}</span>
+                    <span>{localT("Log In to Unlock Story")}</span>
                   </button>
                   <button
                     onClick={() => {
@@ -1202,7 +1251,7 @@ export const ArticleModal = ({ article, onClose, isLoggedIn, onOpenLogin, onLogi
                     style={{ background: '#111', color: '#fff', border: 'none', padding: '12px 20px', fontWeight: 700, fontSize: '13px', borderRadius: '6px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}
                   >
                     <UserCheck size={16} />
-                    <span>{t("1-Click Free Member Access")}</span>
+                    <span>{localT("1-Click Free Member Access")}</span>
                   </button>
                 </div>
               </div>

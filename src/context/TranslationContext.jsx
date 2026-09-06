@@ -146,46 +146,45 @@ export const TranslationProvider = ({ children }) => {
   const translateArticle = useCallback(async (article, targetLang) => {
     if (!article) return article;
 
-    // Instant English resolution: restore pristine original English fields
+    // Instant English resolution: restore pristine original English fields if available
     if (targetLang === 'en') {
-      if (article.originalArticle) {
-        return {
-          ...article.originalArticle,
-          originalArticle: article.originalArticle,
-          originalTitle: article.originalTitle || article.originalArticle.title,
-          originalSubtitle: article.originalSubtitle || article.originalArticle.subtitle,
-          originalSummary: article.originalSummary || article.originalArticle.summary,
-          originalContent: article.originalContent || article.originalArticle.content,
-          originalKicker: article.originalKicker || article.originalArticle.kicker,
-          originalCategory: article.originalCategory || article.originalArticle.category,
-          originalAuthor: article.originalAuthor || article.originalArticle.author,
-          originalTakeaways: article.originalTakeaways || article.originalArticle.takeaways,
-          _translatedLang: 'en',
-          _fullyTranslated: true,
-          _contentTranslated: true
-        };
-      }
-      if (article.originalTitle || article.originalSummary || article.originalContent) {
-        return {
-          ...article,
-          title: article.originalTitle || article.title,
-          subtitle: article.originalSubtitle || article.subtitle,
-          summary: article.originalSummary || article.summary,
-          content: article.originalContent || article.content,
-          kicker: article.originalKicker || article.kicker,
-          category: article.originalCategory || article.category,
-          author: article.originalAuthor || article.author,
-          takeaways: article.originalTakeaways || article.takeaways,
-          _translatedLang: 'en',
-          _fullyTranslated: true,
-          _contentTranslated: true
-        };
-      }
-      const hasForeignText = (article.title && /[^\x00-\x7F]/.test(article.title)) ||
-                             (article.summary && /[^\x00-\x7F]/.test(article.summary)) ||
-                             (article.content && /[^\x00-\x7F]/.test(article.content));
-      if (!hasForeignText) {
+      if (article._translatedLang === 'en' && article._fullyTranslated) {
         return article;
+      }
+      if (article._translatedLang && article._translatedLang !== 'en') {
+        if (article.originalArticle) {
+          return {
+            ...article.originalArticle,
+            originalArticle: article.originalArticle,
+            originalTitle: article.originalTitle || article.originalArticle.title,
+            originalSubtitle: article.originalSubtitle || article.originalArticle.subtitle,
+            originalSummary: article.originalSummary || article.originalArticle.summary,
+            originalContent: article.originalContent || article.originalArticle.content,
+            originalKicker: article.originalKicker || article.originalArticle.kicker,
+            originalCategory: article.originalCategory || article.originalArticle.category,
+            originalAuthor: article.originalAuthor || article.originalArticle.author,
+            originalTakeaways: article.originalTakeaways || article.originalArticle.takeaways,
+            _translatedLang: 'en',
+            _fullyTranslated: true,
+            _contentTranslated: true
+          };
+        }
+        if (article.originalTitle && article.title !== article.originalTitle) {
+          return {
+            ...article,
+            title: article.originalTitle,
+            subtitle: article.originalSubtitle || article.subtitle,
+            summary: article.originalSummary || article.summary,
+            content: article.originalContent || article.content,
+            kicker: article.originalKicker || article.kicker,
+            category: article.originalCategory || article.category,
+            author: article.originalAuthor || article.author,
+            takeaways: article.originalTakeaways || article.takeaways,
+            _translatedLang: 'en',
+            _fullyTranslated: true,
+            _contentTranslated: true
+          };
+        }
       }
     }
 
@@ -223,7 +222,9 @@ export const TranslationProvider = ({ children }) => {
               summary: article.summary,
               kicker: article.kicker,
               category: article.category,
-              content: article.content
+              content: article.content,
+              author: article.author,
+              takeaways: article.takeaways
             }
           })
         });
@@ -253,7 +254,14 @@ export const TranslationProvider = ({ children }) => {
             if (data.summary) setCachedTranslation(targetLang, article.summary, data.summary);
             if (data.subtitle) setCachedTranslation(targetLang, article.subtitle, data.subtitle);
             if (data.kicker) setCachedTranslation(targetLang, article.kicker, data.kicker);
+            if (data.category) setCachedTranslation(targetLang, article.category, data.category);
+            if (data.author) setCachedTranslation(targetLang, article.author, data.author);
             if (data.content) setCachedTranslation(targetLang, article.content, data.content);
+            if (Array.isArray(data.takeaways) && Array.isArray(article.takeaways)) {
+              article.takeaways.forEach((pt, idx) => {
+                if (data.takeaways[idx]) setCachedTranslation(targetLang, pt, data.takeaways[idx]);
+              });
+            }
 
             ARTICLE_CACHE.set(cacheKey, translated);
             persistArticleCache();
@@ -262,13 +270,15 @@ export const TranslationProvider = ({ children }) => {
         }
       }
 
-      const keys = ['title', 'subtitle', 'summary', 'kicker', 'category'];
-      const textArray = keys.map(k => article[k] || '');
+      const keys = ['title', 'subtitle', 'summary', 'kicker', 'category', 'author'];
+      const textArray = keys.map(k => (article[k] && typeof article[k] === 'string' ? article[k] : ''));
+      const hasTakeaways = Array.isArray(article.takeaways) && article.takeaways.length > 0;
       
-      // Parallel batch translation of metadata and full HTML/plain content
-      const [translatedMeta, translatedContent] = await Promise.all([
+      // Parallel batch translation of metadata, takeaways and full HTML/plain content
+      const [translatedMeta, translatedContent, translatedTakeaways] = await Promise.all([
         translateBatchTexts(textArray, targetLang),
-        hasContent ? translateHtmlContent(article.content, targetLang) : Promise.resolve('')
+        hasContent ? translateHtmlContent(article.content, targetLang) : Promise.resolve(''),
+        hasTakeaways ? translateBatchTexts(article.takeaways, targetLang) : Promise.resolve(article.takeaways)
       ]);
 
       const translated = { 
@@ -300,6 +310,14 @@ export const TranslationProvider = ({ children }) => {
         translated.content = translatedContent;
         if (article.content) {
           setCachedTranslation(targetLang, article.content, translatedContent);
+        }
+      }
+      if (translatedTakeaways) {
+        translated.takeaways = translatedTakeaways;
+        if (Array.isArray(article.takeaways)) {
+          article.takeaways.forEach((pt, idx) => {
+            if (translatedTakeaways[idx]) setCachedTranslation(targetLang, pt, translatedTakeaways[idx]);
+          });
         }
       }
 
@@ -377,8 +395,8 @@ export const TranslationProvider = ({ children }) => {
    * Universal Synchronous Article List Translator (0.00ms latency)
    */
   const getSynchronousArticleList = useCallback((articles, targetLang = language) => {
-    if (!articles || !Array.isArray(articles) || targetLang === 'en') {
-      return articles || [];
+    if (!articles || !Array.isArray(articles)) {
+      return [];
     }
     return articles.map(a => getSynchronousArticle(a, targetLang));
   }, [getSynchronousArticle, language, version]);
@@ -412,7 +430,7 @@ export const TranslationProvider = ({ children }) => {
     setIsTranslating(true);
 
     try {
-      const keys = ['title', 'subtitle', 'summary', 'kicker', 'category'];
+      const keys = ['title', 'subtitle', 'summary', 'kicker', 'category', 'author'];
       const uncachedStrings = new Set();
 
       articles.forEach(art => {
@@ -506,7 +524,7 @@ export const TranslationProvider = ({ children }) => {
    * Batch Translate arbitrary array of strings
    */
   const translateBatch = useCallback(async (texts, targetLang) => {
-    if (targetLang === 'en' || !texts || texts.length === 0) return texts;
+    if (!texts || !Array.isArray(texts) || texts.length === 0) return texts || [];
     try {
       return await translateBatchTexts(texts, targetLang);
     } catch (e) {
@@ -518,7 +536,7 @@ export const TranslationProvider = ({ children }) => {
    * Batch Translate Deep Dives array
    */
   const translateDeepDives = useCallback(async (deepDives, targetLang) => {
-    if (targetLang === 'en' || !deepDives || deepDives.length === 0) return deepDives;
+    if (!deepDives || deepDives.length === 0) return deepDives || [];
     return await translateMultipleArticles(deepDives, targetLang);
   }, [translateMultipleArticles]);
 

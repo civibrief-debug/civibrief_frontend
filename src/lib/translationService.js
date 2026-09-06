@@ -25,13 +25,17 @@ const MEMORY_CACHE = new Map();
 // Instant Hydration from localStorage on startup (0.00ms latency)
 if (typeof window !== 'undefined') {
   try {
-    const rawLocal = localStorage.getItem('daily_brief_text_cache_v6');
+    const rawLocal = localStorage.getItem('daily_brief_text_cache_v7');
     if (rawLocal) {
       const parsed = JSON.parse(rawLocal);
       Object.entries(parsed).forEach(([lang, mapObj]) => {
         if (!MEMORY_CACHE.has(lang)) MEMORY_CACHE.set(lang, new Map());
         const langMap = MEMORY_CACHE.get(lang);
-        Object.entries(mapObj).forEach(([k, v]) => langMap.set(k, v));
+        Object.entries(mapObj).forEach(([k, v]) => {
+          if (typeof v === 'string' && typeof k === 'string' && v.trim().toLowerCase() !== k.trim().toLowerCase()) {
+            langMap.set(k.trim(), v.trim());
+          }
+        });
       });
     }
   } catch (e) {}
@@ -53,7 +57,7 @@ function queuePersistMemoryCache() {
           exportObj[lang][k] = v;
         }
       }
-      localStorage.setItem('daily_brief_text_cache_v6', JSON.stringify(exportObj));
+      localStorage.setItem('daily_brief_text_cache_v7', JSON.stringify(exportObj));
     } catch (e) {}
   }, 1000);
 }
@@ -61,14 +65,11 @@ function queuePersistMemoryCache() {
 export function getCachedTranslation(targetLang, text) {
   if (!text || typeof text !== 'string') return text;
   const trimmed = text.trim();
-  if (targetLang === 'en' && !/[^\x00-\x7F]/.test(trimmed)) {
-    return trimmed;
-  }
   const langMap = MEMORY_CACHE.get(targetLang);
   if (langMap && langMap.has(trimmed)) {
     const val = langMap.get(trimmed);
-    // Never treat identical English text as valid translation for foreign language
-    if (val && (targetLang === 'en' || val !== trimmed)) {
+    // Never return cached translation if it is identical to source text
+    if (val && val.trim().toLowerCase() !== trimmed.toLowerCase()) {
       return val;
     }
   }
@@ -79,8 +80,8 @@ export function setCachedTranslation(targetLang, text, translated) {
   if (!text || typeof text !== 'string' || !translated) return;
   const trimmed = text.trim();
   const transTrimmed = translated.trim();
-  // Do not cache identical text as a foreign language translation
-  if (transTrimmed === trimmed && targetLang !== 'en') return;
+  // Do not cache identical text as a translation for any language
+  if (!transTrimmed || transTrimmed.toLowerCase() === trimmed.toLowerCase()) return;
 
   if (!MEMORY_CACHE.has(targetLang)) {
     MEMORY_CACHE.set(targetLang, new Map());
@@ -135,7 +136,6 @@ async function fetchClientText(text, targetLang) {
  */
 export async function fetchGoogleM(text, targetLang) {
   if (!text || !text.trim()) return text;
-  if (targetLang === 'en' && !/[^\x00-\x7F]/.test(text.trim())) return text;
   const url = `https://translate.google.com/m?sl=auto&tl=${targetLang}&q=${encodeURIComponent(text.trim())}`;
   const res = await fetch(url, {
     headers: HEADERS,
@@ -208,9 +208,6 @@ export async function translatePlainText(plainText, targetLang) {
   if (!plainText || typeof plainText !== 'string' || !plainText.trim()) {
     return plainText;
   }
-  if (targetLang === 'en' && !/[^\x00-\x7F]/.test(plainText.trim())) {
-    return plainText;
-  }
 
   const trimmed = plainText.trim();
 
@@ -266,9 +263,6 @@ export async function translatePlainText(plainText, targetLang) {
 export async function translateBatchTexts(texts, targetLang) {
   if (!texts || !Array.isArray(texts) || texts.length === 0) {
     return texts || [];
-  }
-  if (targetLang === 'en' && texts.every(t => typeof t !== 'string' || !/[^\x00-\x7F]/.test(t))) {
-    return texts;
   }
 
   const results = new Array(texts.length);
@@ -384,20 +378,23 @@ export async function translateHtmlContent(html, targetLang) {
   if (!html || typeof html !== 'string' || !html.trim()) {
     return html;
   }
-  if (targetLang === 'en' && !/[^\x00-\x7F]/.test(html.trim())) {
-    return html;
-  }
 
-  const cached = getCachedTranslation(targetLang, html.trim());
+  // Strip any pre-existing RTL wrapper divs so they don't break translation endpoints or regex
+  let cleanHtml = html
+    .replace(/^<div[^>]*class=["']?rtl-translated-wrapper["']?[^>]*>/i, '')
+    .replace(/<\/div>$/i, '')
+    .trim();
+
+  const cached = getCachedTranslation(targetLang, cleanHtml);
   if (cached !== null) {
     return cached;
   }
 
   // Client-Side Browser: Route through /api/translate
   if (typeof window !== 'undefined') {
-    const clientResult = await fetchClientText(html, targetLang);
-    if (clientResult && clientResult !== html) {
-      setCachedTranslation(targetLang, html.trim(), clientResult);
+    const clientResult = await fetchClientText(cleanHtml, targetLang);
+    if (clientResult && clientResult !== cleanHtml) {
+      setCachedTranslation(targetLang, cleanHtml, clientResult);
       return clientResult;
     }
   }
@@ -406,15 +403,19 @@ export async function translateHtmlContent(html, targetLang) {
     let resultHtml = '';
 
     // If reasonably sized, translate directly in 1 fast request
-    if (html.length <= 1200) {
+    if (cleanHtml.length <= 1200) {
       try {
-        resultHtml = await fetchGoogleM(html, targetLang);
+        resultHtml = await fetchGoogleM(cleanHtml, targetLang);
       } catch (e) {
         // Fallback to GTX if needed
         try {
-          resultHtml = await fetchGtx(html, targetLang);
+          resultHtml = await fetchGtx(cleanHtml, targetLang);
         } catch (e2) {
-          resultHtml = html;
+          try {
+            resultHtml = await fetchChromeEx(cleanHtml, targetLang);
+          } catch (e3) {
+            resultHtml = cleanHtml;
+          }
         }
       }
     } else {
@@ -424,13 +425,13 @@ export async function translateHtmlContent(html, targetLang) {
       let lastIndex = 0;
       let match;
 
-      while ((match = blockRegex.exec(html)) !== null) {
+      while ((match = blockRegex.exec(cleanHtml)) !== null) {
         const end = match.index + match[0].length;
-        parts.push(html.substring(lastIndex, end));
+        parts.push(cleanHtml.substring(lastIndex, end));
         lastIndex = end;
       }
-      if (lastIndex < html.length) {
-        parts.push(html.substring(lastIndex));
+      if (lastIndex < cleanHtml.length) {
+        parts.push(cleanHtml.substring(lastIndex));
       }
 
       const chunks = [];
@@ -455,7 +456,11 @@ export async function translateHtmlContent(html, targetLang) {
             try {
               return await fetchGtx(chunk, targetLang);
             } catch (err2) {
-              return chunk;
+              try {
+                return await fetchChromeEx(chunk, targetLang);
+              } catch (err3) {
+                return chunk;
+              }
             }
           }
         })
@@ -468,13 +473,13 @@ export async function translateHtmlContent(html, targetLang) {
       resultHtml = `<div dir="rtl" class="rtl-translated-wrapper">${resultHtml}</div>`;
     }
 
-    if (resultHtml && resultHtml !== html) {
-      setCachedTranslation(targetLang, html.trim(), resultHtml);
+    if (resultHtml && resultHtml !== cleanHtml) {
+      setCachedTranslation(targetLang, cleanHtml, resultHtml);
     }
-    return resultHtml || html;
+    return resultHtml || cleanHtml;
   } catch (err) {
     console.error('translateHtmlContent error:', err);
-    return html;
+    return cleanHtml;
   }
 }
 

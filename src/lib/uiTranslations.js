@@ -1406,6 +1406,7 @@ export function getSynchronousTranslatedArticle(article, targetLang) {
   const cachedExcerpt = getCachedTranslation(targetLang, rawExcerpt);
   const cachedKicker = getCachedTranslation(targetLang, rawKicker);
   const cachedCategory = getCachedTranslation(targetLang, rawCategory);
+  const cachedAuthor = getCachedTranslation(targetLang, rawAuthor);
 
   const title = staticTitle || cachedTitle || rawTitle;
   const subtitle = staticSubtitle || cachedSubtitle || rawSubtitle;
@@ -1414,7 +1415,7 @@ export function getSynchronousTranslatedArticle(article, targetLang) {
   const kicker = staticKicker || cachedKicker || rawKicker;
   const category = staticCategory || cachedCategory || rawCategory;
   const supertitle = staticSupertitle || rawSupertitle;
-  const author = staticAuthor || rawAuthor;
+  const author = staticAuthor || cachedAuthor || rawAuthor;
 
   const isFullyTranslated = !!(staticTitle || cachedTitle);
 

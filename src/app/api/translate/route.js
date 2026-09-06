@@ -30,18 +30,28 @@ export async function POST(req) {
       return NextResponse.json({ success: true, data: translated });
     }
 
-    // Case 3: Single article data (translates metadata + full article body)
+    // Case 3: Single article data (translates metadata + author + takeaways + full article body)
     if (articleData && typeof articleData === 'object') {
-      const keys = ['title', 'subtitle', 'summary', 'kicker', 'category'];
+      const keys = ['title', 'subtitle', 'summary', 'kicker', 'category', 'author'];
       const textArray = keys.map(k => (articleData[k] && typeof articleData[k] === 'string' ? articleData[k] : ''));
       const hasContent = typeof articleData.content === 'string' && articleData.content.trim().length > 0;
+      const hasTakeaways = Array.isArray(articleData.takeaways) && articleData.takeaways.length > 0;
 
-      const [translatedMeta, translatedContent] = await Promise.all([
+      const [translatedMeta, translatedContent, translatedTakeaways] = await Promise.all([
         translateBatchTexts(textArray, targetLang),
-        hasContent ? translateHtmlContent(articleData.content, targetLang) : Promise.resolve('')
+        hasContent ? translateHtmlContent(articleData.content, targetLang) : Promise.resolve(''),
+        hasTakeaways ? translateBatchTexts(articleData.takeaways, targetLang) : Promise.resolve(articleData.takeaways)
       ]);
 
-      const translatedData = { ...articleData, originalTitle: articleData.originalTitle || articleData.title };
+      const translatedData = { 
+        ...articleData, 
+        originalTitle: articleData.originalTitle || articleData.title,
+        originalSummary: articleData.originalSummary || articleData.summary,
+        originalContent: articleData.originalContent || articleData.content,
+        originalAuthor: articleData.originalAuthor || articleData.author,
+        originalTakeaways: articleData.originalTakeaways || articleData.takeaways
+      };
+
       keys.forEach((k, idx) => {
         if (translatedMeta[idx]) {
           translatedData[k] = translatedMeta[idx];
@@ -49,6 +59,9 @@ export async function POST(req) {
       });
       if (translatedContent) {
         translatedData.content = translatedContent;
+      }
+      if (translatedTakeaways) {
+        translatedData.takeaways = translatedTakeaways;
       }
 
       return NextResponse.json({ success: true, data: translatedData });
