@@ -144,7 +144,50 @@ export const TranslationProvider = ({ children }) => {
    * Translates a single article (including body content) with 0-1ms Cache Resolution
    */
   const translateArticle = useCallback(async (article, targetLang) => {
-    if (targetLang === 'en' || !article) return article;
+    if (!article) return article;
+
+    // Instant English resolution: restore pristine original English fields
+    if (targetLang === 'en') {
+      if (article.originalArticle) {
+        return {
+          ...article.originalArticle,
+          originalArticle: article.originalArticle,
+          originalTitle: article.originalTitle || article.originalArticle.title,
+          originalSubtitle: article.originalSubtitle || article.originalArticle.subtitle,
+          originalSummary: article.originalSummary || article.originalArticle.summary,
+          originalContent: article.originalContent || article.originalArticle.content,
+          originalKicker: article.originalKicker || article.originalArticle.kicker,
+          originalCategory: article.originalCategory || article.originalArticle.category,
+          originalAuthor: article.originalAuthor || article.originalArticle.author,
+          originalTakeaways: article.originalTakeaways || article.originalArticle.takeaways,
+          _translatedLang: 'en',
+          _fullyTranslated: true,
+          _contentTranslated: true
+        };
+      }
+      if (article.originalTitle || article.originalSummary || article.originalContent) {
+        return {
+          ...article,
+          title: article.originalTitle || article.title,
+          subtitle: article.originalSubtitle || article.subtitle,
+          summary: article.originalSummary || article.summary,
+          content: article.originalContent || article.content,
+          kicker: article.originalKicker || article.kicker,
+          category: article.originalCategory || article.category,
+          author: article.originalAuthor || article.author,
+          takeaways: article.originalTakeaways || article.takeaways,
+          _translatedLang: 'en',
+          _fullyTranslated: true,
+          _contentTranslated: true
+        };
+      }
+      const hasForeignText = (article.title && /[^\x00-\x7F]/.test(article.title)) ||
+                             (article.summary && /[^\x00-\x7F]/.test(article.summary)) ||
+                             (article.content && /[^\x00-\x7F]/.test(article.content));
+      if (!hasForeignText) {
+        return article;
+      }
+    }
 
     const origTitle = (article.originalTitle || article.title || '').trim();
     const cacheKey = `${article.id || origTitle}_${targetLang}`;
@@ -192,7 +235,15 @@ export const TranslationProvider = ({ children }) => {
             const translated = { 
               ...article, 
               ...data,
+              originalArticle: article.originalArticle || article,
               originalTitle: origTitle,
+              originalSubtitle: article.originalSubtitle || article.subtitle,
+              originalSummary: article.originalSummary || article.summary,
+              originalContent: article.originalContent || article.content,
+              originalKicker: article.originalKicker || article.kicker,
+              originalCategory: article.originalCategory || article.category,
+              originalAuthor: article.originalAuthor || article.author,
+              originalTakeaways: article.originalTakeaways || article.takeaways,
               _translatedLang: targetLang,
               _metaTranslated: true,
               _contentTranslated: !!(data.content && typeof data.content === 'string' && data.content.trim().length > 0 && data.content !== article.content),
@@ -222,7 +273,15 @@ export const TranslationProvider = ({ children }) => {
 
       const translated = { 
         ...article, 
+        originalArticle: article.originalArticle || article,
         originalTitle: origTitle,
+        originalSubtitle: article.originalSubtitle || article.subtitle,
+        originalSummary: article.originalSummary || article.summary,
+        originalContent: article.originalContent || article.content,
+        originalKicker: article.originalKicker || article.kicker,
+        originalCategory: article.originalCategory || article.category,
+        originalAuthor: article.originalAuthor || article.author,
+        originalTakeaways: article.originalTakeaways || article.takeaways,
         _translatedLang: targetLang,
         _metaTranslated: true,
         _contentTranslated: !!(translatedContent && translatedContent !== article.content),
@@ -258,7 +317,10 @@ export const TranslationProvider = ({ children }) => {
    * Resolves instantly from ARTICLE_CACHE or static dictionary on initial render tick.
    */
   const getSynchronousArticle = useCallback((article, targetLang = language) => {
-    if (!article || targetLang === 'en') return article;
+    if (!article) return article;
+    if (targetLang === 'en') {
+      return getSynchronousTranslatedArticle(article, 'en');
+    }
 
     const origTitle = (article.originalTitle || article.title || '').trim();
     const cacheKey = `${article.id || origTitle}_${targetLang}`;
@@ -326,7 +388,10 @@ export const TranslationProvider = ({ children }) => {
    * High-Performance Single-Pass Batch Translation for Entire News Feed
    */
   const translateMultipleArticles = useCallback(async (articles, targetLang) => {
-    if (targetLang === 'en' || !articles || articles.length === 0) return articles;
+    if (!articles || articles.length === 0) return articles || [];
+    if (targetLang === 'en') {
+      return articles.map(art => getSynchronousArticle(art, 'en'));
+    }
 
     let allCached = true;
     const cachedArticles = articles.map(art => {
@@ -389,7 +454,16 @@ export const TranslationProvider = ({ children }) => {
 
         const translatedArt = {
           ...art,
+          originalArticle: art.originalArticle || art,
           originalTitle: origTitle,
+          originalSubtitle: art.originalSubtitle || art.subtitle,
+          originalSummary: art.originalSummary || art.summary,
+          originalExcerpt: art.originalExcerpt || art.excerpt,
+          originalContent: art.originalContent || art.content,
+          originalKicker: art.originalKicker || art.kicker,
+          originalCategory: art.originalCategory || art.category,
+          originalAuthor: art.originalAuthor || art.author,
+          originalTakeaways: art.originalTakeaways || art.takeaways,
           _translatedLang: targetLang,
           _metaTranslated: false,
           _contentTranslated: false,

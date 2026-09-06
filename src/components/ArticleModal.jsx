@@ -57,7 +57,19 @@ export const ArticleModal = ({ article, onClose, isLoggedIn, onOpenLogin, onLogi
   const effectiveSourceArticle = useMemo(() => {
     if (!article) return null;
     if (dbHydratedArticle) {
-      return { ...article, ...dbHydratedArticle };
+      return { 
+        ...article, 
+        ...dbHydratedArticle,
+        originalArticle: article.originalArticle || dbHydratedArticle.originalArticle || article,
+        originalTitle: article.originalTitle || dbHydratedArticle.originalTitle || dbHydratedArticle.title || article.title,
+        originalSubtitle: article.originalSubtitle || dbHydratedArticle.originalSubtitle || dbHydratedArticle.subtitle || article.subtitle,
+        originalSummary: article.originalSummary || dbHydratedArticle.originalSummary || dbHydratedArticle.summary || article.summary,
+        originalContent: article.originalContent || dbHydratedArticle.originalContent || dbHydratedArticle.content || article.content,
+        originalKicker: article.originalKicker || dbHydratedArticle.originalKicker || dbHydratedArticle.kicker || article.kicker,
+        originalCategory: article.originalCategory || dbHydratedArticle.originalCategory || dbHydratedArticle.category || article.category,
+        originalAuthor: article.originalAuthor || dbHydratedArticle.originalAuthor || dbHydratedArticle.author || article.author,
+        originalTakeaways: article.originalTakeaways || dbHydratedArticle.originalTakeaways || dbHydratedArticle.takeaways || article.takeaways
+      };
     }
     return article;
   }, [article, dbHydratedArticle]);
@@ -69,13 +81,30 @@ export const ArticleModal = ({ article, onClose, isLoggedIn, onOpenLogin, onLogi
   useEffect(() => {
     let isMounted = true;
 
-    if (!effectiveSourceArticle || localLanguage === 'en') {
-      setTranslatedArticle(null);
-      setLocalIsTranslating(false);
-      return;
+    if (!effectiveSourceArticle) return;
+
+    if (localLanguage === 'en') {
+      // If original English master or fields exist, activeArticle restores them instantly in 0.00ms
+      if (effectiveSourceArticle.originalArticle || effectiveSourceArticle.originalTitle) {
+        setTranslatedArticle(null);
+        setLocalIsTranslating(false);
+        return;
+      }
+      // If no original English stored and text has foreign characters, translate to English
+      const hasForeignChars = (effectiveSourceArticle.title && /[^\x00-\x7F]/.test(effectiveSourceArticle.title)) ||
+                              (effectiveSourceArticle.summary && /[^\x00-\x7F]/.test(effectiveSourceArticle.summary)) ||
+                              (effectiveSourceArticle.content && /[^\x00-\x7F]/.test(effectiveSourceArticle.content));
+      if (!hasForeignChars) {
+        setTranslatedArticle(null);
+        setLocalIsTranslating(false);
+        return;
+      }
     }
+
     setLocalIsTranslating(true);
-    translateArticle(effectiveSourceArticle, localLanguage).then(translated => {
+    // Always translate from original master to prevent compound translation degradation
+    const sourceForTranslation = effectiveSourceArticle.originalArticle || effectiveSourceArticle;
+    translateArticle(sourceForTranslation, localLanguage).then(translated => {
       if (isMounted) {
         setTranslatedArticle(translated);
         setLocalIsTranslating(false);
@@ -100,7 +129,45 @@ export const ArticleModal = ({ article, onClose, isLoggedIn, onOpenLogin, onLogi
   }, [localLanguage]);
 
   const activeArticle = useMemo(() => {
-    if (!effectiveSourceArticle || localLanguage === 'en') return effectiveSourceArticle || {};
+    if (!effectiveSourceArticle) return {};
+
+    if (localLanguage === 'en') {
+      // Tier 1: Instant 0.00ms pristine restoration from master English article
+      if (effectiveSourceArticle.originalArticle) {
+        return {
+          ...effectiveSourceArticle,
+          ...effectiveSourceArticle.originalArticle,
+          title: effectiveSourceArticle.originalTitle || effectiveSourceArticle.originalArticle.title,
+          subtitle: effectiveSourceArticle.originalSubtitle || effectiveSourceArticle.originalArticle.subtitle,
+          summary: effectiveSourceArticle.originalSummary || effectiveSourceArticle.originalArticle.summary,
+          content: effectiveSourceArticle.originalContent || effectiveSourceArticle.originalArticle.content,
+          kicker: effectiveSourceArticle.originalKicker || effectiveSourceArticle.originalArticle.kicker,
+          category: effectiveSourceArticle.originalCategory || effectiveSourceArticle.originalArticle.category,
+          author: effectiveSourceArticle.originalAuthor || effectiveSourceArticle.originalArticle.author,
+          takeaways: effectiveSourceArticle.originalTakeaways || effectiveSourceArticle.originalArticle.takeaways,
+          _translatedLang: 'en'
+        };
+      }
+      if (effectiveSourceArticle.originalTitle || effectiveSourceArticle.originalSummary || effectiveSourceArticle.originalContent) {
+        return {
+          ...effectiveSourceArticle,
+          title: effectiveSourceArticle.originalTitle || effectiveSourceArticle.title,
+          subtitle: effectiveSourceArticle.originalSubtitle || effectiveSourceArticle.subtitle,
+          summary: effectiveSourceArticle.originalSummary || effectiveSourceArticle.summary,
+          content: effectiveSourceArticle.originalContent || effectiveSourceArticle.content,
+          kicker: effectiveSourceArticle.originalKicker || effectiveSourceArticle.kicker,
+          category: effectiveSourceArticle.originalCategory || effectiveSourceArticle.category,
+          author: effectiveSourceArticle.originalAuthor || effectiveSourceArticle.author,
+          takeaways: effectiveSourceArticle.originalTakeaways || effectiveSourceArticle.takeaways,
+          _translatedLang: 'en'
+        };
+      }
+      if (translatedArticle && translatedArticle._translatedLang === 'en') {
+        return translatedArticle;
+      }
+      return getSynchronousArticle(effectiveSourceArticle, 'en');
+    }
+
     if (translatedArticle && translatedArticle._translatedLang === localLanguage) {
       if (translatedArticle._contentTranslated || !effectiveSourceArticle.content) {
         return translatedArticle;

@@ -14,12 +14,6 @@ export async function POST(req) {
       return NextResponse.json({ success: false, error: 'Unsupported or invalid target language code' }, { status: 400 });
     }
 
-    if (targetLang === 'en') {
-      if (texts) return NextResponse.json({ success: true, data: texts });
-      if (text) return NextResponse.json({ success: true, data: text });
-      if (articleData) return NextResponse.json({ success: true, data: articleData });
-      return NextResponse.json({ success: true });
-    }
 
     // Case 1: Bulk array of texts
     if (Array.isArray(texts) && texts.length > 0) {

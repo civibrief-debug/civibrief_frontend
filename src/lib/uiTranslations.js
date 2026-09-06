@@ -1326,16 +1326,70 @@ export function getStaticTranslation(targetLang, text) {
  * Translates article fields in 0.00ms (<0.01ms) directly from memory/dictionary.
  */
 export function getSynchronousTranslatedArticle(article, targetLang) {
-  if (!article || targetLang === 'en') return article;
+  if (!article) return article;
+
+  if (targetLang === 'en') {
+    if (article.originalArticle) {
+      return {
+        ...article.originalArticle,
+        originalArticle: article.originalArticle,
+        originalTitle: article.originalTitle || article.originalArticle.title,
+        originalSubtitle: article.originalSubtitle || article.originalArticle.subtitle,
+        originalSummary: article.originalSummary || article.originalArticle.summary,
+        originalContent: article.originalContent || article.originalArticle.content,
+        originalKicker: article.originalKicker || article.originalArticle.kicker,
+        originalCategory: article.originalCategory || article.originalArticle.category,
+        originalAuthor: article.originalAuthor || article.originalArticle.author,
+        originalTakeaways: article.originalTakeaways || article.originalArticle.takeaways,
+        _translatedLang: 'en',
+        _fullyTranslated: true,
+        _contentTranslated: true
+      };
+    }
+    if (article.originalTitle || article.originalSummary || article.originalContent) {
+      return {
+        ...article,
+        title: article.originalTitle || article.title,
+        subtitle: article.originalSubtitle || article.subtitle,
+        summary: article.originalSummary || article.summary,
+        content: article.originalContent || article.content,
+        kicker: article.originalKicker || article.kicker,
+        category: article.originalCategory || article.category,
+        author: article.originalAuthor || article.author,
+        takeaways: article.originalTakeaways || article.takeaways,
+        _translatedLang: 'en',
+        _fullyTranslated: true,
+        _contentTranslated: true
+      };
+    }
+    const cachedTitle = getCachedTranslation('en', article.title || '');
+    if (cachedTitle && cachedTitle !== article.title) {
+      const cachedSummary = getCachedTranslation('en', article.summary || '');
+      const cachedContent = article.content ? getCachedTranslation('en', article.content) : null;
+      return {
+        ...article,
+        title: cachedTitle,
+        summary: cachedSummary || article.summary,
+        subtitle: cachedSummary || article.subtitle,
+        content: cachedContent || article.content,
+        _translatedLang: 'en',
+        _fullyTranslated: true
+      };
+    }
+    return article;
+  }
 
   const rawTitle = article.originalTitle || article.title || '';
   const rawSubtitle = article.originalSubtitle || article.subtitle || '';
   const rawSummary = article.originalSummary || article.summary || '';
   const rawExcerpt = article.originalExcerpt || article.excerpt || '';
-  const rawKicker = article.kicker || '';
-  const rawCategory = article.category || '';
+  const rawKicker = article.originalKicker || article.kicker || '';
+  const rawCategory = article.originalCategory || article.category || '';
   const rawSupertitle = article.supertitle || '';
-  const rawAuthor = article.author || '';
+  const rawAuthor = article.originalAuthor || article.author || '';
+  const rawContent = article.originalContent || article.content || '';
+  const rawTakeaways = article.originalTakeaways || article.takeaways;
+  const rawArticleMaster = article.originalArticle || article;
 
   const staticTitle = getStaticTranslation(targetLang, rawTitle);
   const staticSubtitle = getStaticTranslation(targetLang, rawSubtitle);
@@ -1371,9 +1425,16 @@ export function getSynchronousTranslatedArticle(article, targetLang) {
 
   return {
     ...article,
+    originalArticle: rawArticleMaster,
     originalTitle: rawTitle,
     originalSubtitle: rawSubtitle,
     originalSummary: rawSummary,
+    originalExcerpt: rawExcerpt,
+    originalContent: rawContent,
+    originalKicker: rawKicker,
+    originalCategory: rawCategory,
+    originalAuthor: rawAuthor,
+    originalTakeaways: rawTakeaways,
     title,
     subtitle: subtitle || summary || excerpt,
     summary: summary || excerpt || subtitle,

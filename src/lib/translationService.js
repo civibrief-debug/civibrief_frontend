@@ -59,13 +59,16 @@ function queuePersistMemoryCache() {
 }
 
 export function getCachedTranslation(targetLang, text) {
-  if (!text || typeof text !== 'string' || targetLang === 'en') return text;
+  if (!text || typeof text !== 'string') return text;
   const trimmed = text.trim();
+  if (targetLang === 'en' && !/[^\x00-\x7F]/.test(trimmed)) {
+    return trimmed;
+  }
   const langMap = MEMORY_CACHE.get(targetLang);
   if (langMap && langMap.has(trimmed)) {
     const val = langMap.get(trimmed);
     // Never treat identical English text as valid translation for foreign language
-    if (val && val !== trimmed) {
+    if (val && (targetLang === 'en' || val !== trimmed)) {
       return val;
     }
   }
@@ -73,10 +76,10 @@ export function getCachedTranslation(targetLang, text) {
 }
 
 export function setCachedTranslation(targetLang, text, translated) {
-  if (!text || typeof text !== 'string' || !translated || targetLang === 'en') return;
+  if (!text || typeof text !== 'string' || !translated) return;
   const trimmed = text.trim();
   const transTrimmed = translated.trim();
-  // Do not cache identical English text as a foreign language translation
+  // Do not cache identical text as a foreign language translation
   if (transTrimmed === trimmed && targetLang !== 'en') return;
 
   if (!MEMORY_CACHE.has(targetLang)) {
@@ -131,7 +134,8 @@ async function fetchClientText(text, targetLang) {
  * Google Translate Mobile Scraper - Reliable on Cloudflare Edge Worker with zero 429 IP rate limits
  */
 export async function fetchGoogleM(text, targetLang) {
-  if (!text || !text.trim() || targetLang === 'en') return text;
+  if (!text || !text.trim()) return text;
+  if (targetLang === 'en' && !/[^\x00-\x7F]/.test(text.trim())) return text;
   const url = `https://translate.google.com/m?sl=auto&tl=${targetLang}&q=${encodeURIComponent(text.trim())}`;
   const res = await fetch(url, {
     headers: HEADERS,
@@ -201,7 +205,10 @@ async function fetchChromeEx(text, targetLang) {
  * Translates a single plain text with 0-1ms cache resolution
  */
 export async function translatePlainText(plainText, targetLang) {
-  if (!plainText || typeof plainText !== 'string' || !plainText.trim() || targetLang === 'en') {
+  if (!plainText || typeof plainText !== 'string' || !plainText.trim()) {
+    return plainText;
+  }
+  if (targetLang === 'en' && !/[^\x00-\x7F]/.test(plainText.trim())) {
     return plainText;
   }
 
@@ -257,8 +264,11 @@ export async function translatePlainText(plainText, targetLang) {
  * Translates 20-50 text strings with zero latency via cache, and fast single-pass batches for uncached.
  */
 export async function translateBatchTexts(texts, targetLang) {
-  if (!texts || !Array.isArray(texts) || texts.length === 0 || targetLang === 'en') {
+  if (!texts || !Array.isArray(texts) || texts.length === 0) {
     return texts || [];
+  }
+  if (targetLang === 'en' && texts.every(t => typeof t !== 'string' || !/[^\x00-\x7F]/.test(t))) {
+    return texts;
   }
 
   const results = new Array(texts.length);
@@ -371,7 +381,10 @@ export async function translateBatchTexts(texts, targetLang) {
  * Translates HTML content while preserving tags, formatting, and attributes
  */
 export async function translateHtmlContent(html, targetLang) {
-  if (!html || typeof html !== 'string' || !html.trim() || targetLang === 'en') {
+  if (!html || typeof html !== 'string' || !html.trim()) {
+    return html;
+  }
+  if (targetLang === 'en' && !/[^\x00-\x7F]/.test(html.trim())) {
     return html;
   }
 

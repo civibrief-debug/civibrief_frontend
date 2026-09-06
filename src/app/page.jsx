@@ -626,9 +626,23 @@ export default function HomePage() {
       (rawTitle && (a.title && a.title.trim().toLowerCase() === rawTitle))
     );
 
+    const pristineMaster = match?.originalArticle || match || art?.originalArticle || art;
+
     if (match) {
       const translatedMatch = language !== 'en' ? getSynchronousArticle(match, language) : match;
-      const merged = { ...translatedMatch, ...baseArt };
+      const merged = { 
+        ...translatedMatch, 
+        ...baseArt,
+        originalArticle: pristineMaster,
+        originalTitle: pristineMaster.title || art.originalTitle || match.title,
+        originalSubtitle: pristineMaster.subtitle || art.originalSubtitle || match.subtitle,
+        originalSummary: pristineMaster.summary || art.originalSummary || match.summary,
+        originalContent: pristineMaster.content || art.originalContent || match.content,
+        originalKicker: pristineMaster.kicker || art.originalKicker || match.kicker,
+        originalCategory: pristineMaster.category || art.originalCategory || match.category,
+        originalAuthor: pristineMaster.author || art.originalAuthor || match.author,
+        originalTakeaways: pristineMaster.takeaways || art.originalTakeaways || match.takeaways
+      };
       if (language !== 'en') {
         if (baseArt.title && baseArt.title.trim().toLowerCase() !== rawTitle) {
           merged.title = baseArt.title;
@@ -638,7 +652,18 @@ export default function HomePage() {
       }
       return merged;
     }
-    return baseArt;
+    return {
+      ...baseArt,
+      originalArticle: pristineMaster,
+      originalTitle: pristineMaster.title || art.originalTitle,
+      originalSubtitle: pristineMaster.subtitle || art.originalSubtitle,
+      originalSummary: pristineMaster.summary || art.originalSummary,
+      originalContent: pristineMaster.content || art.originalContent,
+      originalKicker: pristineMaster.kicker || art.originalKicker,
+      originalCategory: pristineMaster.category || art.originalCategory,
+      originalAuthor: pristineMaster.author || art.originalAuthor,
+      originalTakeaways: pristineMaster.takeaways || art.originalTakeaways
+    };
   };
 
   // Safe handler to open modal with full hydrated article
