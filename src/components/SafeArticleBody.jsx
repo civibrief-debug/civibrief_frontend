@@ -2,7 +2,28 @@
 
 import React, { useMemo } from 'react';
 import { sanitizeArticleHtml } from '../lib/sanitizer';
+import { parseVideoUrl } from '../lib/videoUtils';
 import ArticleAdBanner from './ArticleAdBanner';
+
+function upgradeLegacyVideoFallbackCards(html) {
+  if (!html || typeof html !== 'string' || !html.includes('video-fallback-card')) return html;
+
+  return html.replace(
+    /<figure[^>]*class="[^"]*web-card-wrapper[^"]*"[^>]*>[\s\S]*?<div[^>]*class="[^"]*video-fallback-card[^"]*"[^>]*data-media-url="([^"]+)"[\s\S]*?<\/div>[\s\S]*?<\/figure>/gi,
+    (match, mediaUrl) => {
+      const isVideoLink = /pexels\.com|pixabay\.com\/videos|coverr\.co|youtube\.com|youtu\.be|vimeo\.com|dailymotion\.com|dai\.ly|loom\.com|streamable\.com|rumble\.com|twitch\.tv|fast\.wistia|\.(mp4|webm|mov|m4v|m3u8)/i.test(mediaUrl);
+      if (isVideoLink) {
+        const captionMatch = match.match(/<p[^>]*>([\s\S]*?)<\/p>/i);
+        const captionText = captionMatch ? captionMatch[1].replace(/<[^>]+>/g, '').trim() : '';
+        const parsed = parseVideoUrl(mediaUrl, captionText, 'center');
+        if (parsed && parsed.html) {
+          return parsed.html;
+        }
+      }
+      return match;
+    }
+  );
+}
 
 function getTargetIndexForAd(ad) {
   const dropZoneId = ad.dropZoneId || '';
@@ -110,7 +131,10 @@ const SafeArticleBody = React.memo(function SafeArticleBody({
   adConfig = null,
   adPlacements = null
 }) {
-  const cleanHtml = useMemo(() => sanitizeArticleHtml(content), [content]);
+  const cleanHtml = useMemo(() => {
+    const upgraded = upgradeLegacyVideoFallbackCards(content);
+    return sanitizeArticleHtml(upgraded);
+  }, [content]);
 
   // Determine active ad placements list
   const activePlacements = useMemo(() => {

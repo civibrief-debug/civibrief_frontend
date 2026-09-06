@@ -460,21 +460,180 @@ export function parseMediaUrl(inputUrl, caption = '', align = 'center') {
     };
   }
 
-  // 13. DIRECT VIDEO FILE (.mp4, .webm, .mov, etc.)
-  const isDirectVideo = /\.(mp4|webm|ogg|mov|m4v)(\?.*)?$/i.test(cleanUrl) || cleanUrl.startsWith('data:video/');
+  // 7.5 PEXELS HD VIDEO (e.g. https://www.pexels.com/video/.../ or https://videos.pexels.com/video-files/...)
+  const pexelsMatch = cleanUrl.match(/(?:pexels\.com\/(?:video|download\/video)\/(?:[a-zA-Z0-9_-]+-)?(\d+)|video-files\/(\d+))/i);
+  if (pexelsMatch && (pexelsMatch[1] || pexelsMatch[2])) {
+    const videoId = pexelsMatch[1] || pexelsMatch[2];
+    const proxyUrl = `/api/proxy-video?url=${encodeURIComponent(`https://www.pexels.com/download/video/${videoId}/`)}`;
+    const directHdUrl = `https://videos.pexels.com/video-files/${videoId}/${videoId}-hd_1920_1080_24fps.mp4`;
+    const directSdUrl = `https://videos.pexels.com/video-files/${videoId}/${videoId}-sd_960_540_24fps.mp4`;
+    const originalUrl = formattedUrl;
+    return {
+      type: 'video',
+      mediaType: 'video',
+      url: proxyUrl,
+      directUrl: directHdUrl,
+      videoId,
+      provider: 'Pexels Video',
+      isEmbeddable: true,
+      badgeText: '🟢 Pexels HD Video Player (Instant Stream)',
+      html: `
+        <figure class="video-wrapper pexels-video-wrapper direct-video-wrapper" contenteditable="false" data-video-url="${originalUrl}" data-source-url="${originalUrl}" style="${wrapperStyle}">
+          <video controls playsinline preload="metadata" data-video-url="${originalUrl}" style="max-width: 100%; width: 100%; aspect-ratio: 16/9; height: auto; display: block; margin: 0 auto; border-radius: 8px; box-shadow: 0 4px 20px rgba(0,0,0,0.4); background: #000000;">
+            <source src="${proxyUrl}" type="video/mp4" />
+            <source src="${directHdUrl}" type="video/mp4" />
+            <source src="${directSdUrl}" type="video/mp4" />
+            Your browser does not support the video tag.
+          </video>
+          ${captionHtml}
+        </figure>
+        <p><br></p>
+      `
+    };
+  }
+
+  // 7.6 PIXABAY VIDEO & COVERR VIDEO
+  const pixabayMatch = cleanUrl.match(/pixabay\.com\/videos\/(?:[a-zA-Z0-9_-]+-)?(\d+)/i);
+  const isCoverr = /coverr\.co\/videos/i.test(cleanUrl);
+  if (pixabayMatch || isCoverr) {
+    const proxyUrl = `/api/proxy-video?url=${encodeURIComponent(formattedUrl)}`;
+    const providerName = isCoverr ? 'Coverr Video' : 'Pixabay Video';
+    return {
+      type: 'video',
+      mediaType: 'video',
+      url: proxyUrl,
+      directUrl: formattedUrl,
+      provider: providerName,
+      isEmbeddable: true,
+      badgeText: `🟢 ${providerName} Player (Instant Stream)`,
+      html: `
+        <figure class="video-wrapper direct-video-wrapper" contenteditable="false" data-video-url="${formattedUrl}" data-source-url="${formattedUrl}" style="${wrapperStyle}">
+          <video controls playsinline preload="metadata" data-video-url="${formattedUrl}" style="max-width: 100%; width: 100%; aspect-ratio: 16/9; height: auto; display: block; margin: 0 auto; border-radius: 8px; box-shadow: 0 4px 20px rgba(0,0,0,0.4); background: #000000;">
+            <source src="${proxyUrl}" type="video/mp4" />
+            <source src="${formattedUrl}" />
+            Your browser does not support the video tag.
+          </video>
+          ${captionHtml}
+        </figure>
+        <p><br></p>
+      `
+    };
+  }
+
+  // 12.1 RUMBLE VIDEO
+  const rumbleMatch = cleanUrl.match(/rumble\.com\/(?:embed\/)?([a-zA-Z0-9_-]+)/i);
+  if (rumbleMatch && cleanUrl.includes('rumble.com')) {
+    const embedUrl = cleanUrl.includes('/embed/') ? cleanUrl : `https://rumble.com/embed/${rumbleMatch[1]}/`;
+    return {
+      type: 'video',
+      mediaType: 'video',
+      url: embedUrl,
+      provider: 'Rumble',
+      isEmbeddable: true,
+      badgeText: '🟢 Rumble Video Player',
+      html: `
+        <figure class="video-wrapper rumble-video-wrapper iframe-video-wrapper" contenteditable="false" data-video-url="${formattedUrl}" style="${wrapperStyle}">
+          <iframe src="${embedUrl}" title="Rumble video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen style="width: 100%; aspect-ratio: 16/9; max-width: 100%; display: block; margin: 0 auto; border-radius: 8px; border: none; box-shadow: 0 4px 20px rgba(0,0,0,0.4); background: #000000;"></iframe>
+          ${captionHtml}
+        </figure>
+        <p><br></p>
+      `
+    };
+  }
+
+  // 12.2 TWITCH VIDEO / CLIP
+  const twitchMatch = cleanUrl.match(/(?:clips\.twitch\.tv\/([a-zA-Z0-9_-]+)|twitch\.tv\/videos\/(\d+))/i);
+  if (twitchMatch) {
+    const isClip = !!twitchMatch[1];
+    const id = twitchMatch[1] || twitchMatch[2];
+    const parentDomain = typeof window !== 'undefined' ? window.location.hostname : 'localhost';
+    const embedUrl = isClip
+      ? `https://clips.twitch.tv/embed?clip=${id}&parent=${parentDomain}`
+      : `https://player.twitch.tv/?video=${id}&parent=${parentDomain}&autoplay=false`;
+    return {
+      type: 'video',
+      mediaType: 'video',
+      url: embedUrl,
+      provider: 'Twitch',
+      isEmbeddable: true,
+      badgeText: '🟢 Twitch Video Player',
+      html: `
+        <figure class="video-wrapper twitch-video-wrapper iframe-video-wrapper" contenteditable="false" data-video-url="${formattedUrl}" style="${wrapperStyle}">
+          <iframe src="${embedUrl}" title="Twitch video player" frameborder="0" allowfullscreen style="width: 100%; aspect-ratio: 16/9; max-width: 100%; display: block; margin: 0 auto; border-radius: 8px; border: none; box-shadow: 0 4px 20px rgba(0,0,0,0.4); background: #000000;"></iframe>
+          ${captionHtml}
+        </figure>
+        <p><br></p>
+      `
+    };
+  }
+
+  // 12.3 WISTIA VIDEO
+  const wistiaMatch = cleanUrl.match(/(?:wistia\.com\/medias\/|fast\.wistia\.net\/embed\/iframe\/)([a-zA-Z0-9]+)/i);
+  if (wistiaMatch) {
+    const embedUrl = `https://fast.wistia.net/embed/iframe/${wistiaMatch[1]}`;
+    return {
+      type: 'video',
+      mediaType: 'video',
+      url: embedUrl,
+      provider: 'Wistia',
+      isEmbeddable: true,
+      badgeText: '🟢 Wistia Video Player',
+      html: `
+        <figure class="video-wrapper wistia-video-wrapper iframe-video-wrapper" contenteditable="false" data-video-url="${formattedUrl}" style="${wrapperStyle}">
+          <iframe src="${embedUrl}" title="Wistia video player" frameborder="0" allowfullscreen style="width: 100%; aspect-ratio: 16/9; max-width: 100%; display: block; margin: 0 auto; border-radius: 8px; border: none; box-shadow: 0 4px 20px rgba(0,0,0,0.4); background: #000000;"></iframe>
+          ${captionHtml}
+        </figure>
+        <p><br></p>
+      `
+    };
+  }
+
+  // 13. DIRECT VIDEO FILE (.mp4, .webm, .mov, .m4v, .m3u8, .ogg, etc.)
+  const isDirectVideo = /\.(mp4|webm|ogg|mov|m4v|m3u8|avi|flv|mkv)(\?.*)?$/i.test(cleanUrl) || 
+                        cleanUrl.startsWith('data:video/') || 
+                        cleanUrl.startsWith('blob:') ||
+                        /videos\.pexels\.com|cdn\.pixabay\.com\/video/i.test(cleanUrl);
   if (isDirectVideo) {
+    const proxyUrl = cleanUrl.startsWith('http') ? `/api/proxy-video?url=${encodeURIComponent(formattedUrl)}` : formattedUrl;
     return {
       type: 'direct_video',
       mediaType: 'video',
       url: formattedUrl,
       provider: 'Direct Video File',
       isEmbeddable: true,
-      badgeText: '🔵 Direct MP4 Video',
+      badgeText: '🔵 Direct HD Video Player',
       html: `
-        <figure class="video-wrapper direct-video-wrapper" contenteditable="false" style="${wrapperStyle}">
-          <video controls preload="metadata" src="${formattedUrl}" style="max-width: 100%; height: auto; display: block; margin: 0 auto; border-radius: 8px; box-shadow: 0 4px 20px rgba(0,0,0,0.4);">
-            <source src="${formattedUrl}" type="video/mp4" />
+        <figure class="video-wrapper direct-video-wrapper" contenteditable="false" data-video-url="${formattedUrl}" data-source-url="${formattedUrl}" style="${wrapperStyle}">
+          <video controls playsinline preload="metadata" data-video-url="${formattedUrl}" style="max-width: 100%; width: 100%; aspect-ratio: 16/9; height: auto; display: block; margin: 0 auto; border-radius: 8px; box-shadow: 0 4px 20px rgba(0,0,0,0.4); background: #000000;">
+            <source src="${proxyUrl}" type="video/mp4" />
+            <source src="${formattedUrl}" />
+            Your browser does not support the video tag.
           </video>
+          ${captionHtml}
+        </figure>
+        <p><br></p>
+      `
+    };
+  }
+
+  // 13.5 GENERIC / RAW IFRAME EMBED PLAYER (e.g. pasted <iframe src="..."> or /embed/ or /player/ URLs)
+  const isGenericEmbedUrl = cleanUrl.includes('/embed/') || cleanUrl.includes('/player/') || cleanUrl.includes('/iframe/') || inputUrl.includes('<iframe');
+  if (isGenericEmbedUrl) {
+    let embedSrc = formattedUrl;
+    if (inputUrl.includes('<iframe')) {
+      const srcMatch = inputUrl.match(/src=["']([^"']+)["']/i);
+      if (srcMatch && srcMatch[1]) embedSrc = srcMatch[1].trim();
+    }
+    return {
+      type: 'embed',
+      mediaType: 'video',
+      url: embedSrc,
+      provider: 'Embedded Video Player',
+      isEmbeddable: true,
+      badgeText: '🟢 Embedded Video Player (HD)',
+      html: `
+        <figure class="video-wrapper iframe-video-wrapper" contenteditable="false" data-video-url="${embedSrc}" style="${wrapperStyle}">
+          <iframe src="${embedSrc}" title="Embedded Video Player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen style="width: 100%; aspect-ratio: 16/9; max-width: 100%; display: block; margin: 0 auto; border-radius: 8px; border: none; box-shadow: 0 4px 20px rgba(0,0,0,0.4); background: #000000;"></iframe>
           ${captionHtml}
         </figure>
         <p><br></p>
@@ -518,9 +677,77 @@ export function parseMediaUrl(inputUrl, caption = '', align = 'center') {
   };
 }
 
-// Backward compatible alias
+// Dedicated Video Parser: ensures any URL submitted with intent to embed online video gets an active player
 export function parseVideoUrl(inputUrl, caption = '', align = 'center') {
-  return parseMediaUrl(inputUrl, caption, align);
+  if (!inputUrl || typeof inputUrl !== 'string') {
+    return { type: 'invalid', url: '', provider: 'Unknown', isEmbeddable: false, badgeText: '', html: '' };
+  }
+
+  const parsed = parseMediaUrl(inputUrl, caption, align);
+
+  // If parsed as a web_card fallback, elevate to responsive online video player so it never displays a dead link card!
+  if (parsed.type === 'web_card') {
+    let cleanUrl = inputUrl.trim();
+    if (cleanUrl.includes('<iframe') && cleanUrl.includes('src=')) {
+      const m = cleanUrl.match(/src=["']([^"']+)["']/i);
+      if (m && m[1]) cleanUrl = m[1].trim();
+    }
+    const formattedUrl = cleanUrl.startsWith('http') ? cleanUrl : `https://${cleanUrl}`;
+
+    let wrapperStyle = 'margin: 16px auto; display: block; clear: both; text-align: center; max-width: 100%;';
+    if (align === 'left') {
+      wrapperStyle = 'margin: 12px 24px 12px 0; float: left; clear: none; max-width: 50%; display: block;';
+    } else if (align === 'right') {
+      wrapperStyle = 'margin: 12px 0 12px 24px; float: right; clear: none; max-width: 50%; display: block;';
+    }
+
+    const captionHtml = caption 
+      ? `<figcaption contenteditable="true" style="font-size: 13px; color: #94a3b8; font-style: italic; text-align: center; margin-top: 6px; margin-bottom: 0; line-height: 1.35; display: block; width: 100%;">${caption}</figcaption>` 
+      : '';
+
+    const isIframeTarget = formattedUrl.includes('/embed/') || formattedUrl.includes('/player/') || formattedUrl.includes('/iframe/');
+    if (isIframeTarget) {
+      return {
+        type: 'embed',
+        mediaType: 'video',
+        url: formattedUrl,
+        provider: parsed.provider || 'Online Video',
+        isEmbeddable: true,
+        badgeText: `🟢 Online Video Player (${parsed.provider || 'Web'})`,
+        html: `
+          <figure class="video-wrapper iframe-video-wrapper" contenteditable="false" data-video-url="${formattedUrl}" style="${wrapperStyle}">
+            <iframe src="${formattedUrl}" title="Online Video Player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen style="width: 100%; aspect-ratio: 16/9; max-width: 100%; display: block; margin: 0 auto; border-radius: 8px; border: none; box-shadow: 0 4px 20px rgba(0,0,0,0.4); background: #000000;"></iframe>
+            ${captionHtml}
+          </figure>
+          <p><br></p>
+        `
+      };
+    }
+
+    const proxyStreamUrl = `/api/proxy-video?url=${encodeURIComponent(formattedUrl)}`;
+    return {
+      type: 'video',
+      mediaType: 'video',
+      url: proxyStreamUrl,
+      directUrl: formattedUrl,
+      provider: parsed.provider || 'Online Video',
+      isEmbeddable: true,
+      badgeText: `🟢 Online Video Player (${parsed.provider || 'Web'})`,
+      html: `
+        <figure class="video-wrapper online-video-wrapper direct-video-wrapper" contenteditable="false" data-video-url="${formattedUrl}" data-source-url="${formattedUrl}" style="${wrapperStyle}">
+          <video controls playsinline preload="metadata" data-video-url="${formattedUrl}" style="max-width: 100%; width: 100%; aspect-ratio: 16/9; height: auto; display: block; margin: 0 auto; border-radius: 8px; box-shadow: 0 4px 20px rgba(0,0,0,0.4); background: #000000;">
+            <source src="${proxyStreamUrl}" type="video/mp4" />
+            <source src="${formattedUrl}" />
+            Your browser does not support the video tag.
+          </video>
+          ${captionHtml}
+        </figure>
+        <p><br></p>
+      `
+    };
+  }
+
+  return parsed;
 }
 
 /**
