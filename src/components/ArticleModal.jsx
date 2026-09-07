@@ -26,7 +26,9 @@ import {
   Minus,
   ChevronRight,
   Sparkles,
-  Check
+  Check,
+  RotateCcw,
+  Loader2
 } from 'lucide-react';
 
 export const ArticleModal = ({ article, onClose, isLoggedIn, onOpenLogin, onLoginSuccess }) => {
@@ -163,11 +165,23 @@ export const ArticleModal = ({ article, onClose, isLoggedIn, onOpenLogin, onLogi
     if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
       window.speechSynthesis.cancel();
     }
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current.currentTime = 0;
+      audioRef.current = null;
+    }
+    if (audioObjUrlRef.current) {
+      URL.revokeObjectURL(audioObjUrlRef.current);
+      audioObjUrlRef.current = null;
+    }
     setIsPlayingAudio(false);
     setIsPausedAudio(false);
     setIsEnded(false);
+    setIsLoadingAudio(false);
+    setAudioMode('idle');
     setAudioProgress(0);
     setElapsedTimeStr('0:00');
+    setDurationStr('0:00');
     isPlayingRef.current = false;
     isPausedRef.current = false;
     if (progressTimerRef.current) clearInterval(progressTimerRef.current);
@@ -223,6 +237,9 @@ export const ArticleModal = ({ article, onClose, isLoggedIn, onOpenLogin, onLogi
   const [isPlayingAudio, setIsPlayingAudio] = useState(false);
   const [isPausedAudio, setIsPausedAudio] = useState(false);
   const [isEnded, setIsEnded] = useState(false);
+  const [isLoadingAudio, setIsLoadingAudio] = useState(false);
+  const [audioMode, setAudioMode] = useState('idle'); // 'elevenlabs' | 'fallback' | 'idle'
+  const [durationStr, setDurationStr] = useState('0:00');
   const [playbackSpeed, setPlaybackSpeed] = useState(1.0); // Numeric speed float (1.0 = Normal)
   const [showSpeedMenu, setShowSpeedMenu] = useState(false);
   const [audioProgress, setAudioProgress] = useState(0); // 0 to 100%
@@ -231,6 +248,7 @@ export const ArticleModal = ({ article, onClose, isLoggedIn, onOpenLogin, onLogi
   const [showShareModal, setShowShareModal] = useState(false);
 
   const audioRef = useRef(null);
+  const audioObjUrlRef = useRef(null);
   const utteranceRef = useRef(null);
   const progressTimerRef = useRef(null);
   const speedMenuRef = useRef(null);
@@ -565,15 +583,16 @@ export const ArticleModal = ({ article, onClose, isLoggedIn, onOpenLogin, onLogi
     window.speechSynthesis.speak(utterance);
   };
 
-  // Start AI Voiceover Audio Reader across 100% of full article
-  const toggleAudioWithRate = (targetRate = playbackSpeedRef.current) => {
-    if (localLanguage !== 'en' && localLanguage !== 'hi') return;
-
+  // Fallback Audio Reader using browser Speech Synthesis if ElevenLabs is unavailable
+  const startFallbackSpeech = (targetRate = playbackSpeedRef.current) => {
     if (typeof window === 'undefined' || !('speechSynthesis' in window)) {
       alert("Text-to-speech audio reader is not supported in this browser.");
+      setAudioState(false, false);
+      setIsLoadingAudio(false);
       return;
     }
 
+    setAudioMode('fallback');
     setAudioState(true, false);
     setIsEnded(false);
     window.speechSynthesis.cancel();
@@ -584,13 +603,10 @@ export const ArticleModal = ({ article, onClose, isLoggedIn, onOpenLogin, onLogi
     const rawBody = activeArticle.content || activeArticle.summary || activeArticle.excerpt || '';
     const cleanBody = cleanHtmlText(rawBody);
 
-    const authorLabel = localLanguage === 'hi' ? 'रिपोर्टर' : 'By';
-    const fullTextToRead = localLanguage === 'hi'
-      ? `${cleanTitle}। ${authorLabel} ${cleanAuthor}। ${cleanBody}`
-      : `${cleanTitle}. By ${cleanAuthor}. ${cleanBody}`;
+    const authorLabel = localLanguage === 'hi' ? 'रिपोर्टर' : (localLanguage === 'ko' ? '기자' : (localLanguage === 'ja' ? '記者' : 'By'));
+    const fullTextToRead = `${cleanTitle}. ${authorLabel} ${cleanAuthor}. ${cleanBody}`;
 
     const chunks = createChunks(fullTextToRead, 150);
-
     chunksRef.current = chunks;
     chunkIndexRef.current = 0;
     totalArticleCharsRef.current = fullTextToRead.length;
@@ -617,19 +633,167 @@ export const ArticleModal = ({ article, onClose, isLoggedIn, onOpenLogin, onLogi
     playChunk(0, targetRate);
   };
 
-  // Instant Zero-Latency Play / Pause / Replay Toggle
-  const toggleAudio = () => {
-    if (localLanguage !== 'en' && localLanguage !== 'hi') return;
+  // Start ElevenLabs HTML5 Audio Player
+  const startElevenLabsAudio = async (audioBlob, targetRate = playbackSpeedRef.current) => {
+    try {
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current = null;
+      }
+      if (audioObjUrlRef.current) {
+        URL.revokeObjectURL(audioObjUrlRef.current);
+        audioObjUrlRef.current = null;
+      }
 
-    if (typeof window === 'undefined' || !('speechSynthesis' in window)) {
-      alert("Text-to-speech audio reader is not supported in this browser.");
+      const audioUrl = URL.createObjectURL(audioBlob);
+      audioObjUrlRef.current = audioUrl;
+      const audio = new Audio(audioUrl);
+      audioRef.current = audio;
+      audio.playbackRate = targetRate;
+
+      audio.onloadedmetadata = () => {
+        if (audio.duration && !isNaN(audio.duration) && isFinite(audio.duration)) {
+          const totalSecs = Math.floor(audio.duration);
+          const m = Math.floor(totalSecs / 60);
+          const s = (totalSecs % 60).toString().padStart(2, '0');
+          setDurationStr(`${m}:${s}`);
+        }
+      };
+
+      audio.ontimeupdate = () => {
+        if (!audio.duration || isNaN(audio.duration) || !isFinite(audio.duration)) return;
+        const current = audio.currentTime;
+        const dur = audio.duration;
+        const pct = Math.min(100, Math.round((current / dur) * 100));
+        setAudioProgress(pct);
+
+        const mins = Math.floor(current / 60);
+        const secs = (Math.floor(current) % 60).toString().padStart(2, '0');
+        setElapsedTimeStr(`${mins}:${secs}`);
+      };
+
+      audio.onended = () => {
+        setAudioState(false, false);
+        setIsEnded(true);
+        setAudioProgress(100);
+      };
+
+      audio.onerror = (e) => {
+        console.warn("ElevenLabs audio playback error, falling back to browser speech synthesis:", e);
+        startFallbackSpeech(targetRate);
+      };
+
+      setAudioMode('elevenlabs');
+      setAudioState(true, false);
+      setIsEnded(false);
+      await audio.play();
+    } catch (err) {
+      console.warn("Error starting ElevenLabs audio, activating fallback:", err);
+      startFallbackSpeech(targetRate);
+    }
+  };
+
+  // Fetch ElevenLabs Audio from Server Route with Automatic Fallback
+  const fetchAndPlayAudio = async (targetRate = playbackSpeedRef.current) => {
+    setIsLoadingAudio(true);
+    if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+      window.speechSynthesis.cancel();
+    }
+
+    try {
+      const cleanTitle = cleanHtmlText(activeArticle.title);
+      const cleanAuthor = cleanHtmlText(activeArticle.author || (localLanguage === 'hi' ? 'स्टाफ रिपोर्टर' : 'Staff Reporter'));
+      const rawBody = activeArticle.content || activeArticle.summary || activeArticle.excerpt || '';
+      const cleanBody = cleanHtmlText(rawBody);
+
+      const response = await fetch('/api/tts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title: cleanTitle,
+          author: cleanAuthor,
+          text: cleanBody,
+          language: localLanguage
+        })
+      });
+
+      const contentType = response.headers.get('content-type') || '';
+      if (response.ok && contentType.includes('audio')) {
+        const audioBlob = await response.blob();
+        setIsLoadingAudio(false);
+        await startElevenLabsAudio(audioBlob, targetRate);
+      } else {
+        // Fallback flag or API key missing/invalid
+        setIsLoadingAudio(false);
+        startFallbackSpeech(targetRate);
+      }
+    } catch (err) {
+      console.warn("ElevenLabs TTS request failed, activating fallback:", err);
+      setIsLoadingAudio(false);
+      startFallbackSpeech(targetRate);
+    }
+  };
+
+  // Instant Zero-Latency Play / Pause Toggle
+  const toggleAudio = () => {
+    if (isLoadingAudio) return;
+
+    // 1. REPLAY: If finished (ended) -> Replay from beginning
+    if (isEnded) {
+      handleReplay();
       return;
     }
 
+    // 2. If currently PLAYING and NOT paused -> PAUSE
+    if (isPlayingRef.current && !isPausedRef.current) {
+      setAudioState(true, true);
+      if (audioMode === 'elevenlabs' && audioRef.current) {
+        audioRef.current.pause();
+      } else if (audioMode === 'fallback') {
+        if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+          window.speechSynthesis.cancel();
+        }
+        if (progressTimerRef.current) clearInterval(progressTimerRef.current);
+      }
+      return;
+    }
 
-    // 1. REPLAY FIX: If finished (ended) -> RESET to 0:00 and replay full article from beginning!
-    if (isEnded || (chunksRef.current.length > 0 && chunkIndexRef.current >= chunksRef.current.length - 1 && audioProgress >= 98)) {
-      window.speechSynthesis.cancel();
+    // 3. If currently PAUSED -> RESUME
+    if (isPlayingRef.current && isPausedRef.current) {
+      setAudioState(true, false);
+      if (audioMode === 'elevenlabs' && audioRef.current) {
+        audioRef.current.playbackRate = playbackSpeedRef.current;
+        audioRef.current.play().catch(() => {});
+      } else if (audioMode === 'fallback') {
+        startSpeedTimer(playbackSpeedRef.current);
+        playChunk(chunkIndexRef.current, playbackSpeedRef.current);
+      }
+      return;
+    }
+
+    // 4. Initial Start -> Fetch ElevenLabs audio (or fallback)
+    fetchAndPlayAudio(playbackSpeedRef.current);
+  };
+
+  // Replay from beginning (0:00)
+  const handleReplay = () => {
+    if (isLoadingAudio) return;
+
+    if (audioMode === 'elevenlabs' && audioRef.current) {
+      audioRef.current.currentTime = 0;
+      audioRef.current.playbackRate = playbackSpeedRef.current;
+      audioRef.current.play().catch(() => {});
+      setAudioState(true, false);
+      setIsEnded(false);
+      setAudioProgress(0);
+      setElapsedTimeStr('0:00');
+      return;
+    }
+
+    if (audioMode === 'fallback') {
+      if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+        window.speechSynthesis.cancel();
+      }
       setAudioState(true, false);
       setIsEnded(false);
       chunkIndexRef.current = 0;
@@ -641,58 +805,54 @@ export const ArticleModal = ({ article, onClose, isLoggedIn, onOpenLogin, onLogi
       return;
     }
 
-    // 2. If currently PLAYING and NOT paused -> INSTANT PAUSE SILENCE (0ms delay)
-    if (isPlayingRef.current && !isPausedRef.current) {
-      setAudioState(true, true);
-      window.speechSynthesis.cancel(); // Cuts off speech voiceover instantly
-      if (progressTimerRef.current) clearInterval(progressTimerRef.current);
-      return;
-    }
-
-    // 3. If currently PAUSED -> INSTANT RESUME from exact sentence
-    if (isPlayingRef.current && isPausedRef.current) {
-      setAudioState(true, false);
-      startSpeedTimer(playbackSpeedRef.current);
-      playChunk(chunkIndexRef.current, playbackSpeedRef.current);
-      return;
-    }
-
-    // 4. If NOT started -> Start full article speech reading
-    if (chunksRef.current.length > 0 && chunkIndexRef.current < chunksRef.current.length) {
-      setAudioState(true, false);
-      startSpeedTimer(playbackSpeedRef.current);
-      playChunk(chunkIndexRef.current, playbackSpeedRef.current);
-    } else {
-      toggleAudioWithRate(playbackSpeedRef.current);
-    }
+    // If not yet started, fetch & play from beginning
+    fetchAndPlayAudio(playbackSpeedRef.current);
   };
 
-  // Update speed dynamically & sync elapsed time to content timestamp (YouTube Style)
+  // Update speed dynamically & sync elapsed time
   const updateSpeed = (newSpeed) => {
     const rate = Math.max(0.5, Math.min(3.0, parseFloat(newSpeed.toFixed(2))));
     setPlaybackSpeed(rate);
     playbackSpeedRef.current = rate;
 
-    // Convert elapsed seconds to current content position seconds so switching speeds doesn't jump
-    const currentOffset = chunkCharOffsetsRef.current[chunkIndexRef.current] || 0;
-    const contentSeconds = Math.round(currentOffset / 15);
-    secondsPlayedRef.current = contentSeconds;
-
-    const mins = Math.floor(contentSeconds / 60);
-    const secs = (contentSeconds % 60).toString().padStart(2, '0');
-    setElapsedTimeStr(`${mins}:${secs}`);
-
-    // If audio is currently playing, continue playing from exact current sentence at new speed
-    if (isPlayingRef.current && !isPausedRef.current && typeof window !== 'undefined' && 'speechSynthesis' in window) {
-      window.speechSynthesis.cancel();
-      startSpeedTimer(rate);
-      playChunk(chunkIndexRef.current, rate);
+    if (audioMode === 'elevenlabs' && audioRef.current) {
+      audioRef.current.playbackRate = rate;
+      return;
     }
-    // If audio is currently paused, DO NOT start playback! Stay paused at exact timestamp!
+
+    if (audioMode === 'fallback') {
+      const currentOffset = chunkCharOffsetsRef.current[chunkIndexRef.current] || 0;
+      const contentSeconds = Math.round(currentOffset / 15);
+      secondsPlayedRef.current = contentSeconds;
+
+      const mins = Math.floor(contentSeconds / 60);
+      const secs = (contentSeconds % 60).toString().padStart(2, '0');
+      setElapsedTimeStr(`${mins}:${secs}`);
+
+      if (isPlayingRef.current && !isPausedRef.current && typeof window !== 'undefined' && 'speechSynthesis' in window) {
+        window.speechSynthesis.cancel();
+        startSpeedTimer(rate);
+        playChunk(chunkIndexRef.current, rate);
+      }
+    }
   };
 
-  // Interactive YouTube-Style Audio Seeking (Slide to any paragraph/part)
+  // Interactive Audio Seeking (Slide or click to any position)
   const handleSeekProgress = (targetPct) => {
+    if (audioMode === 'elevenlabs' && audioRef.current) {
+      if (audioRef.current.duration && !isNaN(audioRef.current.duration) && isFinite(audioRef.current.duration)) {
+        const targetTime = (targetPct / 100) * audioRef.current.duration;
+        audioRef.current.currentTime = targetTime;
+        setAudioProgress(targetPct);
+        setIsEnded(false);
+        const mins = Math.floor(targetTime / 60);
+        const secs = (Math.floor(targetTime) % 60).toString().padStart(2, '0');
+        setElapsedTimeStr(`${mins}:${secs}`);
+      }
+      return;
+    }
+
+    // Fallback seeking through sentence chunks
     const chunks = chunksRef.current;
     if (!chunks || chunks.length === 0) return;
 
@@ -873,8 +1033,7 @@ export const ArticleModal = ({ article, onClose, isLoggedIn, onOpenLogin, onLogi
         </div>
 
         {/* Real Functional AI Voiceover News Player Card */}
-        {(localLanguage === 'en' || localLanguage === 'hi') && (
-          <div style={{
+        <div style={{
           background: 'linear-gradient(135deg, var(--bg-dark-accent, #0f172a) 0%, #1e293b 100%)',
           color: '#ffffff',
           borderRadius: '12px',
@@ -888,35 +1047,75 @@ export const ArticleModal = ({ article, onClose, isLoggedIn, onOpenLogin, onLogi
           flexWrap: 'wrap',
           position: 'relative'
         }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '14px', flex: '1 1 300px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flex: '1 1 300px' }}>
             {/* Play / Pause Voiceover Audio Button */}
             <button 
               onClick={toggleAudio} 
+              disabled={isLoadingAudio}
               style={{
                 width: '46px',
                 height: '46px',
                 borderRadius: '50%',
-                background: (isPlayingAudio && !isPausedAudio) ? 'var(--accent-crimson, #dc2626)' : 'var(--accent-emerald, #059669)',
+                background: isLoadingAudio ? '#334155' : ((isPlayingAudio && !isPausedAudio) ? 'var(--accent-crimson, #dc2626)' : 'var(--accent-emerald, #059669)'),
                 color: '#fff',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
                 border: 'none',
-                cursor: 'pointer',
+                cursor: isLoadingAudio ? 'wait' : 'pointer',
                 boxShadow: (isPlayingAudio && !isPausedAudio) ? '0 0 18px rgba(220, 38, 38, 0.6)' : '0 0 18px rgba(5, 150, 105, 0.6)',
                 flexShrink: 0,
-                transition: 'transform 0.15s ease'
+                transition: 'all 0.15s ease'
               }}
-              title={(isPlayingAudio && !isPausedAudio) ? "Pause AI Voiceover" : (isPausedAudio ? "Resume AI Voiceover" : "Play AI Voiceover News")}
+              title={isLoadingAudio ? "Synthesizing ElevenLabs Audio..." : ((isPlayingAudio && !isPausedAudio) ? "Pause AI Voiceover" : (isPausedAudio ? "Resume AI Voiceover" : "Play AI Voiceover News"))}
             >
-              {(isPlayingAudio && !isPausedAudio) ? <Pause size={22} /> : <Play size={22} style={{ marginLeft: '2px' }} />}
+              {isLoadingAudio ? (
+                <Loader2 size={22} className="animate-spin" />
+              ) : (isPlayingAudio && !isPausedAudio) ? (
+                <Pause size={22} />
+              ) : (
+                <Play size={22} style={{ marginLeft: '2px' }} />
+              )}
+            </button>
+
+            {/* Replay Button */}
+            <button
+              onClick={handleReplay}
+              disabled={isLoadingAudio}
+              style={{
+                width: '38px',
+                height: '38px',
+                borderRadius: '50%',
+                background: 'rgba(255, 255, 255, 0.10)',
+                color: '#cbd5e1',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                border: '1px solid rgba(255, 255, 255, 0.16)',
+                cursor: isLoadingAudio ? 'not-allowed' : 'pointer',
+                flexShrink: 0,
+                transition: 'all 0.15s ease'
+              }}
+              title="Replay from Beginning (0:00)"
+            >
+              <RotateCcw size={16} />
             </button>
 
             <div>
-              <div style={{ fontSize: '11px', fontWeight: 800, color: (isPlayingAudio && !isPausedAudio) ? '#f87171' : (isPausedAudio ? '#f59e0b' : 'var(--accent-emerald, #34d399)'), textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '2px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <span dir="ltr">{(isPlayingAudio && !isPausedAudio) ? "🎙️ READING NEWS ALOUD..." : (isPausedAudio ? "⏸️ VOICE PAUSED • CLICK TO RESUME" : "DAILY BRIEF AI VOICEOVER • LISTEN TO ARTICLE")}</span>
+              <div style={{ fontSize: '11px', fontWeight: 800, color: isLoadingAudio ? '#60a5fa' : ((isPlayingAudio && !isPausedAudio) ? '#f87171' : (isPausedAudio ? '#f59e0b' : 'var(--accent-emerald, #34d399)')), textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '2px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <span dir="ltr">
+                  {isLoadingAudio ? (
+                    "⚡ SYNTHESIZING ELEVENLABS AI AUDIO..."
+                  ) : (isPlayingAudio && !isPausedAudio) ? (
+                    audioMode === 'elevenlabs' ? "🎙️ ELEVENLABS AI VOICE • BROADCAST AUDIO" : "🎙️ READING NEWS ALOUD • WEB VOICE"
+                  ) : isPausedAudio ? (
+                    "⏸️ VOICE PAUSED • CLICK TO RESUME"
+                  ) : (
+                    "DAILY BRIEF AI VOICEOVER • LISTEN TO ARTICLE"
+                  )}
+                </span>
               </div>
-              <div style={{ fontSize: '12px', color: '#94a3b8', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', fontWeight: 500 }} dir={isRtl ? 'rtl' : 'ltr'}>
+              <div style={{ fontSize: '12px', color: '#94a3b8', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', fontWeight: 500, maxWidth: '320px' }} dir={isRtl ? 'rtl' : 'ltr'}>
                 {activeArticle.title}
               </div>
             </div>
@@ -924,8 +1123,8 @@ export const ArticleModal = ({ article, onClose, isLoggedIn, onOpenLogin, onLogi
 
           {/* Live Audio Playback Seekable Slider Bar (YouTube Style Seeking) */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flex: '1 1 240px' }}>
-            <span style={{ fontSize: '12px', color: '#94a3b8', fontFamily: 'var(--font-mono)', minWidth: '36px', fontWeight: 600 }}>
-              {elapsedTimeStr}
+            <span style={{ fontSize: '12px', color: '#94a3b8', fontFamily: 'var(--font-mono)', minWidth: '40px', fontWeight: 600 }}>
+              {elapsedTimeStr}{durationStr && durationStr !== '0:00' ? ` / ${durationStr}` : ''}
             </span>
             
             <div style={{ flex: 1, position: 'relative', display: 'flex', alignItems: 'center' }}>
@@ -973,159 +1172,192 @@ export const ArticleModal = ({ article, onClose, isLoggedIn, onOpenLogin, onLogi
             </div>
           </div>
 
-          {/* YouTube Style Playback Speed Trigger Button & Popover Container */}
-          <div style={{ position: 'relative' }}>
-            <button 
-              onClick={() => setShowSpeedMenu(!showSpeedMenu)}
-              style={{
-                fontSize: '12px',
-                fontWeight: 700,
-                color: '#cbd5e1',
-                background: 'rgba(255,255,255,0.12)',
-                padding: '6px 14px',
-                borderRadius: '8px',
-                border: '1px solid rgba(255,255,255,0.2)',
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '6px',
-                transition: 'background 0.2s'
-              }}
-              title="Change Playback Speed (YouTube Style)"
-            >
-              <Gauge size={15} color="#34d399" />
-              <span>{`${playbackSpeed.toFixed(2)}x`}</span>
-              <ChevronRight size={14} style={{ transform: showSpeedMenu ? 'rotate(90deg)' : 'none', transition: 'transform 0.2s' }} />
-            </button>
+          {/* Speed Selection Row: Quick 0.9x, 1x, 1.1x pills + YouTube Popover Trigger */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            {/* Quick 0.9x, 1x, 1.1x Presets */}
+            <div style={{ display: 'flex', alignItems: 'center', background: 'rgba(255,255,255,0.08)', borderRadius: '8px', padding: '2px', border: '1px solid rgba(255,255,255,0.14)' }}>
+              {[
+                { val: 0.9, label: '0.9x' },
+                { val: 1.0, label: '1x' },
+                { val: 1.1, label: '1.1x' }
+              ].map(item => {
+                const isActive = Math.abs(playbackSpeed - item.val) < 0.03;
+                return (
+                  <button
+                    key={item.label}
+                    onClick={() => updateSpeed(item.val)}
+                    style={{
+                      fontSize: '11px',
+                      fontWeight: 700,
+                      padding: '4px 8px',
+                      borderRadius: '6px',
+                      border: 'none',
+                      background: isActive ? '#059669' : 'transparent',
+                      color: isActive ? '#ffffff' : '#94a3b8',
+                      cursor: 'pointer',
+                      transition: 'all 0.15s ease'
+                    }}
+                    title={`Set playback speed to ${item.label}`}
+                  >
+                    {item.label}
+                  </button>
+                );
+              })}
+            </div>
 
-            {/* YouTube Style Playback Speed Popover Menu */}
-            {showSpeedMenu && (
-              <div 
-                ref={speedMenuRef}
+            {/* YouTube Style Playback Speed Trigger Button & Popover Container */}
+            <div style={{ position: 'relative' }}>
+              <button 
+                onClick={() => setShowSpeedMenu(!showSpeedMenu)}
                 style={{
-                  position: 'absolute',
-                  bottom: 'calc(100% + 12px)',
-                  right: 0,
-                  width: '320px',
-                  background: '#0f172a',
-                  color: '#ffffff',
-                  border: '1px solid rgba(255, 255, 255, 0.15)',
-                  borderRadius: '16px',
-                  padding: '18px 20px',
-                  boxShadow: '0 20px 40px rgba(0, 0, 0, 0.6)',
-                  zIndex: 99999,
-                  backdropFilter: 'blur(16px)'
+                  fontSize: '12px',
+                  fontWeight: 700,
+                  color: '#cbd5e1',
+                  background: 'rgba(255,255,255,0.12)',
+                  padding: '6px 12px',
+                  borderRadius: '8px',
+                  border: '1px solid rgba(255,255,255,0.2)',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '5px',
+                  transition: 'background 0.2s'
                 }}
+                title="Fine-tune Playback Speed (YouTube Style)"
               >
-                {/* Header */}
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px', borderBottom: '1px solid rgba(255,255,255,0.1)', paddingBottom: '10px' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '14px', fontWeight: 700 }}>
-                    <Gauge size={18} color="#34d399" />
-                    <span>Playback speed</span>
+                <Gauge size={14} color="#34d399" />
+                <span>{`${playbackSpeed.toFixed(2)}x`}</span>
+                <ChevronRight size={13} style={{ transform: showSpeedMenu ? 'rotate(90deg)' : 'none', transition: 'transform 0.2s' }} />
+              </button>
+
+              {/* YouTube Style Playback Speed Popover Menu */}
+              {showSpeedMenu && (
+                <div 
+                  ref={speedMenuRef}
+                  style={{
+                    position: 'absolute',
+                    bottom: 'calc(100% + 12px)',
+                    right: 0,
+                    width: '320px',
+                    background: '#0f172a',
+                    color: '#ffffff',
+                    border: '1px solid rgba(255, 255, 255, 0.15)',
+                    borderRadius: '16px',
+                    padding: '18px 20px',
+                    boxShadow: '0 20px 40px rgba(0, 0, 0, 0.6)',
+                    zIndex: 99999,
+                    backdropFilter: 'blur(16px)'
+                  }}
+                >
+                  {/* Header */}
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px', borderBottom: '1px solid rgba(255,255,255,0.1)', paddingBottom: '10px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '14px', fontWeight: 700 }}>
+                      <Gauge size={18} color="#34d399" />
+                      <span>Playback speed</span>
+                    </div>
+                    <span style={{ fontSize: '12px', color: '#94a3b8', fontFamily: 'var(--font-mono)' }}>
+                      {`${playbackSpeed.toFixed(2)}x`}
+                    </span>
                   </div>
-                  <span style={{ fontSize: '12px', color: '#94a3b8', fontFamily: 'var(--font-mono)' }}>
-                    {`${playbackSpeed.toFixed(2)}x`}
-                  </span>
+
+                  {/* Large Speed Readout */}
+                  <div style={{ textAlign: 'center', fontSize: '26px', fontWeight: 800, marginBottom: '14px', color: '#f8fafc', fontFamily: 'var(--font-mono)' }}>
+                    {playbackSpeed.toFixed(2)}x
+                  </div>
+
+                  {/* Speed Slider Bar with - and + buttons */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '18px' }}>
+                    <button 
+                      onClick={() => updateSpeed(playbackSpeed - 0.05)}
+                      style={{
+                        width: '34px',
+                        height: '34px',
+                        borderRadius: '50%',
+                        background: 'rgba(255,255,255,0.12)',
+                        color: '#fff',
+                        border: 'none',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center'
+                      }}
+                      title="Decrease Speed (-0.05x)"
+                    >
+                      <Minus size={16} />
+                    </button>
+
+                    <input 
+                      type="range" 
+                      min="0.5" 
+                      max="3.0" 
+                      step="0.05" 
+                      value={playbackSpeed}
+                      onChange={(e) => updateSpeed(parseFloat(e.target.value))}
+                      style={{
+                        flex: 1,
+                        accentColor: '#059669',
+                        height: '6px',
+                        cursor: 'pointer'
+                      }}
+                    />
+
+                    <button 
+                      onClick={() => updateSpeed(playbackSpeed + 0.05)}
+                      style={{
+                        width: '34px',
+                        height: '34px',
+                        borderRadius: '50%',
+                        background: 'rgba(255,255,255,0.12)',
+                        color: '#fff',
+                        border: 'none',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center'
+                      }}
+                      title="Increase Speed (+0.05x)"
+                    >
+                      <Plus size={16} />
+                    </button>
+                  </div>
+
+                  {/* Speed Preset Pills Row (YouTube Style) */}
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '4px' }}>
+                    {[
+                      { val: 1.0, label: '1.0', sub: 'Normal' },
+                      { val: 1.25, label: '1.25' },
+                      { val: 1.5, label: '1.5' },
+                      { val: 2.0, label: '2.0' },
+                      { val: 3.0, label: '3.0', sub: 'Max' }
+                    ].map((preset) => {
+                      const isActive = Math.abs(playbackSpeed - preset.val) < 0.01;
+                      return (
+                        <button
+                          key={preset.val}
+                          onClick={() => updateSpeed(preset.val)}
+                          style={{
+                            flex: 1,
+                            padding: '8px 4px',
+                            borderRadius: '20px',
+                            background: isActive ? '#059669' : 'rgba(255,255,255,0.1)',
+                            color: '#ffffff',
+                            border: isActive ? '1px solid #34d399' : '1px solid transparent',
+                            cursor: 'pointer',
+                            textAlign: 'center',
+                            transition: 'all 0.15s ease'
+                          }}
+                        >
+                          <div style={{ fontSize: '13px', fontWeight: 800 }}>{preset.label}x</div>
+                          {preset.sub && <div style={{ fontSize: '9px', opacity: 0.8, textTransform: 'uppercase' }}>{preset.sub}</div>}
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
-
-                {/* Large Speed Readout */}
-                <div style={{ textAlign: 'center', fontSize: '26px', fontWeight: 800, marginBottom: '14px', color: '#f8fafc', fontFamily: 'var(--font-mono)' }}>
-                  {playbackSpeed.toFixed(2)}x
-                </div>
-
-                {/* Speed Slider Bar with - and + buttons */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '18px' }}>
-                  <button 
-                    onClick={() => updateSpeed(playbackSpeed - 0.05)}
-                    style={{
-                      width: '34px',
-                      height: '34px',
-                      borderRadius: '50%',
-                      background: 'rgba(255,255,255,0.12)',
-                      color: '#fff',
-                      border: 'none',
-                      cursor: 'pointer',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center'
-                    }}
-                    title="Decrease Speed (-0.05x)"
-                  >
-                    <Minus size={16} />
-                  </button>
-
-                  <input 
-                    type="range" 
-                    min="0.5" 
-                    max="3.0" 
-                    step="0.05" 
-                    value={playbackSpeed}
-                    onChange={(e) => updateSpeed(parseFloat(e.target.value))}
-                    style={{
-                      flex: 1,
-                      accentColor: '#059669',
-                      height: '6px',
-                      cursor: 'pointer'
-                    }}
-                  />
-
-                  <button 
-                    onClick={() => updateSpeed(playbackSpeed + 0.05)}
-                    style={{
-                      width: '34px',
-                      height: '34px',
-                      borderRadius: '50%',
-                      background: 'rgba(255,255,255,0.12)',
-                      color: '#fff',
-                      border: 'none',
-                      cursor: 'pointer',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center'
-                    }}
-                    title="Increase Speed (+0.05x)"
-                  >
-                    <Plus size={16} />
-                  </button>
-                </div>
-
-                {/* Speed Preset Pills Row (YouTube Style) */}
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '4px' }}>
-                  {[
-                    { val: 1.0, label: '1.0', sub: 'Normal' },
-                    { val: 1.25, label: '1.25' },
-                    { val: 1.5, label: '1.5' },
-                    { val: 2.0, label: '2.0' },
-                    { val: 3.0, label: '3.0', sub: 'Max' }
-                  ].map((preset) => {
-                    const isActive = Math.abs(playbackSpeed - preset.val) < 0.01;
-                    return (
-                      <button
-                        key={preset.val}
-                        onClick={() => updateSpeed(preset.val)}
-                        style={{
-                          flex: 1,
-                          padding: '8px 4px',
-                          borderRadius: '20px',
-                          background: isActive ? '#059669' : 'rgba(255,255,255,0.1)',
-                          color: '#ffffff',
-                          border: isActive ? '1px solid #34d399' : '1px solid transparent',
-                          cursor: 'pointer',
-                          textAlign: 'center',
-                          transition: 'all 0.15s ease'
-                        }}
-                      >
-                        <div style={{ fontSize: '13px', fontWeight: 800 }}>{preset.label}x</div>
-                        {preset.sub && <div style={{ fontSize: '9px', opacity: 0.8, textTransform: 'uppercase' }}>{preset.sub}</div>}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
+              )}
+            </div>
           </div>
         </div>
-        )}
 
         {/* Optional Article Cover Media (Video, Document, or Image) */}
         <div className="article-modal-hero-img-container" style={{ width: activeArticle.coverWidth || '100%', margin: '0 auto 24px auto' }}>
