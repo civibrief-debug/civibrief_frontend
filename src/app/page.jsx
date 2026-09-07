@@ -615,54 +615,53 @@ export default function HomePage() {
   // Safe helper to enrich article stub with full master database record and instant synchronous translation
   const enrichArticle = (art) => {
     if (!art) return art;
-    const baseArt = language !== 'en' ? getSynchronousArticle(art, language) : art;
 
     const rawTitle = (art.originalTitle || art.title || '').trim().toLowerCase();
-    const match = (activeArticles || []).find(a =>
-      (art.id && a.id === art.id) ||
+    const artId = art.id || '';
+
+    // Always resolve pristine master from untranslated English base pools
+    const pristineMaster = (combinedArticlesPool || []).find(a =>
+      (artId && a.id === artId) ||
       (rawTitle && ((a.originalTitle && a.originalTitle.trim().toLowerCase() === rawTitle) || (a.title && a.title.trim().toLowerCase() === rawTitle)))
     ) || (dbArticles || []).find(a =>
-      (art.id && a.id === art.id) ||
+      (artId && a.id === artId) ||
       (rawTitle && (a.title && a.title.trim().toLowerCase() === rawTitle))
-    );
+    ) || art?.originalArticle || art;
 
-    const pristineMaster = match?.originalArticle || match || art?.originalArticle || art;
+    const trueOriginalTitle = pristineMaster.originalTitle || pristineMaster.title || art.originalTitle || art.title;
+    const trueOriginalSubtitle = pristineMaster.originalSubtitle || pristineMaster.subtitle || art.originalSubtitle || art.subtitle;
+    const trueOriginalSummary = pristineMaster.originalSummary || pristineMaster.summary || art.originalSummary || art.summary;
+    const trueOriginalContent = pristineMaster.originalContent || pristineMaster.content || art.originalContent || art.content;
+    const trueOriginalKicker = pristineMaster.originalKicker || pristineMaster.kicker || art.originalKicker || art.kicker;
+    const trueOriginalCategory = pristineMaster.originalCategory || pristineMaster.category || art.originalCategory || art.category;
+    const trueOriginalAuthor = pristineMaster.originalAuthor || pristineMaster.author || art.originalAuthor || art.author;
+    const trueOriginalTakeaways = pristineMaster.originalTakeaways || pristineMaster.takeaways || art.originalTakeaways || art.takeaways;
 
-    if (match) {
-      const translatedMatch = language !== 'en' ? getSynchronousArticle(match, language) : match;
-      const merged = { 
-        ...translatedMatch, 
-        ...baseArt,
-        originalArticle: pristineMaster,
-        originalTitle: pristineMaster.title || art.originalTitle || match.title,
-        originalSubtitle: pristineMaster.subtitle || art.originalSubtitle || match.subtitle,
-        originalSummary: pristineMaster.summary || art.originalSummary || match.summary,
-        originalContent: pristineMaster.content || art.originalContent || match.content,
-        originalKicker: pristineMaster.kicker || art.originalKicker || match.kicker,
-        originalCategory: pristineMaster.category || art.originalCategory || match.category,
-        originalAuthor: pristineMaster.author || art.originalAuthor || match.author,
-        originalTakeaways: pristineMaster.takeaways || art.originalTakeaways || match.takeaways
-      };
-      if (language !== 'en') {
-        if (baseArt.title && baseArt.title.trim().toLowerCase() !== rawTitle) {
-          merged.title = baseArt.title;
-        } else if (translatedMatch.title && translatedMatch.title.trim().toLowerCase() !== rawTitle) {
-          merged.title = translatedMatch.title;
-        }
-      }
-      return merged;
-    }
+    const activeMatch = language !== 'en' 
+      ? ((activeArticles || []).find(a => 
+          (artId && a.id === artId) || 
+          (rawTitle && (a.id === artId || a.title?.trim().toLowerCase() === rawTitle || a.originalTitle?.trim().toLowerCase() === rawTitle))
+        ))
+      : null;
+
+    const translatedArt = language !== 'en' 
+      ? (activeMatch || getSynchronousArticle(pristineMaster, language)) 
+      : pristineMaster;
+
     return {
-      ...baseArt,
+      ...art,
+      ...pristineMaster,
+      ...translatedArt,
       originalArticle: pristineMaster,
-      originalTitle: pristineMaster.title || art.originalTitle,
-      originalSubtitle: pristineMaster.subtitle || art.originalSubtitle,
-      originalSummary: pristineMaster.summary || art.originalSummary,
-      originalContent: pristineMaster.content || art.originalContent,
-      originalKicker: pristineMaster.kicker || art.originalKicker,
-      originalCategory: pristineMaster.category || art.originalCategory,
-      originalAuthor: pristineMaster.author || art.originalAuthor,
-      originalTakeaways: pristineMaster.takeaways || art.originalTakeaways
+      originalTitle: trueOriginalTitle,
+      originalSubtitle: trueOriginalSubtitle,
+      originalSummary: trueOriginalSummary,
+      originalContent: trueOriginalContent,
+      originalKicker: trueOriginalKicker,
+      originalCategory: trueOriginalCategory,
+      originalAuthor: trueOriginalAuthor,
+      originalTakeaways: trueOriginalTakeaways,
+      _translatedLang: language
     };
   };
 

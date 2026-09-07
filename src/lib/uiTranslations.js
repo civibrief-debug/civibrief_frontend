@@ -1329,38 +1329,48 @@ export function getSynchronousTranslatedArticle(article, targetLang) {
   if (!article) return article;
 
   if (targetLang === 'en') {
-    if (article.originalArticle) {
-      return {
-        ...article.originalArticle,
-        originalArticle: article.originalArticle,
-        originalTitle: article.originalTitle || article.originalArticle.title,
-        originalSubtitle: article.originalSubtitle || article.originalArticle.subtitle,
-        originalSummary: article.originalSummary || article.originalArticle.summary,
-        originalContent: article.originalContent || article.originalArticle.content,
-        originalKicker: article.originalKicker || article.originalArticle.kicker,
-        originalCategory: article.originalCategory || article.originalArticle.category,
-        originalAuthor: article.originalAuthor || article.originalArticle.author,
-        originalTakeaways: article.originalTakeaways || article.originalArticle.takeaways,
-        _translatedLang: 'en',
-        _fullyTranslated: true,
-        _contentTranslated: true
-      };
-    }
-    if (article.originalTitle || article.originalSummary || article.originalContent) {
-      return {
-        ...article,
-        title: article.originalTitle || article.title,
-        subtitle: article.originalSubtitle || article.subtitle,
-        summary: article.originalSummary || article.summary,
-        content: article.originalContent || article.content,
-        kicker: article.originalKicker || article.kicker,
-        category: article.originalCategory || article.category,
-        author: article.originalAuthor || article.author,
-        takeaways: article.originalTakeaways || article.takeaways,
-        _translatedLang: 'en',
-        _fullyTranslated: true,
-        _contentTranslated: true
-      };
+    const isNonEnglish = (str) => {
+      if (!str || typeof str !== 'string') return false;
+      return /[\uac00-\ud7af\u1100-\u11ff\u3040-\u30ff\u3400-\u4dbf\u4e00-\u9fff\u0400-\u04ff\u0600-\u06ff\u0900-\u097f]/.test(str);
+    };
+
+    const origTitle = article.originalTitle || article.originalArticle?.title;
+    const hasPristineEnglish = origTitle && !isNonEnglish(origTitle);
+
+    if (hasPristineEnglish) {
+      if (article.originalArticle) {
+        return {
+          ...article.originalArticle,
+          originalArticle: article.originalArticle,
+          originalTitle: origTitle,
+          originalSubtitle: article.originalSubtitle || article.originalArticle.subtitle,
+          originalSummary: article.originalSummary || article.originalArticle.summary,
+          originalContent: article.originalContent || article.originalArticle.content,
+          originalKicker: article.originalKicker || article.originalArticle.kicker,
+          originalCategory: article.originalCategory || article.originalArticle.category,
+          originalAuthor: article.originalAuthor || article.originalArticle.author,
+          originalTakeaways: article.originalTakeaways || article.originalArticle.takeaways,
+          _translatedLang: 'en',
+          _fullyTranslated: true,
+          _contentTranslated: true
+        };
+      }
+      if (article.originalTitle || article.originalSummary || article.originalContent) {
+        return {
+          ...article,
+          title: origTitle,
+          subtitle: article.originalSubtitle || article.subtitle,
+          summary: article.originalSummary || article.summary,
+          content: article.originalContent || article.content,
+          kicker: article.originalKicker || article.kicker,
+          category: article.originalCategory || article.category,
+          author: article.originalAuthor || article.author,
+          takeaways: article.originalTakeaways || article.takeaways,
+          _translatedLang: 'en',
+          _fullyTranslated: true,
+          _contentTranslated: true
+        };
+      }
     }
     const cachedTitle = getCachedTranslation('en', article.title || '');
     if (cachedTitle && cachedTitle !== article.title) {

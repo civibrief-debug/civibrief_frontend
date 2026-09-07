@@ -151,12 +151,20 @@ export const TranslationProvider = ({ children }) => {
       if (article._translatedLang === 'en' && article._fullyTranslated) {
         return article;
       }
-      if (article._translatedLang && article._translatedLang !== 'en') {
+      const isNonEnglish = (str) => {
+        if (!str || typeof str !== 'string') return false;
+        return /[\uac00-\ud7af\u1100-\u11ff\u3040-\u30ff\u3400-\u4dbf\u4e00-\u9fff\u0400-\u04ff\u0600-\u06ff\u0900-\u097f]/.test(str);
+      };
+
+      const trueOrigTitle = article.originalTitle || article.originalArticle?.title;
+      const canInstantRestoreEnglish = trueOrigTitle && !isNonEnglish(trueOrigTitle);
+
+      if (canInstantRestoreEnglish) {
         if (article.originalArticle) {
           return {
             ...article.originalArticle,
             originalArticle: article.originalArticle,
-            originalTitle: article.originalTitle || article.originalArticle.title,
+            originalTitle: trueOrigTitle,
             originalSubtitle: article.originalSubtitle || article.originalArticle.subtitle,
             originalSummary: article.originalSummary || article.originalArticle.summary,
             originalContent: article.originalContent || article.originalArticle.content,
@@ -233,11 +241,12 @@ export const TranslationProvider = ({ children }) => {
           const json = await res.json();
           if (json && json.success && json.data) {
             const data = json.data;
+            const trueOriginalTitle = (targetLang === 'en' && data.title) ? data.title : (article.originalTitle || origTitle);
             const translated = { 
               ...article, 
               ...data,
               originalArticle: article.originalArticle || article,
-              originalTitle: origTitle,
+              originalTitle: trueOriginalTitle,
               originalSubtitle: article.originalSubtitle || article.subtitle,
               originalSummary: article.originalSummary || article.summary,
               originalContent: article.originalContent || article.content,

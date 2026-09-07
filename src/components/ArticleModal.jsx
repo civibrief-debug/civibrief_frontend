@@ -58,21 +58,26 @@ export const ArticleModal = ({ article, onClose, isLoggedIn, onOpenLogin, onLogi
     return () => { isMounted = false; };
   }, [article?.id, article?.content]);
 
+  const isNonEnglishText = useCallback((str) => {
+    if (!str || typeof str !== 'string') return false;
+    return /[\uac00-\ud7af\u1100-\u11ff\u3040-\u30ff\u3400-\u4dbf\u4e00-\u9fff\u0400-\u04ff\u0600-\u06ff\u0900-\u097f]/.test(str);
+  }, []);
+
   const effectiveSourceArticle = useMemo(() => {
     if (!article) return null;
     if (dbHydratedArticle) {
       return { 
         ...article, 
         ...dbHydratedArticle,
-        originalArticle: article.originalArticle || dbHydratedArticle.originalArticle || article,
-        originalTitle: article.originalTitle || dbHydratedArticle.originalTitle || dbHydratedArticle.title || article.title,
-        originalSubtitle: article.originalSubtitle || dbHydratedArticle.originalSubtitle || dbHydratedArticle.subtitle || article.subtitle,
-        originalSummary: article.originalSummary || dbHydratedArticle.originalSummary || dbHydratedArticle.summary || article.summary,
-        originalContent: article.originalContent || dbHydratedArticle.originalContent || dbHydratedArticle.content || article.content,
-        originalKicker: article.originalKicker || dbHydratedArticle.originalKicker || dbHydratedArticle.kicker || article.kicker,
-        originalCategory: article.originalCategory || dbHydratedArticle.originalCategory || dbHydratedArticle.category || article.category,
-        originalAuthor: article.originalAuthor || dbHydratedArticle.originalAuthor || dbHydratedArticle.author || article.author,
-        originalTakeaways: article.originalTakeaways || dbHydratedArticle.originalTakeaways || dbHydratedArticle.takeaways || article.takeaways
+        originalArticle: dbHydratedArticle.originalArticle || article.originalArticle || dbHydratedArticle || article,
+        originalTitle: dbHydratedArticle.originalTitle || dbHydratedArticle.title || article.originalTitle || article.title,
+        originalSubtitle: dbHydratedArticle.originalSubtitle || dbHydratedArticle.subtitle || article.originalSubtitle || article.subtitle,
+        originalSummary: dbHydratedArticle.originalSummary || dbHydratedArticle.summary || article.originalSummary || article.summary,
+        originalContent: dbHydratedArticle.originalContent || dbHydratedArticle.content || article.originalContent || article.content,
+        originalKicker: dbHydratedArticle.originalKicker || dbHydratedArticle.kicker || article.originalKicker || article.kicker,
+        originalCategory: dbHydratedArticle.originalCategory || dbHydratedArticle.category || article.originalCategory || article.category,
+        originalAuthor: dbHydratedArticle.originalAuthor || dbHydratedArticle.author || article.originalAuthor || article.author,
+        originalTakeaways: dbHydratedArticle.originalTakeaways || dbHydratedArticle.takeaways || article.originalTakeaways || article.takeaways
       };
     }
     return article;
@@ -81,48 +86,77 @@ export const ArticleModal = ({ article, onClose, isLoggedIn, onOpenLogin, onLogi
   const articleId = effectiveSourceArticle?.id;
   const articleContent = effectiveSourceArticle?.content;
 
+  // Reset translated article when switching articles
+  useEffect(() => {
+    setTranslatedArticle(null);
+  }, [articleId]);
+
   // Handle translation when language or article ID changes
   useEffect(() => {
     let isMounted = true;
 
     if (!effectiveSourceArticle) return;
 
+    // Pristine English source derivation
+    const baseEnglish = effectiveSourceArticle.originalArticle || effectiveSourceArticle;
+    const origTitle = effectiveSourceArticle.originalTitle || baseEnglish.title || effectiveSourceArticle.title;
+    const hasEnglishMaster = origTitle && !isNonEnglishText(origTitle);
+
     if (localLanguage === 'en') {
-      // If we have an original English base article and currently displaying translated version:
-      if (effectiveSourceArticle.originalArticle && effectiveSourceArticle._translatedLang && effectiveSourceArticle._translatedLang !== 'en') {
-        setTranslatedArticle(null);
-        setLocalIsTranslating(false);
-        return;
-      }
-      if (effectiveSourceArticle.originalTitle && effectiveSourceArticle.title !== effectiveSourceArticle.originalTitle) {
-        setTranslatedArticle(null);
-        setLocalIsTranslating(false);
-        return;
-      }
-      if (!effectiveSourceArticle._translatedLang || effectiveSourceArticle._translatedLang === 'en') {
-        setTranslatedArticle(null);
+      if (hasEnglishMaster) {
+        setTranslatedArticle({
+          ...effectiveSourceArticle,
+          ...baseEnglish,
+          title: origTitle,
+          subtitle: effectiveSourceArticle.originalSubtitle || baseEnglish.subtitle || effectiveSourceArticle.subtitle,
+          summary: effectiveSourceArticle.originalSummary || baseEnglish.summary || effectiveSourceArticle.summary,
+          content: effectiveSourceArticle.originalContent || baseEnglish.content || effectiveSourceArticle.content,
+          kicker: effectiveSourceArticle.originalKicker || baseEnglish.kicker || effectiveSourceArticle.kicker,
+          category: effectiveSourceArticle.originalCategory || baseEnglish.category || effectiveSourceArticle.category,
+          author: effectiveSourceArticle.originalAuthor || baseEnglish.author || effectiveSourceArticle.author,
+          takeaways: effectiveSourceArticle.originalTakeaways || baseEnglish.takeaways || effectiveSourceArticle.takeaways,
+          _translatedLang: 'en',
+          _metaTranslated: true,
+          _contentTranslated: true,
+          _fullyTranslated: true
+        });
         setLocalIsTranslating(false);
         return;
       }
     }
 
     setLocalIsTranslating(true);
-    // Always translate from base original, ensuring content, takeaways, and author are preserved
-    const baseSource = effectiveSourceArticle.originalArticle || effectiveSourceArticle;
+    // Base source for translation should ALWAYS use pristine English records for highest accuracy
     const sourceForTranslation = {
-      ...baseSource,
-      content: baseSource.content || effectiveSourceArticle.originalContent || effectiveSourceArticle.content,
-      takeaways: baseSource.takeaways || effectiveSourceArticle.originalTakeaways || effectiveSourceArticle.takeaways,
-      author: baseSource.author || effectiveSourceArticle.originalAuthor || effectiveSourceArticle.author,
+      ...baseEnglish,
+      id: effectiveSourceArticle.id || baseEnglish.id,
+      title: origTitle,
+      subtitle: effectiveSourceArticle.originalSubtitle || baseEnglish.subtitle || effectiveSourceArticle.subtitle,
+      summary: effectiveSourceArticle.originalSummary || baseEnglish.summary || effectiveSourceArticle.summary,
+      kicker: effectiveSourceArticle.originalKicker || baseEnglish.kicker || effectiveSourceArticle.kicker,
+      category: effectiveSourceArticle.originalCategory || baseEnglish.category || effectiveSourceArticle.category,
+      author: effectiveSourceArticle.originalAuthor || baseEnglish.author || effectiveSourceArticle.author,
+      content: effectiveSourceArticle.originalContent || baseEnglish.content || effectiveSourceArticle.content,
+      takeaways: effectiveSourceArticle.originalTakeaways || baseEnglish.takeaways || effectiveSourceArticle.takeaways,
+      originalArticle: effectiveSourceArticle.originalArticle || baseEnglish,
+      originalTitle: origTitle,
+      originalCategory: effectiveSourceArticle.originalCategory || baseEnglish.category,
+      originalAuthor: effectiveSourceArticle.originalAuthor || baseEnglish.author,
+      originalContent: effectiveSourceArticle.originalContent || baseEnglish.content,
+      originalTakeaways: effectiveSourceArticle.originalTakeaways || baseEnglish.takeaways,
     };
+
     translateArticle(sourceForTranslation, localLanguage).then(translated => {
-      if (isMounted) {
+      if (isMounted && translated) {
         setTranslatedArticle(translated);
         setLocalIsTranslating(false);
       }
+    }).catch(() => {
+      if (isMounted) setLocalIsTranslating(false);
     });
+
     return () => { isMounted = false; };
-  }, [articleId, articleContent, localLanguage, translateArticle, effectiveSourceArticle]);
+  }, [articleId, articleContent, localLanguage, translateArticle, effectiveSourceArticle, isNonEnglishText]);
 
   // Cancel playing voiceover only when explicitly switching languages
   useEffect(() => {
@@ -142,45 +176,6 @@ export const ArticleModal = ({ article, onClose, isLoggedIn, onOpenLogin, onLogi
   const activeArticle = useMemo(() => {
     if (!effectiveSourceArticle) return {};
 
-    if (localLanguage === 'en') {
-      // If we got a translated article in English (e.g. translated from foreign article)
-      if (translatedArticle && translatedArticle._translatedLang === 'en') {
-        return translatedArticle;
-      }
-
-      // Tier 1: Instant 0.00ms pristine restoration from master English article
-      if (effectiveSourceArticle.originalArticle) {
-        return {
-          ...effectiveSourceArticle,
-          ...effectiveSourceArticle.originalArticle,
-          title: effectiveSourceArticle.originalTitle || effectiveSourceArticle.originalArticle.title,
-          subtitle: effectiveSourceArticle.originalSubtitle || effectiveSourceArticle.originalArticle.subtitle,
-          summary: effectiveSourceArticle.originalSummary || effectiveSourceArticle.originalArticle.summary,
-          content: effectiveSourceArticle.originalContent || effectiveSourceArticle.originalArticle.content || effectiveSourceArticle.content,
-          kicker: effectiveSourceArticle.originalKicker || effectiveSourceArticle.originalArticle.kicker,
-          category: effectiveSourceArticle.originalCategory || effectiveSourceArticle.originalArticle.category,
-          author: effectiveSourceArticle.originalAuthor || effectiveSourceArticle.originalArticle.author,
-          takeaways: effectiveSourceArticle.originalTakeaways || effectiveSourceArticle.originalArticle.takeaways,
-          _translatedLang: 'en'
-        };
-      }
-      if (effectiveSourceArticle.originalTitle && effectiveSourceArticle.title !== effectiveSourceArticle.originalTitle) {
-        return {
-          ...effectiveSourceArticle,
-          title: effectiveSourceArticle.originalTitle,
-          subtitle: effectiveSourceArticle.originalSubtitle || effectiveSourceArticle.subtitle,
-          summary: effectiveSourceArticle.originalSummary || effectiveSourceArticle.summary,
-          content: effectiveSourceArticle.originalContent || effectiveSourceArticle.content,
-          kicker: effectiveSourceArticle.originalKicker || effectiveSourceArticle.kicker,
-          category: effectiveSourceArticle.originalCategory || effectiveSourceArticle.category,
-          author: effectiveSourceArticle.originalAuthor || effectiveSourceArticle.author,
-          takeaways: effectiveSourceArticle.originalTakeaways || effectiveSourceArticle.takeaways,
-          _translatedLang: 'en'
-        };
-      }
-      return effectiveSourceArticle;
-    }
-
     if (translatedArticle && translatedArticle._translatedLang === localLanguage) {
       return { 
         ...effectiveSourceArticle, 
@@ -192,11 +187,36 @@ export const ArticleModal = ({ article, onClose, isLoggedIn, onOpenLogin, onLogi
         subtitle: translatedArticle.subtitle || effectiveSourceArticle.subtitle,
         summary: translatedArticle.summary || effectiveSourceArticle.summary,
         category: translatedArticle.category || effectiveSourceArticle.category,
-        kicker: translatedArticle.kicker || effectiveSourceArticle.kicker
+        kicker: translatedArticle.kicker || effectiveSourceArticle.kicker,
+        _translatedLang: localLanguage
       };
     }
-    return getSynchronousArticle(effectiveSourceArticle, localLanguage);
-  }, [effectiveSourceArticle, localLanguage, translatedArticle, getSynchronousArticle]);
+
+    if (localLanguage === 'en') {
+      const baseEnglish = effectiveSourceArticle.originalArticle || effectiveSourceArticle;
+      const origTitle = effectiveSourceArticle.originalTitle || baseEnglish.title;
+      if (origTitle && !isNonEnglishText(origTitle)) {
+        return {
+          ...effectiveSourceArticle,
+          ...baseEnglish,
+          title: origTitle,
+          subtitle: effectiveSourceArticle.originalSubtitle || baseEnglish.subtitle || effectiveSourceArticle.subtitle,
+          summary: effectiveSourceArticle.originalSummary || baseEnglish.summary || effectiveSourceArticle.summary,
+          content: effectiveSourceArticle.originalContent || baseEnglish.content || effectiveSourceArticle.content,
+          kicker: effectiveSourceArticle.originalKicker || baseEnglish.kicker || effectiveSourceArticle.kicker,
+          category: effectiveSourceArticle.originalCategory || baseEnglish.category || effectiveSourceArticle.category,
+          author: effectiveSourceArticle.originalAuthor || baseEnglish.author || effectiveSourceArticle.author,
+          takeaways: effectiveSourceArticle.originalTakeaways || baseEnglish.takeaways || effectiveSourceArticle.takeaways,
+          _translatedLang: 'en'
+        };
+      }
+      return effectiveSourceArticle;
+    }
+
+    // Synchronous fallback from static dictionary while network request is resolving
+    const baseSource = effectiveSourceArticle.originalArticle || effectiveSourceArticle;
+    return getSynchronousArticle(baseSource, localLanguage);
+  }, [effectiveSourceArticle, localLanguage, translatedArticle, getSynchronousArticle, isNonEnglishText]);
 
 
   const [zoomLevel, setZoomLevel] = useState(1.0); // 0.7 to 1.8 document zoom scale
