@@ -158,7 +158,7 @@ export const matchesInstanceToRegion = (inst, regionId) => {
 };
 
 export default function HomePage() {
-  const [dbArticles, setDbArticles] = useState(getInitialArticles);
+  const [dbArticles, setDbArticles] = useState(INITIAL_BOOTSTRAP_ARTICLES || []);
   const [translatedArticles, setTranslatedArticles] = useState(null);
   const [translatedDeepDives, setTranslatedDeepDives] = useState(null);
   const [translatedBreakingNews, setTranslatedBreakingNews] = useState(null);
@@ -180,11 +180,8 @@ export default function HomePage() {
     isTranslating
   } = useTranslation();
 
-  const [homepageAds, setHomepageAds] = useState(() => {
-    if (globalMemoryAds && globalMemoryAds.length > 0) return globalMemoryAds;
-    return getInstantCache('daily_brief_cached_ads_v3', []);
-  });
-  const [homepageArticleSections, setHomepageArticleSections] = useState(getInitialSections);
+  const [homepageAds, setHomepageAds] = useState([]);
+  const [homepageArticleSections, setHomepageArticleSections] = useState(INITIAL_BOOTSTRAP_SECTIONS || []);
   const [activeSlide, setActiveSlide] = useState(0);
   const [slideIndices, setSlideIndices] = useState({});
 

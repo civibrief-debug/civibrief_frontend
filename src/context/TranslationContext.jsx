@@ -38,23 +38,13 @@ const PENDING_ARTICLE_TRANSLATIONS = new Set();
 
 const CACHE_KEY = 'daily_brief_article_cache_v9';
 
-// Hydrate ARTICLE_CACHE from localStorage & sessionStorage on startup for 0ms transitions
+// Hydrate ARTICLE_CACHE safely on startup
 if (typeof window !== 'undefined') {
   try {
     // Purge deprecated caches that may contain untranslated fallbacks or poisoned content
     ['daily_brief_article_cache_v4', 'daily_brief_article_cache_v5', 'daily_brief_article_cache_v8'].forEach(k => {
       try { localStorage.removeItem(k); sessionStorage.removeItem(k); } catch(e){}
     });
-
-    const rawLocal = localStorage.getItem(CACHE_KEY);
-    if (rawLocal) {
-      const parsed = JSON.parse(rawLocal);
-      Object.entries(parsed).forEach(([k, v]) => {
-        if (v && v._translatedLang && v.originalTitle && v.title && v.title !== v.originalTitle) {
-          ARTICLE_CACHE.set(k, v);
-        }
-      });
-    }
   } catch (e) {}
 }
 
@@ -81,6 +71,16 @@ export const TranslationProvider = ({ children }) => {
 
   useEffect(() => {
     try {
+      const rawLocal = localStorage.getItem(CACHE_KEY);
+      if (rawLocal) {
+        const parsed = JSON.parse(rawLocal);
+        Object.entries(parsed).forEach(([k, v]) => {
+          if (v && v._translatedLang && v.originalTitle && v.title && v.title !== v.originalTitle) {
+            ARTICLE_CACHE.set(k, v);
+          }
+        });
+      }
+
       const saved = localStorage.getItem('dailyBriefLanguage');
       if (saved && saved !== 'en') {
         setLanguage(saved);

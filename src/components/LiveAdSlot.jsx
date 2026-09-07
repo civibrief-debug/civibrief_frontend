@@ -87,10 +87,15 @@ function initGlobalSyncManager() {
 
 // Reactive hook for components needing live ads
 export function useLiveAds() {
-  const [ads, setAds] = useState(() => getCachedLiveAds());
+  const [ads, setAds] = useState([]);
 
   useEffect(() => {
     initGlobalSyncManager();
+
+    const cached = getCachedLiveAds();
+    if (cached && cached.length > 0) {
+      setAds(cached);
+    }
 
     const handleUpdate = (updatedAds) => {
       if (Array.isArray(updatedAds)) {
