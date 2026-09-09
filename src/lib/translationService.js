@@ -25,7 +25,8 @@ const MEMORY_CACHE = new Map();
 // Instant Hydration from localStorage on startup (0.00ms latency)
 if (typeof window !== 'undefined') {
   try {
-    const rawLocal = localStorage.getItem('daily_brief_text_cache_v7');
+    localStorage.removeItem('daily_brief_text_cache_v7');
+    const rawLocal = localStorage.getItem('daily_brief_text_cache_v8');
     if (rawLocal) {
       const parsed = JSON.parse(rawLocal);
       Object.entries(parsed).forEach(([lang, mapObj]) => {
@@ -33,7 +34,9 @@ if (typeof window !== 'undefined') {
         const langMap = MEMORY_CACHE.get(lang);
         Object.entries(mapObj).forEach(([k, v]) => {
           if (typeof v === 'string' && typeof k === 'string' && v.trim().toLowerCase() !== k.trim().toLowerCase()) {
-            langMap.set(k.trim(), v.trim());
+            // Auto-repair any orphaned hrefs if present
+            const cleanV = v.replace(/(?<!<a\b[^>]*)\bhref=(['"]?)(https?:\/\/[^'"\s>]+)\1([^>]*)>/gi, (m, q, url, rest) => `<a href="${url}"${rest}>`);
+            langMap.set(k.trim(), cleanV.trim());
           }
         });
       });
@@ -57,7 +60,7 @@ function queuePersistMemoryCache() {
           exportObj[lang][k] = v;
         }
       }
-      localStorage.setItem('daily_brief_text_cache_v7', JSON.stringify(exportObj));
+      localStorage.setItem('daily_brief_text_cache_v8', JSON.stringify(exportObj));
     } catch (e) {}
   }, 1000);
 }
@@ -385,36 +388,71 @@ export async function translateHtmlContent(html, targetLang) {
     .replace(/<\/div>$/i, '')
     .trim();
 
+  // Auto-repair any orphaned hrefs before translation check
+  cleanHtml = cleanHtml.replace(/(?<!<a\b[^>]*)\bhref=(['"]?)(https?:\/\/[^'"\s>]+)\1([^>]*)>/gi, (m, q, url, rest) => {
+    return `<a href="${url}"${rest}>`;
+  });
+
   const cached = getCachedTranslation(targetLang, cleanHtml);
-  if (cached !== null) {
+  if (cached !== null && !/(?<!<a\b[^>]*)\bhref=/i.test(cached)) {
     return cached;
   }
 
   // Client-Side Browser: Route through /api/translate
   if (typeof window !== 'undefined') {
     const clientResult = await fetchClientText(cleanHtml, targetLang);
-    if (clientResult && clientResult !== cleanHtml) {
+    if (clientResult && clientResult !== cleanHtml && !/(?<!<a\b[^>]*)\bhref=/i.test(clientResult)) {
       setCachedTranslation(targetLang, cleanHtml, clientResult);
       return clientResult;
     }
   }
 
   try {
+    // 1. Protect all media, embed, and complex structural elements (figure, iframe, video, audio, table, svg, etc.)
+    const mediaPlaceholders = [];
+    let protectedHtml = cleanHtml.replace(/<(figure|iframe|video|audio|svg|table|canvas)[\s\S]*?<\/\1>/gi, (match) => {
+      const idx = mediaPlaceholders.length;
+      mediaPlaceholders.push(match);
+      return ` __MEDIA_TOKEN_${idx}__ `;
+    });
+
+    // Protect standalone tags like <img ...>, <source ...>, <input ...>, <hr>
+    protectedHtml = protectedHtml.replace(/<(img|source|input|embed|hr)[^>]*>/gi, (match) => {
+      const idx = mediaPlaceholders.length;
+      mediaPlaceholders.push(match);
+      return ` __MEDIA_TOKEN_${idx}__ `;
+    });
+
+    // 2. Protect all footnote and citation elements (sup, sub, Wikipedia references)
+    const supPlaceholders = [];
+    protectedHtml = protectedHtml.replace(/<(sup|sub)[\s\S]*?<\/\1>/gi, (match) => {
+      const idx = supPlaceholders.length;
+      supPlaceholders.push(match);
+      return ` __SUP_TOKEN_${idx}__ `;
+    });
+
+    // 3. Protect code / pre blocks
+    const codePlaceholders = [];
+    protectedHtml = protectedHtml.replace(/<(code|pre)[\s\S]*?<\/\1>/gi, (match) => {
+      const idx = codePlaceholders.length;
+      codePlaceholders.push(match);
+      return ` __CODE_TOKEN_${idx}__ `;
+    });
+
     let resultHtml = '';
 
     // If reasonably sized, translate directly in 1 fast request
-    if (cleanHtml.length <= 1200) {
+    if (protectedHtml.length <= 900) {
       try {
-        resultHtml = await fetchGoogleM(cleanHtml, targetLang);
+        resultHtml = await fetchGoogleM(protectedHtml, targetLang);
       } catch (e) {
-        // Fallback to GTX if needed
         try {
-          resultHtml = await fetchGtx(cleanHtml, targetLang);
+          resultHtml = await fetchGtx(protectedHtml, targetLang);
         } catch (e2) {
           try {
-            resultHtml = await fetchChromeEx(cleanHtml, targetLang);
+            resultHtml = await fetchChromeEx(protectedHtml, targetLang);
           } catch (e3) {
-            resultHtml = cleanHtml;
+            resultHtml = protectedHtml;
           }
         }
       }
@@ -425,20 +463,20 @@ export async function translateHtmlContent(html, targetLang) {
       let lastIndex = 0;
       let match;
 
-      while ((match = blockRegex.exec(cleanHtml)) !== null) {
+      while ((match = blockRegex.exec(protectedHtml)) !== null) {
         const end = match.index + match[0].length;
-        parts.push(cleanHtml.substring(lastIndex, end));
+        parts.push(protectedHtml.substring(lastIndex, end));
         lastIndex = end;
       }
-      if (lastIndex < cleanHtml.length) {
-        parts.push(cleanHtml.substring(lastIndex));
+      if (lastIndex < protectedHtml.length) {
+        parts.push(protectedHtml.substring(lastIndex));
       }
 
       const chunks = [];
       let currentChunk = '';
 
       for (const part of parts) {
-        if (currentChunk.length + part.length > 1000 && currentChunk.length > 0) {
+        if (currentChunk.length + part.length > 900 && currentChunk.length > 0) {
           chunks.push(currentChunk);
           currentChunk = '';
         }
@@ -468,6 +506,24 @@ export async function translateHtmlContent(html, targetLang) {
 
       resultHtml = translatedChunks.join('');
     }
+
+    // 4. Restore tokens
+    codePlaceholders.forEach((code, idx) => {
+      resultHtml = resultHtml.replace(new RegExp(`\\s*__\\s*CODE_TOKEN_${idx}\\s*__\\s*`, 'gi'), code);
+    });
+
+    supPlaceholders.forEach((sup, idx) => {
+      resultHtml = resultHtml.replace(new RegExp(`\\s*__\\s*SUP_TOKEN_${idx}\\s*__\\s*`, 'gi'), sup);
+    });
+
+    mediaPlaceholders.forEach((media, idx) => {
+      resultHtml = resultHtml.replace(new RegExp(`\\s*__\\s*MEDIA_TOKEN_${idx}\\s*__\\s*`, 'gi'), media);
+    });
+
+    // 5. Auto-repair any orphaned href attributes that lost their '<a' prefix
+    resultHtml = resultHtml.replace(/(?<!<a\b[^>]*)\bhref=(['"]?)(https?:\/\/[^'"\s>]+)\1([^>]*)>/gi, (m, q, url, rest) => {
+      return `<a href="${url}"${rest}>`;
+    });
 
     if (['ar', 'he', 'fa', 'ur'].includes(targetLang) && !resultHtml.includes('dir="rtl"')) {
       resultHtml = `<div dir="rtl" class="rtl-translated-wrapper">${resultHtml}</div>`;

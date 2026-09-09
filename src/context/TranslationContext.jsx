@@ -36,13 +36,13 @@ const ARTICLE_CACHE = new Map();
 const PENDING_TRANSLATIONS = new Set();
 const PENDING_ARTICLE_TRANSLATIONS = new Set();
 
-const CACHE_KEY = 'daily_brief_article_cache_v9';
+const CACHE_KEY = 'daily_brief_article_cache_v10';
 
 // Hydrate ARTICLE_CACHE safely on startup
 if (typeof window !== 'undefined') {
   try {
     // Purge deprecated caches that may contain untranslated fallbacks or poisoned content
-    ['daily_brief_article_cache_v4', 'daily_brief_article_cache_v5', 'daily_brief_article_cache_v8'].forEach(k => {
+    ['daily_brief_article_cache_v4', 'daily_brief_article_cache_v5', 'daily_brief_article_cache_v8', 'daily_brief_article_cache_v9'].forEach(k => {
       try { localStorage.removeItem(k); sessionStorage.removeItem(k); } catch(e){}
     });
   } catch (e) {}
@@ -76,6 +76,9 @@ export const TranslationProvider = ({ children }) => {
         const parsed = JSON.parse(rawLocal);
         Object.entries(parsed).forEach(([k, v]) => {
           if (v && v._translatedLang && v.originalTitle && v.title && v.title !== v.originalTitle) {
+            if (v.content && typeof v.content === 'string') {
+              v.content = v.content.replace(/(?<!<a\b[^>]*)\bhref=(['"]?)(https?:\/\/[^'"\s>]+)\1([^>]*)>/gi, (m, q, url, rest) => `<a href="${url}"${rest}>`);
+            }
             ARTICLE_CACHE.set(k, v);
           }
         });
@@ -203,7 +206,10 @@ export const TranslationProvider = ({ children }) => {
     const hasContent = typeof article.content === 'string' && article.content.trim().length > 0;
     const hasContentTranslated = !!(cached && cached._contentTranslated && cached.content && cached.content !== article.content);
 
-    if (cached && cached._translatedLang === targetLang) {
+    const isCorrupted = cached && cached.content && typeof cached.content === 'string' && /(?<!<a\b[^>]*)\bhref=/i.test(cached.content);
+    if (isCorrupted) {
+      ARTICLE_CACHE.delete(cacheKey);
+    } else if (cached && cached._translatedLang === targetLang) {
       if (hasContent && hasContentTranslated) {
         if (!origTitle || cached.title !== origTitle) {
           return cached;
@@ -356,7 +362,8 @@ export const TranslationProvider = ({ children }) => {
     const hasContentTranslated = !!(cached && cached._contentTranslated && cached.content && cached.content !== article.content);
 
     // If fully translated (including body content if present), return cached instantly
-    if (cached && cached._translatedLang === targetLang) {
+    const isCorrupted = cached && cached.content && typeof cached.content === 'string' && /(?<!<a\b[^>]*)\bhref=/i.test(cached.content);
+    if (cached && !isCorrupted && cached._translatedLang === targetLang) {
       if ((!needsContent && (cached._metaTranslated || cached._fullyTranslated)) || (needsContent && hasContentTranslated)) {
         if (!origTitle || cached.title !== origTitle) {
           return cached;

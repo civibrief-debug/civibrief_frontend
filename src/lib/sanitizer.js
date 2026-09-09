@@ -17,6 +17,11 @@ const ALLOWED_ATTR = [
 export function sanitizeArticleHtml(htmlContent) {
   if (!htmlContent || typeof htmlContent !== 'string') return '';
 
+  // Auto-repair any orphaned or mangled anchor tags that lost their '<a' prefix
+  const cleanSourceHtml = htmlContent.replace(/(?<!<a\b[^>]*)\bhref=(['"]?)(https?:\/\/[^'"\s>]+)\1([^>]*)>/gi, (match, q, url, rest) => {
+    return `<a href="${url}"${rest}>`;
+  });
+
   DOMPurify.removeAllHooks();
   DOMPurify.addHook('afterSanitizeAttributes', function (node) {
     if (node.tagName === 'A') {
@@ -64,7 +69,7 @@ export function sanitizeArticleHtml(htmlContent) {
     }
   });
 
-  return DOMPurify.sanitize(htmlContent, {
+  return DOMPurify.sanitize(cleanSourceHtml, {
     ALLOWED_TAGS,
     ALLOWED_ATTR,
     ADD_TAGS: ['iframe', 'video', 'source'],

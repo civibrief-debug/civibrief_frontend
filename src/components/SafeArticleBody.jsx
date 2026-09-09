@@ -132,7 +132,13 @@ const SafeArticleBody = React.memo(function SafeArticleBody({
   adPlacements = null
 }) {
   const cleanHtml = useMemo(() => {
-    const upgraded = upgradeLegacyVideoFallbackCards(content);
+    let raw = content || '';
+    if (typeof raw === 'string' && /(?<!<a\b[^>]*)\bhref=/i.test(raw)) {
+      raw = raw.replace(/(?<!<a\b[^>]*)\bhref=(['"]?)(https?:\/\/[^'"\s>]+)\1([^>]*)>/gi, (match, q, url, rest) => {
+        return `<a href="${url}"${rest}>`;
+      });
+    }
+    const upgraded = upgradeLegacyVideoFallbackCards(raw);
     return sanitizeArticleHtml(upgraded);
   }, [content]);
 
