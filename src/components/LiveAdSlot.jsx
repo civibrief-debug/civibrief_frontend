@@ -87,7 +87,7 @@ function initGlobalSyncManager() {
 
 // Reactive hook for components needing live ads
 export function useLiveAds() {
-  const [ads, setAds] = useState([]);
+  const [ads, setAds] = useState(() => getCachedLiveAds());
 
   useEffect(() => {
     initGlobalSyncManager();
@@ -157,7 +157,9 @@ export const slotMatchesAd = (ad, targetSlot) => {
  */
 export default function LiveAdSlot({ slotId, ads: propAds, style, className }) {
   const syncedAds = useLiveAds();
-  const allAds = propAds || syncedAds;
+  const allAds = (propAds && propAds.length > 0) 
+    ? propAds 
+    : (syncedAds && syncedAds.length > 0 ? syncedAds : getCachedLiveAds());
 
   const matchingAds = useMemo(() => {
     return (allAds || []).filter(a => slotMatchesAd(a, slotId));

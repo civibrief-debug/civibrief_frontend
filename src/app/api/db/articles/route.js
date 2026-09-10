@@ -29,11 +29,20 @@ function formatArticle(r) {
   };
 }
 
+// High-performance Server-Side Memory SWR Cache on globalThis for instant 0ms responses
+const serverArticlesCache = globalThis.__serverArticlesCache || (globalThis.__serverArticlesCache = new Map());
+let isRevalidating = false;
+
+export function invalidateServerArticlesCache() {
+  serverArticlesCache.clear();
+}
+
 export async function GET(req) {
   try {
     const { searchParams } = new URL(req.url);
     const category = searchParams.get('category');
     const includeDrafts = searchParams.get('includeDrafts') === 'true';
+    const cacheKey = `${category || 'All'}_${includeDrafts}`;
 
     let sql = 'SELECT * FROM articles';
     const params = [];
@@ -54,12 +63,61 @@ export async function GET(req) {
 
     sql += ' ORDER BY COALESCE(updatedAt, createdAt) DESC, createdAt DESC;';
 
+    // 1. Instant 0ms Memory Cache Hit
+    const cached = serverArticlesCache.get(cacheKey);
+    if (cached) {
+      const age = Date.now() - cached.timestamp;
+      if (age < 30000) {
+        // Super fresh (<30s) -> 0ms instant response
+        return new Response(cached.jsonString, {
+          status: 200,
+          headers: {
+            'Content-Type': 'application/json',
+            'Cache-Control': 'public, max-age=15, s-maxage=60, stale-while-revalidate=300',
+            'X-Cache': 'HIT-FRESH'
+          }
+        });
+      } else if (age < 300000) {
+        // SWR: Return stale immediately in 0ms, revalidate asynchronously
+        if (!isRevalidating) {
+          isRevalidating = true;
+          (async () => {
+            try {
+              const freshRows = await queryD1(sql, params);
+              const freshFormatted = (freshRows || []).map(formatArticle);
+              const freshJson = JSON.stringify({ success: true, data: freshFormatted });
+              serverArticlesCache.set(cacheKey, { jsonString: freshJson, timestamp: Date.now() });
+            } catch (err) {
+            } finally {
+              isRevalidating = false;
+            }
+          })();
+        }
+        return new Response(cached.jsonString, {
+          status: 200,
+          headers: {
+            'Content-Type': 'application/json',
+            'Cache-Control': 'public, max-age=15, s-maxage=60, stale-while-revalidate=300',
+            'X-Cache': 'HIT-STALE'
+          }
+        });
+      }
+    }
+
+    // 2. Cold Start or Expired Cache
     const rows = await queryD1(sql, params);
     const formatted = (rows || []).map(formatArticle);
-    return NextResponse.json(
-      { success: true, data: formatted },
-      { headers: { 'Cache-Control': 'public, max-age=60, s-maxage=300, stale-while-revalidate=86400' } }
-    );
+    const jsonString = JSON.stringify({ success: true, data: formatted });
+    serverArticlesCache.set(cacheKey, { jsonString, timestamp: Date.now() });
+
+    return new Response(jsonString, {
+      status: 200,
+      headers: {
+        'Content-Type': 'application/json',
+        'Cache-Control': 'public, max-age=15, s-maxage=60, stale-while-revalidate=300',
+        'X-Cache': 'MISS'
+      }
+    });
   } catch (err) {
     return NextResponse.json({ success: false, error: err?.message || 'Server error', data: [] }, { status: 500 });
   }

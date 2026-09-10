@@ -41,42 +41,99 @@ function getWeatherEmoji(condition = '', iconCode = '') {
   return '🌤️';
 }
 
+// High-performance Server-Side Memory SWR Cache for instant 0ms responses
+if (!globalThis.__weatherMemoryCache) {
+  globalThis.__weatherMemoryCache = null;
+}
+let isRevalidatingWeather = false;
+
+async function fetchFreshWeather() {
+  const promises = CITIES.map(async (c) => {
+    try {
+      const url = `https://api.openweathermap.org/data/2.5/weather?q=${encodeURIComponent(c.q)}&units=metric&appid=${OPENWEATHER_KEY}`;
+      const res = await fetch(url, {
+        headers: { 'User-Agent': 'DailyBrief/1.0' },
+        signal: AbortSignal.timeout ? AbortSignal.timeout(4000) : undefined
+      });
+
+      if (!res.ok) throw new Error(`Status ${res.status}`);
+      const data = await res.json();
+
+      const mainCond = data.weather?.[0]?.main || 'Clear';
+      const desc = data.weather?.[0]?.description || mainCond;
+      const iconCode = data.weather?.[0]?.icon || '';
+      const temp = Math.round(data.main?.temp);
+
+      return {
+        city: c.name,
+        temp: `${temp > 0 ? temp : 0}°C`,
+        condition: desc.charAt(0).toUpperCase() + desc.slice(1),
+        icon: getWeatherEmoji(desc, iconCode),
+        humidity: `${data.main?.humidity || 60}%`,
+        wind: `${Math.round((data.wind?.speed || 3) * 3.6)} km/h`
+      };
+    } catch (err) {
+      const fallback = FALLBACK_WEATHER.find(f => f.city === c.name) || FALLBACK_WEATHER[0];
+      return fallback;
+    }
+  });
+
+  return await Promise.all(promises);
+}
+
 export async function GET() {
   try {
-    const promises = CITIES.map(async (c) => {
-      try {
-        const url = `https://api.openweathermap.org/data/2.5/weather?q=${encodeURIComponent(c.q)}&units=metric&appid=${OPENWEATHER_KEY}`;
-        const res = await fetch(url, {
-          headers: { 'User-Agent': 'DailyBrief/1.0' },
-          signal: AbortSignal.timeout ? AbortSignal.timeout(4000) : undefined
+    const cached = globalThis.__weatherMemoryCache;
+    if (cached) {
+      const age = Date.now() - cached.timestamp;
+      if (age < 60000) {
+        return new Response(cached.jsonString, {
+          status: 200,
+          headers: {
+            'Content-Type': 'application/json',
+            'Cache-Control': 'public, max-age=30, s-maxage=60, stale-while-revalidate=300',
+            'X-Cache': 'HIT-FRESH'
+          }
         });
+      } else if (age < 300000) {
+        if (!isRevalidatingWeather) {
+          isRevalidatingWeather = true;
+          (async () => {
+            try {
+              const fresh = await fetchFreshWeather();
+              globalThis.__weatherMemoryCache = {
+                jsonString: JSON.stringify({ success: true, data: fresh }),
+                timestamp: Date.now()
+              };
+            } catch (e) {} finally {
+              isRevalidatingWeather = false;
+            }
+          })();
+        }
+        return new Response(cached.jsonString, {
+          status: 200,
+          headers: {
+            'Content-Type': 'application/json',
+            'Cache-Control': 'public, max-age=30, s-maxage=60, stale-while-revalidate=300',
+            'X-Cache': 'HIT-STALE'
+          }
+        });
+      }
+    }
 
-        if (!res.ok) throw new Error(`Status ${res.status}`);
-        const data = await res.json();
+    const weatherData = await fetchFreshWeather();
+    const jsonString = JSON.stringify({ success: true, data: weatherData });
+    globalThis.__weatherMemoryCache = { jsonString, timestamp: Date.now() };
 
-        const mainCond = data.weather?.[0]?.main || 'Clear';
-        const desc = data.weather?.[0]?.description || mainCond;
-        const iconCode = data.weather?.[0]?.icon || '';
-        const temp = Math.round(data.main?.temp);
-
-        return {
-          city: c.name,
-          temp: `${temp > 0 ? temp : 0}°C`,
-          condition: desc.charAt(0).toUpperCase() + desc.slice(1),
-          icon: getWeatherEmoji(desc, iconCode),
-          humidity: `${data.main?.humidity || 60}%`,
-          wind: `${Math.round((data.wind?.speed || 3) * 3.6)} km/h`
-        };
-      } catch (err) {
-        const fallback = FALLBACK_WEATHER.find(f => f.city === c.name) || FALLBACK_WEATHER[0];
-        return fallback;
+    return new Response(jsonString, {
+      status: 200,
+      headers: {
+        'Content-Type': 'application/json',
+        'Cache-Control': 'public, max-age=30, s-maxage=60, stale-while-revalidate=300',
+        'X-Cache': 'MISS'
       }
     });
-
-    const results = await Promise.all(promises);
-    return NextResponse.json({ success: true, data: results });
-  } catch (err) {
-    console.error('Weather Ticker API Error:', err);
+  } catch (error) {
     return NextResponse.json({ success: true, data: FALLBACK_WEATHER });
   }
 }

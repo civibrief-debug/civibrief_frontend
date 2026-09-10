@@ -158,7 +158,7 @@ export const matchesInstanceToRegion = (inst, regionId) => {
 };
 
 export default function HomePage() {
-  const [dbArticles, setDbArticles] = useState(INITIAL_BOOTSTRAP_ARTICLES || []);
+  const [dbArticles, setDbArticles] = useState(() => getInitialArticles());
   const [translatedArticles, setTranslatedArticles] = useState(null);
   const [translatedDeepDives, setTranslatedDeepDives] = useState(null);
   const [translatedBreakingNews, setTranslatedBreakingNews] = useState(null);
@@ -180,8 +180,11 @@ export default function HomePage() {
     isTranslating
   } = useTranslation();
 
-  const [homepageAds, setHomepageAds] = useState([]);
-  const [homepageArticleSections, setHomepageArticleSections] = useState(INITIAL_BOOTSTRAP_SECTIONS || []);
+  const [homepageAds, setHomepageAds] = useState(() => {
+    if (globalMemoryAds && globalMemoryAds.length > 0) return globalMemoryAds;
+    return getInstantCache('daily_brief_cached_ads_v3', []);
+  });
+  const [homepageArticleSections, setHomepageArticleSections] = useState(() => getInitialSections());
   const [activeSlide, setActiveSlide] = useState(0);
   const [slideIndices, setSlideIndices] = useState({});
 
@@ -213,7 +216,11 @@ export default function HomePage() {
           localStorage.setItem('daily_brief_cached_articles_v3', JSON.stringify(publishedOnly));
         } catch (e) { }
         setDbArticles(prev => {
-          if (JSON.stringify(prev) === JSON.stringify(publishedOnly)) return prev;
+          if (prev && prev.length === publishedOnly.length &&
+              prev[0]?.id === publishedOnly[0]?.id &&
+              prev[0]?.updatedAt === publishedOnly[0]?.updatedAt) {
+            return prev;
+          }
           return publishedOnly;
         });
       }
@@ -233,7 +240,11 @@ export default function HomePage() {
           localStorage.setItem('daily_brief_cached_ads_v3', JSON.stringify(json.data));
         } catch (e) { }
         setHomepageAds(prev => {
-          if (JSON.stringify(prev) === JSON.stringify(json.data)) return prev;
+          if (prev && prev.length === json.data.length &&
+              prev[0]?.id === json.data[0]?.id &&
+              prev[0]?.updated_at === json.data[0]?.updated_at) {
+            return prev;
+          }
           return json.data;
         });
       }
@@ -253,7 +264,11 @@ export default function HomePage() {
           localStorage.setItem('daily_brief_cached_sections_v3', JSON.stringify(json.data));
         } catch (e) { }
         setHomepageArticleSections(prev => {
-          if (JSON.stringify(prev) === JSON.stringify(json.data)) return prev;
+          if (prev && prev.length === json.data.length &&
+              prev[0]?.instanceId === json.data[0]?.instanceId &&
+              prev[0]?.updatedAt === json.data[0]?.updatedAt) {
+            return prev;
+          }
           return json.data;
         });
       }
@@ -609,6 +624,39 @@ export default function HomePage() {
     return (homepageArticleSections || []).find(s => s && (s.id === zoneId || s.instanceId === zoneId || s.sectionRegion === zoneId));
   };
 
+  // Fast O(1) hash maps for instantaneous article lookups
+  const combinedPoolMaps = useMemo(() => {
+    const byId = new Map();
+    const byTitle = new Map();
+    (combinedArticlesPool || []).forEach(a => {
+      if (a) {
+        if (a.id) byId.set(a.id, a);
+        const t1 = (a.title || '').trim().toLowerCase();
+        if (t1) byTitle.set(t1, a);
+        const t2 = (a.originalTitle || '').trim().toLowerCase();
+        if (t2) byTitle.set(t2, a);
+      }
+    });
+    return { byId, byTitle };
+  }, [combinedArticlesPool]);
+
+  const activeArticlesMaps = useMemo(() => {
+    const byId = new Map();
+    const byTitle = new Map();
+    if (language !== 'en' && Array.isArray(activeArticles)) {
+      activeArticles.forEach(a => {
+        if (a) {
+          if (a.id) byId.set(a.id, a);
+          const t1 = (a.title || '').trim().toLowerCase();
+          if (t1) byTitle.set(t1, a);
+          const t2 = (a.originalTitle || '').trim().toLowerCase();
+          if (t2) byTitle.set(t2, a);
+        }
+      });
+    }
+    return { byId, byTitle };
+  }, [language, activeArticles]);
+
   // Safe helper to enrich article stub with full master database record and instant synchronous translation
   const enrichArticle = (art) => {
     if (!art) return art;
@@ -616,14 +664,10 @@ export default function HomePage() {
     const rawTitle = (art.originalTitle || art.title || '').trim().toLowerCase();
     const artId = art.id || '';
 
-    // Always resolve pristine master from untranslated English base pools
-    const pristineMaster = (combinedArticlesPool || []).find(a =>
-      (artId && a.id === artId) ||
-      (rawTitle && ((a.originalTitle && a.originalTitle.trim().toLowerCase() === rawTitle) || (a.title && a.title.trim().toLowerCase() === rawTitle)))
-    ) || (dbArticles || []).find(a =>
-      (artId && a.id === artId) ||
-      (rawTitle && (a.title && a.title.trim().toLowerCase() === rawTitle))
-    ) || art?.originalArticle || art;
+    // Fast O(1) pristine master resolution
+    const pristineMaster = (artId ? combinedPoolMaps.byId.get(artId) : null) ||
+      (rawTitle ? combinedPoolMaps.byTitle.get(rawTitle) : null) ||
+      art?.originalArticle || art;
 
     const trueOriginalTitle = pristineMaster.originalTitle || pristineMaster.title || art.originalTitle || art.title;
     const trueOriginalSubtitle = pristineMaster.originalSubtitle || pristineMaster.subtitle || art.originalSubtitle || art.subtitle;
@@ -635,10 +679,7 @@ export default function HomePage() {
     const trueOriginalTakeaways = pristineMaster.originalTakeaways || pristineMaster.takeaways || art.originalTakeaways || art.takeaways;
 
     const activeMatch = language !== 'en' 
-      ? ((activeArticles || []).find(a => 
-          (artId && a.id === artId) || 
-          (rawTitle && (a.id === artId || a.title?.trim().toLowerCase() === rawTitle || a.originalTitle?.trim().toLowerCase() === rawTitle))
-        ))
+      ? ((artId ? activeArticlesMaps.byId.get(artId) : null) || (rawTitle ? activeArticlesMaps.byTitle.get(rawTitle) : null))
       : null;
 
     const translatedArt = language !== 'en' 
@@ -995,8 +1036,6 @@ export default function HomePage() {
                       </p>
                       <div className="lead-story-byline">
                         <span>{t("By")} <strong>{story.author ? t(story.author) : t('Editorial Board')}</strong></span>
-                        <span>•</span>
-                        <span>{story.readTime || '4 min read'}</span>
                       </div>
                     </div>
                   </article>
