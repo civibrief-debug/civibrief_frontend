@@ -2546,7 +2546,7 @@ export const INITIAL_BOOTSTRAP_SECTIONS = [
     "enabled": true,
     "badge": "SECOND LEAD",
     "badgeColor": "#0891b2",
-    "sectionTitle": "Second Major Story Block (Copy)",
+    "sectionTitle": "Second Major Story Block",
     "categories": [
       "Global Affairs",
       "Markets & Economy"
@@ -2626,7 +2626,7 @@ export const INITIAL_BOOTSTRAP_SECTIONS = [
     "enabled": true,
     "badge": "HERO LEAD",
     "badgeColor": "#2563eb",
-    "sectionTitle": "Dominant Hero Lead Stage (Copy)",
+    "sectionTitle": "Dominant Hero Lead Stage",
     "categories": [
       "Top Stories",
       "Science & Climate",
@@ -2682,7 +2682,7 @@ export const INITIAL_BOOTSTRAP_SECTIONS = [
     "enabled": true,
     "badge": "HERO LEAD",
     "badgeColor": "#059669",
-    "sectionTitle": "Dominant Hero Lead Stage (Copy) (Copy)",
+    "sectionTitle": "Dominant Hero Lead Stage",
     "categories": [
       "Science & Climate",
       "Editorial",
@@ -2734,7 +2734,7 @@ export const INITIAL_BOOTSTRAP_SECTIONS = [
     "enabled": true,
     "badge": "EDITORIAL OPINION",
     "badgeColor": "#d97706",
-    "sectionTitle": "Editorial Opinion & Intelligence Rail (Copy) (Copy)",
+    "sectionTitle": "Editorial Opinion & Intelligence Rail",
     "categories": [
       "Opinion & Essays",
       "Editorial"
@@ -2848,7 +2848,7 @@ export const INITIAL_BOOTSTRAP_SECTIONS = [
     "enabled": true,
     "badge": "EDITORIAL OPINION",
     "badgeColor": "#2563eb",
-    "sectionTitle": "Editorial Opinion & Intelligence Rail (Copy) (Copy)",
+    "sectionTitle": "Editorial Opinion & Intelligence Rail",
     "categories": [
       "Opinion & Essays",
       "Editorial"
@@ -2901,7 +2901,7 @@ export const INITIAL_BOOTSTRAP_SECTIONS = [
     "enabled": true,
     "badge": "SECOND LEAD",
     "badgeColor": "#0891b2",
-    "sectionTitle": "Second Major Story Block (Copy)",
+    "sectionTitle": "Second Major Story Block",
     "categories": [
       "Global Affairs",
       "Markets & Economy"
@@ -2932,7 +2932,7 @@ export const INITIAL_BOOTSTRAP_SECTIONS = [
     "enabled": true,
     "badge": "EDITORIAL OPINION",
     "badgeColor": "#d97706",
-    "sectionTitle": "Editorial Opinion & Intelligence Rail (Copy)",
+    "sectionTitle": "Editorial Opinion & Intelligence Rail",
     "categories": [
       "Opinion & Essays",
       "Editorial"
@@ -2990,7 +2990,7 @@ export const INITIAL_BOOTSTRAP_SECTIONS = [
     "enabled": true,
     "badge": "COMPACT LIST",
     "badgeColor": "#059669",
-    "sectionTitle": "Top News Stack Feed (Copy)",
+    "sectionTitle": "Top News Stack Feed",
     "categories": [
       "Credit News",
       "Top Stories",
@@ -3040,7 +3040,7 @@ export const INITIAL_BOOTSTRAP_SECTIONS = [
     "enabled": true,
     "badge": "HERO LEAD",
     "badgeColor": "#2563eb",
-    "sectionTitle": "Dominant Hero Lead Stage (Copy)",
+    "sectionTitle": "Dominant Hero Lead Stage",
     "categories": [
       "Top Stories",
       "Science & Climate",
@@ -3096,7 +3096,7 @@ export const INITIAL_BOOTSTRAP_SECTIONS = [
     "enabled": true,
     "badge": "HERO LEAD",
     "badgeColor": "#2563eb",
-    "sectionTitle": "Dominant Hero Lead Stage (Copy)",
+    "sectionTitle": "Dominant Hero Lead Stage",
     "categories": [
       "Top Stories",
       "Science & Climate"
@@ -3187,7 +3187,7 @@ export const INITIAL_BOOTSTRAP_SECTIONS = [
     "enabled": true,
     "badge": "EDITORIAL OPINION",
     "badgeColor": "#d97706",
-    "sectionTitle": "Editorial Opinion & Intelligence Rail (Copy)",
+    "sectionTitle": "Editorial Opinion & Intelligence Rail",
     "categories": [
       "Opinion & Essays",
       "Editorial"

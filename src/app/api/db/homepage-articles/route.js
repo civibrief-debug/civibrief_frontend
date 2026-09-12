@@ -12,6 +12,10 @@ let isRevalidatingSections = false;
 function formatSections(rawSections) {
   if (!Array.isArray(rawSections)) return [];
   return rawSections.map(sec => {
+    if (!sec) return sec;
+    if (sec.sectionTitle) {
+      sec.sectionTitle = sec.sectionTitle.replace(/\s*\((?:copy|copied)\)/gi, '').trim();
+    }
     if (sec.mainStory && sec.mainStory.title && sec.mainStory.title.toLowerCase().includes('make money')) {
       sec.mainStory.coverMediaType = 'video';
       sec.mainStory.videoUrl = '/videos/make-money-cover.mp4';

@@ -60,11 +60,27 @@ const getInitialArticles = () => {
   return INITIAL_BOOTSTRAP_ARTICLES || [];
 };
 
+const cleanSectionTitle = (title) => {
+  if (!title || typeof title !== 'string') return '';
+  return title.replace(/\s*\((?:copy|copied)\)/gi, '').trim();
+};
+
+const sanitizeSections = (sections) => {
+  if (!Array.isArray(sections)) return [];
+  return sections.map(sec => {
+    if (!sec) return sec;
+    return {
+      ...sec,
+      sectionTitle: cleanSectionTitle(sec.sectionTitle)
+    };
+  });
+};
+
 const getInitialSections = () => {
-  if (globalMemorySections && globalMemorySections.length > 0) return globalMemorySections;
+  if (globalMemorySections && globalMemorySections.length > 0) return sanitizeSections(globalMemorySections);
   const local = getInstantCache('daily_brief_cached_sections_v3', null);
-  if (local && local.length > 0) return local;
-  return INITIAL_BOOTSTRAP_SECTIONS || [];
+  if (local && local.length > 0) return sanitizeSections(local);
+  return sanitizeSections(INITIAL_BOOTSTRAP_SECTIONS || []);
 };
 
 const EDITORIAL_OPINION_STATIC = {
@@ -259,17 +275,18 @@ export default function HomePage() {
       if (!res.ok) return;
       const json = await res.json();
       if (json && json.success && Array.isArray(json.data)) {
-        globalMemorySections = json.data;
+        const cleaned = sanitizeSections(json.data);
+        globalMemorySections = cleaned;
         try {
-          localStorage.setItem('daily_brief_cached_sections_v3', JSON.stringify(json.data));
+          localStorage.setItem('daily_brief_cached_sections_v3', JSON.stringify(cleaned));
         } catch (e) { }
         setHomepageArticleSections(prev => {
-          if (prev && prev.length === json.data.length &&
-              prev[0]?.instanceId === json.data[0]?.instanceId &&
-              prev[0]?.updatedAt === json.data[0]?.updatedAt) {
+          if (prev && prev.length === cleaned.length &&
+              prev[0]?.instanceId === cleaned[0]?.instanceId &&
+              prev[0]?.updatedAt === cleaned[0]?.updatedAt) {
             return prev;
           }
-          return json.data;
+          return cleaned;
         });
       }
     } catch (err) {
@@ -290,7 +307,7 @@ export default function HomePage() {
       }
       const cachedSections = globalMemorySections || getInstantCache('daily_brief_cached_sections_v3', null);
       if (cachedSections && cachedSections.length > 0) {
-        setHomepageArticleSections(cachedSections);
+        setHomepageArticleSections(sanitizeSections(cachedSections));
       }
     } catch (e) { }
 
@@ -1151,9 +1168,9 @@ export default function HomePage() {
 
       return (
         <div key={cardKey} style={{ display: 'flex', flexDirection: 'column', marginBottom: '20px' }}>
-          {inst.sectionTitle && (
+          {inst.sectionTitle && cleanSectionTitle(inst.sectionTitle) && (
             <div style={{ fontSize: '12px', fontWeight: 800, color: 'var(--accent-crimson, #b90014)', textTransform: 'uppercase', letterSpacing: '0.6px', marginBottom: '8px', borderBottom: '1px solid var(--border-color)', paddingBottom: '4px' }}>
-              {t(inst.sectionTitle)}
+              {t(cleanSectionTitle(inst.sectionTitle))}
             </div>
           )}
           <div style={{ display: 'flex', flexDirection: 'column' }}>
@@ -1214,7 +1231,7 @@ export default function HomePage() {
           <div className="the-hindu-opinion-box">
             <div className="opinion-crest-header">
               <CrestLogo style={{ width: '22px', height: '22px' }} />
-              <span className="opinion-crest-title">{t(inst.sectionTitle || 'EDITORIAL OPINION')}</span>
+              <span className="opinion-crest-title">{t(cleanSectionTitle(inst.sectionTitle) || 'EDITORIAL OPINION')}</span>
             </div>
             <h3
               className="opinion-main-title"
@@ -1802,7 +1819,7 @@ export default function HomePage() {
               <div className="section-ribbon-header">
                 <div className="section-ribbon-title">
                   <span className="bar" />
-                  <span>{t(customSec.sectionTitle || customSec.zoneName)}</span>
+                  <span>{t(cleanSectionTitle(customSec.sectionTitle || customSec.zoneName))}</span>
                   <span style={{ fontSize: '11px', background: 'rgba(185, 0, 20, 0.15)', color: '#b90014', padding: '2px 8px', borderRadius: '4px', marginLeft: '6px' }}>
                     {t(customSec.zoneBadge || customSec.category)}
                   </span>
