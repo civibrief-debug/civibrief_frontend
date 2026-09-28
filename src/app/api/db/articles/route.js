@@ -17,7 +17,6 @@ function formatArticle(r) {
     coverMediaType: isMakeMoney ? 'video' : (r.coverMediaType || (r.videoUrl ? 'video' : 'image')),
     videoUrl: isMakeMoney ? '/videos/make-money-cover.mp4' : r.videoUrl,
     imageUrl: isMakeMoney ? '/videos/make-money-poster.jpg' : r.imageUrl,
-    readTime: '',
     isHero: Boolean(r.isHero),
     isEditorsPick: Boolean(r.isEditorsPick),
     isTrending: Boolean(r.isTrending),
